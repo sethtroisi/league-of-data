@@ -79,7 +79,7 @@ for fileNumber in range(1, 11):
   games = parsed['matches']
   for game in games:
     metrics = parseGameRough(game)
-    output.write(str(metrics))
+    output.write(str(metrics) + '\n')
     print (gameNum, metrics)
     gameNum += 1
 
