@@ -93,6 +93,9 @@ for fileNumber in range(1, 11):
 #    print ('{} <= {}'.format(result, features))
     gameNum += 1
 
+output.close()
+
 print ("parsed {} games".format(gameNum))
 
-output.close()
+example = jsonString[:70] + ('...' if (len(jsonString) > 70) else '')
+print ("example line: '{}'".format(example))
