@@ -60,7 +60,7 @@ def trainModel(trainingFeatures, trainingGoals, testFeatures):
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
-  clf = SGDClassifier(loss="hinge", penalty="l2", n_iter=10, verbose=True, random_state=12)
+  clf = SGDClassifier(loss="hinge", penalty="l2", n_iter=20, verbose=False)
 
   clf.fit(trainingFeatures, trainingGoals)
 
