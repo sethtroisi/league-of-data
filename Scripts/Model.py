@@ -1,5 +1,6 @@
 import json
 from sklearn.linear_model import SGDClassifier
+import random
 
 #X = [[0., 0.], [0., 1.], [0., 2.], [0., 3.]]
 #y = [0, 0, 1, 1]
@@ -30,8 +31,10 @@ def loadOutputFile():
       else:
         intVersion.append(feature)
 
+    intVersion = intVersion[:2] 
+
     features.append(intVersion)
-    goals.append(parsed['goal'])
+    goals.append(-1 + 2 * parsed['goal'])
 
   f.close()
 
@@ -41,6 +44,7 @@ def loadOutputFile():
   holdBackSize = (sampleSize * holdBackPercent) // 100
 
   print ("loaded {} games".format(len(goals)))
+  print ()
  
   trainingFeatures = features[:-holdBackSize]
   trainingGoals = goals[:-holdBackSize]
@@ -52,15 +56,19 @@ def loadOutputFile():
 
 
 def trainModel(trainingFeatures, trainingGoals, testFeatures):
-  clf = SGDClassifier(loss="hinge", penalty="l2")
+  #SGDClassifier(alpha=0.0001, class_weight=None, epsilon=0.1, eta0=0.0,
+  #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
+  #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
+  #       random_state=None, shuffle=False, verbose=True, warm_start=False)
+  clf = SGDClassifier(loss="hinge", penalty="l2", n_iter=10, verbose=True, random_state=12)
 
   clf.fit(trainingFeatures, trainingGoals)
 
-  print ("train?")
-  SGDClassifier(alpha=0.0001, class_weight=None, epsilon=0.1, eta0=0.0,
-         fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
-         loss='hinge', n_iter=5, n_jobs=1, penalty='l2', power_t=0.5,
-         random_state=None, shuffle=False, verbose=True, warm_start=False)
+  print (clf.coef_)
+  print (clf.intercept_)
+  print ()
+  #print (clf.predict_proba(testFeatures))
+  #print (clf.decision_function(testFeatures))
 
   return clf.predict(testFeatures)
 
@@ -72,6 +80,7 @@ print ("With training set size: {} x {} features".format(
 
 print ("With test set size: {} x {} features".format(
     len(testGoals), len(testFeatures[0])))
+print ()
 
 modelGoals = trainModel(trainFeatures, trainGoals, testFeatures)
 
@@ -82,3 +91,7 @@ testSamples = len(correctPredictions)
 
 print ("Correctness: {}/{} = {:2.1f}".format(
   corrects, testSamples, 100 * corrects / testSamples))
+
+print ("Predict A: {}, B: {}".format(
+    len([i for i in modelGoals if i == True]),
+    len([i for i in modelGoals if i == False])))
