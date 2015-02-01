@@ -64,21 +64,30 @@ def parseGameRough(match):
 #  champNames = list(map(championIdToName, championIds))
 #  print ("Names: {}".format(champNames))
 
-#  dragons = []
-#  frames = match['timeline']['frames']
-#  for frame in frames:
-#    events = frame.get('events', [])
-#    for event in events:
-#      monsterType = event.get('monsterType', None)
-#      if monsterType == 'DRAGON':
-#        time = event['timestamp']
-#        killer = event['killerId']
+  dragons = []
+  frames = match['timeline']['frames']
+  for frame in frames:
+    events = frame.get('events', [])
+    for event in events:
+      monsterType = event.get('monsterType', None)
+      if monsterType == 'DRAGON':
+        time = event['timestamp']
+        killer = event['killerId']
 #        print ("killer {} @{:.0f}s".format(
 #          champNames[killer-1], time / 1000))
-#        dragons.append((time, killer in teamOne))
+        dragons.append((time, killer))
+
+  firstDragonFeature = [False, False]
+  if len(dragons) > 0:
+    firstDragonFeature[0] = dragons[0][1] in teamOne
+    firstDragonFeature[1] = dragons[0][1] in teamTwo
+
+  features = firstDragonFeature
+#    teamOneChampFeatures + \
+#    teamTwoChampFeatures
 
   result = match['teams'][0]['winner']
-  return result, teamOneChampFeatures + teamTwoChampFeatures
+  return result, features
 
 
 # MAIN CODE
@@ -98,7 +107,9 @@ for fileNumber in range(1, 11):
 
     output.write(jsonString + '\n')
 
-    print ('{} <= {}'.format(result, features))
+#    print ('{} <= {}'.format(result, features))
     gameNum += 1
+
+print ("parsed {} games".format(gameNum))
 
 output.close()

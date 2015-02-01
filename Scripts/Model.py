@@ -20,8 +20,19 @@ def loadOutputFile():
   for line in f.readlines():
     parsed = json.loads(line)
 
-    features.append(parsed['features'])
+    gameFeatures = parsed['features']
+    intVersion = []
+    for feature in gameFeatures:
+      if feature == True:
+        intVersion.append(1)
+      elif feature == False:
+        intVersion.append(-1)
+      else:
+        intVersion.append(feature)
+
+    features.append(intVersion)
     goals.append(parsed['goal'])
+
   f.close()
 
 
@@ -45,10 +56,11 @@ def trainModel(trainingFeatures, trainingGoals, testFeatures):
 
   clf.fit(trainingFeatures, trainingGoals)
 
+  print ("train?")
   SGDClassifier(alpha=0.0001, class_weight=None, epsilon=0.1, eta0=0.0,
          fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
          loss='hinge', n_iter=5, n_jobs=1, penalty='l2', power_t=0.5,
-         random_state=None, shuffle=False, verbose=0, warm_start=False)
+         random_state=None, shuffle=False, verbose=True, warm_start=False)
 
   return clf.predict(testFeatures)
 
@@ -69,4 +81,4 @@ corrects = correctPredictions.count(True)
 testSamples = len(correctPredictions)
 
 print ("Correctness: {}/{} = {:2.1f}".format(
-  corrects, testSamples, corrects / testSamples))
+  corrects, testSamples, 100 * corrects / testSamples))
