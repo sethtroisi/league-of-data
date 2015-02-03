@@ -60,6 +60,7 @@ def trainModel(trainingFeatures, trainingGoals, testFeatures):
   clf.fit(trainingFeatures, trainingGoals)
 
   print ("Score:", clf.score(trainingFeatures, trainingGoals))
+  print ()
 
 
   print (clf.coef_)
@@ -71,7 +72,7 @@ def trainModel(trainingFeatures, trainingGoals, testFeatures):
 
   sumProp = sum([max(prob) for prob in predictions])
   normalized = sumProp / len(testFeatures)
-  print ("sum prob: {:4f}".format(normalized))
+  print ("Sum prob: {:4f}".format(normalized))
 
   return predictions
 
@@ -87,15 +88,29 @@ print ()
 
 modelGoals = trainModel(trainFeatures, trainGoals, testFeatures)
 
-correctPredictions = [(modelGuess[1] > 0.5) == testResult
-    for modelGuess, testResult in zip(modelGoals, testGoals)]
+samples = len(testGoals)
 
-corrects = correctPredictions.count(True)
-testSamples = len(correctPredictions)
+corrects = 0
+predictA = 0
+predictB = 0
+sumPropCorrect = 0
+for modelGuess, testResult in zip(modelGoals, testGoals):
+  correct = (modelGuess[1] > 0.5) == testResult
+  if correct:
+    corrects += 1
+    sumPropCorrect += max(modelGuess) - 0.5
+  else:
+    sumPropCorrect -= max(modelGuess) - 0.5
+
+  predictA += modelGuess[0] > 0.5
+  predictB += modelGuess[1] > 0.5
+    
 
 print ("Correctness: {}/{} = {:2.1f}".format(
-  corrects, testSamples, 100 * corrects / testSamples))
+    corrects, samples, 100 * corrects / samples))
 
-print ("Predict A: {}, B: {}".format(
-    len([i for i in modelGoals if i[0] > 0.5]),
-    len([i for i in modelGoals if i[1] > 0.5])))
+print ("Predict A: {}, B: {}".format(predictA, predictB))
+
+print ("Average Correct Prop - error: {:.3f}".format(
+    sumPropCorrect / samples))
+
