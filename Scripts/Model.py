@@ -2,13 +2,6 @@ import json
 from sklearn.linear_model import SGDClassifier
 import random
 
-#X = [[0., 0.], [0., 1.], [0., 2.], [0., 3.]]
-#y = [0, 0, 1, 1]
-#for y in range(0, 50):
-#  test = [0., y / 10.0]
-#  print (test)
-#  print (clf.predict([test]), clf.decision_function([test]))
-
 DATA_DIR = '../Data/'
 OUTPUT_FILE = DATA_DIR + 'output.txt'
 
@@ -22,16 +15,20 @@ def loadOutputFile():
     parsed = json.loads(line)
 
     gameFeatures = parsed['features']
-    intVersion = []
-    for feature in gameFeatures:
-      intVersion.append(1 if feature else 0)
 
-    intVersion = intVersion[:2]
-    features.append(intVersion)
+    boolVersion = gameFeatures[:2]
+
+    dragonTime = gameFeatures[2] // 1000
+
+    assert 0 < dragonTime < 2*60*60 or dragonTime == 10 ** 7
+    for i in range(7, 12):
+      boolVersion.append(dragonTime < 2 ** i)
+
+    features.append(boolVersion)
 
     goal = parsed['goal']
     assert goal in (True, False)
-    goals.append(1 if goal else 0)
+    goals.append(goal)
 
   f.close()
 
@@ -42,7 +39,7 @@ def loadOutputFile():
 
   print ("loaded {} games".format(len(goals)))
   print ()
- 
+
   trainingFeatures = features[:-holdBackSize]
   trainingGoals = goals[:-holdBackSize]
 
@@ -57,18 +54,26 @@ def trainModel(trainingFeatures, trainingGoals, testFeatures):
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
-  clf = SGDClassifier(loss="log", penalty="l2", n_iter=20, verbose=True)
+  clf = SGDClassifier(loss="log", penalty="l2", n_iter=1000, shuffle=True,
+    alpha = 0.01, verbose = False)
 
   clf.fit(trainingFeatures, trainingGoals)
+
+  print ("Score:", clf.score(trainingFeatures, trainingGoals))
+
 
   print (clf.coef_)
   print ("intercept: {:4.3f}, TrueProp: {:3.1f}%".format(
       clf.intercept_[0], 100 * trainingGoals.count(True) / len(trainingGoals)))
   print ()
-  #print (clf.predict_proba(testFeatures))
-  #print (clf.decision_function(testFeatures))
 
-  return clf.predict_proba(testFeatures)
+  predictions = clf.predict_proba(testFeatures)
+
+  sumProp = sum([max(prob) for prob in predictions])
+  normalized = sumProp / len(testFeatures)
+  print ("sum prob: {:4f}".format(normalized))
+
+  return predictions
 
 
 trainFeatures, trainGoals, testFeatures, testGoals = loadOutputFile()
