@@ -1,6 +1,8 @@
 import json
+import math
+
 from sklearn.linear_model import SGDClassifier
-import random
+
 
 DATA_DIR = '../Data/'
 OUTPUT_FILE = DATA_DIR + 'output.txt'
@@ -16,15 +18,17 @@ def loadOutputFile():
 
     gameFeatures = parsed['features']
 
-    boolVersion = gameFeatures[:2]
-
+    firstDragon = gameFeatures[:2]
     dragonTime = gameFeatures[2] // 1000
-
     assert 0 < dragonTime < 2*60*60 or dragonTime == 10 ** 7
     for i in range(7, 12):
-      boolVersion.append(dragonTime < 2 ** i)
+      firstDragon.append(dragonTime < 2 ** i)
 
-    features.append(boolVersion)
+    firstTower = gameFeatures[3:5]
+
+    feature = firstDragon + firstTower
+    assert (feature.count(True) + feature.count(False)) == len(feature)
+    features.append(feature)
 
     goal = parsed['goal']
     assert goal in (True, False)
@@ -62,17 +66,12 @@ def trainModel(trainingFeatures, trainingGoals, testFeatures):
   print ("Score:", clf.score(trainingFeatures, trainingGoals))
   print ()
 
-
   print (clf.coef_)
   print ("intercept: {:4.3f}, TrueProp: {:3.1f}%".format(
       clf.intercept_[0], 100 * trainingGoals.count(True) / len(trainingGoals)))
   print ()
 
   predictions = clf.predict_proba(testFeatures)
-
-  sumProp = sum([max(prob) for prob in predictions])
-  normalized = sumProp / len(testFeatures)
-  print ("Sum prob: {:4f}".format(normalized))
 
   return predictions
 
@@ -93,24 +92,22 @@ samples = len(testGoals)
 corrects = 0
 predictA = 0
 predictB = 0
-sumPropCorrect = 0
+logLoss = 0
 for modelGuess, testResult in zip(modelGoals, testGoals):
-  correct = (modelGuess[1] > 0.5) == testResult
-  if correct:
-    corrects += 1
-    sumPropCorrect += max(modelGuess) - 0.5
+  if testResult:
+    logLoss += (1 - modelGuess[1])
   else:
-    sumPropCorrect -= max(modelGuess) - 0.5
+    logLoss += (1 - modelGuess[0])
 
-  predictA += modelGuess[0] > 0.5
-  predictB += modelGuess[1] > 0.5
-    
+  correct = (modelGuess[1] > 0.5) == testResult
+  corrects += correct
+
+  predictA += modelGuess[1] > 0.5
+  predictB += modelGuess[0] > 0.5
+
+print ("Predict A: {}, B: {}".format(predictA, predictB))
 
 print ("Correctness: {}/{} = {:2.1f}".format(
     corrects, samples, 100 * corrects / samples))
 
-print ("Predict A: {}, B: {}".format(predictA, predictB))
-
-print ("Average Correct Prop - error: {:.3f}".format(
-    sumPropCorrect / samples))
-
+print ("log loss: {:.3f}".format(logLoss / samples))

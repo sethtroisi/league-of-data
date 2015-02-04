@@ -42,11 +42,12 @@ def parseGameRough(match):
  
   assert teamOneChampFeatures.count(True) == 5
   assert teamTwoChampFeatures.count(True) == 5
+  champNames = list(map(championIdToName, championIds))
 #  print ("Champions: {}".format(championIds))
-#  champNames = list(map(championIdToName, championIds))
 #  print ("Names: {}".format(champNames))
 
   dragons = []
+  towers = []
   frames = match['timeline']['frames']
   for frame in frames:
     events = frame.get('events', [])
@@ -55,9 +56,15 @@ def parseGameRough(match):
       if monsterType == 'DRAGON':
         time = event['timestamp']
         killer = event['killerId']
-#        print ("killer {} @{:.0f}s".format(
-#          champNames[killer-1], time / 1000))
         dragons.append((time, killer))
+
+      buildingType = event.get('buildingType', None)
+      if buildingType == 'TOWER_BUILDING':
+        time = event['timestamp']
+        killer = event['killerId']
+        towers.append((time, killer))
+        #print ("killer {} @{:.0f}s".format(
+        #  champNames[killer - 1], time / 1000))
 
   firstDragonFeature = [False, False, 10 ** 10]
   if len(dragons) > 0:
@@ -65,7 +72,14 @@ def parseGameRough(match):
     firstDragonFeature[1] = dragons[0][1] in teamTwo
     firstDragonFeature[2] = dragons[0][0]
 
-  features = firstDragonFeature
+  firstTowerFeature = [False, False, 10 ** 10]
+  if len(towers) > 0:
+    firstTowerFeature[0] = towers[0][1] in teamOne
+    firstTowerFeature[1] = towers[0][1] in teamTwo
+    firstTowerFeature[2] = towers[0][0]
+
+
+  features = firstDragonFeature + firstTowerFeature
 #    teamOneChampFeatures + \
 #    teamTwoChampFeatures
 
