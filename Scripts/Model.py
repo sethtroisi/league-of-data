@@ -1,57 +1,6 @@
-import json
-import math
+from Featurize import *
 
 from sklearn.linear_model import SGDClassifier
-
-
-DATA_DIR = '../Data/'
-OUTPUT_FILE = DATA_DIR + 'output.txt'
-
-
-def loadOutputFile():
-  features = []
-  goals = []
-
-  f = open(OUTPUT_FILE)
-  for line in f.readlines():
-    parsed = json.loads(line)
-
-    gameFeatures = parsed['features']
-
-    firstDragon = gameFeatures[:2]
-    dragonTime = gameFeatures[2] // 1000
-    assert 0 < dragonTime < 2*60*60 or dragonTime == 10 ** 7
-    for i in range(7, 12):
-      firstDragon.append(dragonTime < 2 ** i)
-
-    firstTower = gameFeatures[3:5]
-
-    feature = firstDragon + firstTower
-    assert (feature.count(True) + feature.count(False)) == len(feature)
-    features.append(feature)
-
-    goal = parsed['goal']
-    assert goal in (True, False)
-    goals.append(goal)
-
-  f.close()
-
-
-  sampleSize = len(goals)
-  holdBackPercent = 20
-  holdBackSize = (sampleSize * holdBackPercent) // 100
-
-  print ("loaded {} games".format(len(goals)))
-  print ()
-
-  trainingFeatures = features[:-holdBackSize]
-  trainingGoals = goals[:-holdBackSize]
-
-  testFeatures = features[-holdBackSize:]
-  testGoals = goals[-holdBackSize:]
-
-  return [trainingFeatures, trainingGoals, testFeatures, testGoals]
-
 
 def trainModel(trainingFeatures, trainingGoals, testFeatures):
   #SGDClassifier(alpha=0.0001, class_weight=None, epsilon=0.1, eta0=0.0,
@@ -76,7 +25,7 @@ def trainModel(trainingFeatures, trainingGoals, testFeatures):
   return predictions
 
 
-trainFeatures, trainGoals, testFeatures, testGoals = loadOutputFile()
+trainFeatures, trainGoals, testFeatures, testGoals = getTrainingAndTestData()
 
 print ("With training set size: {} x {} features".format(
     len(trainGoals), len(trainFeatures[0])))
