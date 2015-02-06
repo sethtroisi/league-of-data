@@ -11,16 +11,24 @@ OUTPUT_FILE = DATA_DIR + 'output.txt'
 def parseGame(parsed):
   gameFeatures = parsed['features']
 
-  firstDragon = gameFeatures[:2]
-  dragonTime = gameFeatures[2] // 1000
-  assert 0 < dragonTime < 2*60*60 or dragonTime == 10 ** 7
-  for i in range(7, 12):
-    firstDragon.append(dragonTime < 2 ** i)
+  dragons = gameFeatures['dragons']
+  towers = gameFeatures['towers']
 
-  firstTower = gameFeatures[3:5]
+#  print (dragons)
+#  print (towers)
 
-  features = firstDragon + firstTower
-  
+  firstDragon = [False] * (2 + 5)
+  if len(dragons) > 0:
+    dragonTime, isTeamOne = dragons[0]
+    firstDragon[0] = isTeamOne
+    firstDragon[1] = not isTeamOne
+
+    assert 0 < dragonTime < 2*60*60 or dragonTime == 10 ** 7
+    for i in range(5):
+      firstDragon[2 + i] = dragonTime < 2 ** (7 + i)
+
+  features = firstDragon
+ 
   goal = parsed['goal']
 
   return features, goal

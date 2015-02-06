@@ -34,3 +34,18 @@ def championIdToName(champId):
       return k
   print (champId)
   return str(champId)
+
+
+def getTowerNumber(isTeamOne, lane, tower):
+  lanes = ('BOT_LANE', 'MID_LANE', 'TOP_LANE')
+  towers = ('OUTER_TURRET', 'INNER_TURRET', 'BASE_TURRET', 'NEXUS_TURRET')
+
+  # TODO(sethtroisi): figure out how to deal with both NEXUS_TOWER being in MID_LANE
+
+  assert isTeamOne in (False, True)
+  assert lane in lanes
+  assert tower in towers
+
+  return len(towers) * len(lanes) * (isTeamOne == False) + \
+      lanes.index(lane) * len(towers) + \
+      towers.index(tower)

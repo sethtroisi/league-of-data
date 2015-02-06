@@ -54,34 +54,36 @@ def parseGameRough(match):
     for event in events:
       monsterType = event.get('monsterType', None)
       if monsterType == 'DRAGON':
-        time = event['timestamp']
+        time = event['timestamp'] // 1000
         killer = event['killerId']
-        dragons.append((time, killer))
+        isTeamOne = killer in teamOne
+        dragons.append((time, isTeamOne))
 
       buildingType = event.get('buildingType', None)
       if buildingType == 'TOWER_BUILDING':
-        time = event['timestamp']
+        time = event['timestamp'] // 1000
         killer = event['killerId']
-        towers.append((time, killer))
-        #print ("killer {} @{:.0f}s".format(
-        #  champNames[killer - 1], time / 1000))
+        towerType = event['towerType']
+        laneType = event['laneType']
+        isTeamOne = event['teamId'] == 100
 
-  firstDragonFeature = [False, False, 10 ** 10]
-  if len(dragons) > 0:
-    firstDragonFeature[0] = dragons[0][1] in teamOne
-    firstDragonFeature[1] = dragons[0][1] in teamTwo
-    firstDragonFeature[2] = dragons[0][0]
+        if towerType == 'FOUNTAIN_TURRET':
+          # TODO(sehtroisi): figure out what causes this.
+          continue
 
-  firstTowerFeature = [False, False, 10 ** 10]
-  if len(towers) > 0:
-    firstTowerFeature[0] = towers[0][1] in teamOne
-    firstTowerFeature[1] = towers[0][1] in teamTwo
-    firstTowerFeature[2] = towers[0][0]
+        towerNum = getTowerNumber(isTeamOne, laneType, towerType)
 
+#        print ("killer {} @{:.0f}s: ({} x {} x {}) = {}".format(
+#          champNames[killer - 1], time / 1000,
+#          isTeamOne, laneType, towerType, towerNum))
 
-  features = firstDragonFeature + firstTowerFeature
-#    teamOneChampFeatures + \
-#    teamTwoChampFeatures
+        # TODO(sethtroisi): Stop mid nexus turret double count.
+        #assert all(tNum != towerNum for t, k, tNum in towers)
+        towers.append((time, towerNum))
+
+  features = dict()
+  features['dragons'] = dragons
+  features['towers'] = towers
 
   result = match['teams'][0]['winner']
   return result, features
