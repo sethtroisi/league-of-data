@@ -14,9 +14,6 @@ def parseGame(parsed):
   dragons = gameFeatures['dragons']
   towers = gameFeatures['towers']
 
-#  print (dragons)
-#  print (towers)
-
   firstDragon = [False] * (2 + 5)
   if len(dragons) > 0:
     dragonTime, isTeamOne = dragons[0]
@@ -27,10 +24,15 @@ def parseGame(parsed):
     for i in range(5):
       firstDragon[2 + i] = dragonTime < 2 ** (7 + i)
 
-  features = firstDragon
- 
-  goal = parsed['goal']
+  towerFeatures = [False] * (2 * 3 * 4)
+  # Note: only use the first n tower to avoid overfitting
+  # TODO(sethtroisi): block on time to avoid overfitting
+  for towerData in towers[:2]:
+    towerTime, towerNum = towerData
+    towerFeatures[towerNum] = True
 
+  features = firstDragon + towerFeatures
+  goal = parsed['goal']
   return features, goal
 
 

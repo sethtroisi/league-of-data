@@ -44,9 +44,9 @@ predictB = 0
 logLoss = 0
 for modelGuess, testResult in zip(modelGoals, testGoals):
   if testResult:
-    logLoss += (1 - modelGuess[1])
+    logLoss += -math.log(modelGuess[0])
   else:
-    logLoss += (1 - modelGuess[0])
+    logLoss += -math.log(modelGuess[1])
 
   correct = (modelGuess[1] > 0.5) == testResult
   corrects += correct
@@ -60,3 +60,4 @@ print ("Correctness: {}/{} = {:2.1f}".format(
     corrects, samples, 100 * corrects / samples))
 
 print ("log loss: {:.3f}".format(logLoss / samples))
+print ("\thigher is better, null model is .697")
