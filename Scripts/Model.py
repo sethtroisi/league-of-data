@@ -16,7 +16,7 @@ def trainModel(trainingFeatures, trainingGoals, testFeatures):
   print ("Score:", clf.score(trainingFeatures, trainingGoals))
   print ()
 
-  #print (clf.coef_)
+  print (clf.coef_)
   #print ("intercept: {:4.3f}, TrueProp: {:3.1f}%".format(
   #    clf.intercept_[0], 100 * trainingGoals.count(True) / len(trainingGoals)))
   #print ()

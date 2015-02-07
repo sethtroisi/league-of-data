@@ -7,6 +7,7 @@ from sklearn.linear_model import SGDClassifier
 DATA_DIR = '../Data/'
 OUTPUT_FILE = DATA_DIR + 'output.txt'
 
+SECONDS_PER_BLOCK = 5 * 60
 
 # Creates several features from the first dragon (team, time)
 def firstDragonFeatures(dragons):
@@ -23,13 +24,15 @@ def firstDragonFeatures(dragons):
 
 
 # Creates several features about total dragon taken (team, count)
-def dragonFeatures(dragons):
+def dragonFeatures(dragons, sampleTime):
   lastDragon = [False] * 2
   takenDragons = [False] * (2 * 5)
 
   dragonsA, dragonsB = 0, 0
-  for dragon in dragons[:1]:
+  for dragon in dragons:
     dragonTime, isTeamOne = dragon
+    if dragonTime > sampleTime:
+      break
 
     if isTeamOne:
       lastDragon = [True, False]
@@ -48,68 +51,94 @@ def dragonFeatures(dragons):
 
 
 # Creates several features from towers (team, position)
-def towerFeatures(towers):
+def towerFeatures(towers, sampleTime):
   takenTowers = [False] * (2 * 3 * 4)
 
   # Note: only use the first n tower to avoid overfitting
   # TODO(sethtroisi): block on time to avoid overfitting
-  for towerData in towers[:2]:
+  for towerData in towers:
     towerTime, towerNum = towerData
+    if towerTime > sampleTime:
+      break
+
     takenTowers[towerNum] = True
 
   return takenTowers
 
 
-def parseGame(parsed):
+def parseGameToBlocks(parsed):
   gameFeatures = parsed['features']
 
   dragons = gameFeatures['dragons']
   towers = gameFeatures['towers']
 
-  features = []
-  features += dragonFeatures(dragons)
-  features += towerFeatures(towers)
+  blocks = []
+
+  duration = gameFeatures['duration']
+
+  totalBlocks = duration // SECONDS_PER_BLOCK
+  for blockNum in range(totalBlocks + 1):
+    time = blockNum * SECONDS_PER_BLOCK
+
+    features = []
+    features += dragonFeatures(dragons, time)
+#    features += towerFeatures(towers, time)
+
+#    print (blockNum, features.count(True))
+
+    blocks.append(features)
 
   goal = parsed['goal']
-
-  return features, goal
+  return blocks, goal
 
 
 def loadOutputFile():
-  features = []
+  matches = []
   goals = []
 
   dataFile = open(OUTPUT_FILE)
   for line in dataFile.readlines():
     parsed = json.loads(line)
 
-    matchFeatures, goal = parseGame(parsed)
+    matchBlocks, goal = parseGameToBlocks(parsed)
 
-    assert all([f in (True, False) for f in matchFeatures])
+    assert all([f in (True, False)
+        for features in matchBlocks for f in features])
     assert goal in (True, False)
 
-    features.append(matchFeatures)
+    matches.append(matchBlocks)
     goals.append(goal)
 
   dataFile.close()
 
-  return goals, features
+  return goals, matches
 
 
 def getTrainingAndTestData():
-  goals, features = loadOutputFile()
+  goals, matches = loadOutputFile()
 
   sampleSize = len(goals)
+  print ("loaded {} games".format(sampleSize))
+
+  lastBlock = max(len(blocks) for blocks in matches)
+  numBlocks = [0] * lastBlock
+  for blocks in matches:
+    numBlocks[len(blocks) - 1] += 1
+
+  print ("Games with X blocks: {}".format(numBlocks))
+  print ("totalBlocks: {}".format(sum(len(blocks) for blocks in matches)))
+  print ()
+
+  # Decide how many games to hold back for testing.
   holdBackPercent = 20
   holdBackSize = (sampleSize * holdBackPercent) // 100
 
-  print ("loaded {} games".format(len(goals)))
-  print ()
-
-  trainingFeatures = features[:-holdBackSize]
+  trainingMatches = matches[:-holdBackSize]
+  trainingFeatures = [match[2] for match in trainingMatches]
   trainingGoals = goals[:-holdBackSize]
 
-  testFeatures = features[-holdBackSize:]
+  testMatches = matches[-holdBackSize:]
+  testFeatures = [match[2] for match in testMatches]
   testGoals = goals[-holdBackSize:]
 
   return [trainingFeatures, trainingGoals, testFeatures, testGoals]

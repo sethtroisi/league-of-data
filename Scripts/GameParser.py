@@ -106,6 +106,7 @@ def parseGameRough(match):
   features = dict()
   features['dragons'] = dragons
   features['towers'] = towers
+  features['duration'] = match['matchDuration']
 
   result = match['teams'][0]['winner']
   return result, features
