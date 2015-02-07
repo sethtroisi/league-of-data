@@ -42,26 +42,24 @@ samples = len(testGoals)
 corrects = 0
 predictA = 0
 predictB = 0
-logLoss = 0
 for modelGuess, testResult in zip(modelGoals, testGoals):
   BProb, AProb = modelGuess # this is due to the sorting of [False, True]
-  logLoss += -(testResult * math.log(AProb))  + -((1 - testResult) * math.log(BProb))
 
-  correct = (modelGuess[1] > 0.5) == testResult
+  correct = (AProb > 0.5) == testResult
   corrects += correct
 
-  predictA += modelGuess[1] > 0.5
-  predictB += modelGuess[0] > 0.5
+  predictA += AProb > 0.5
+  predictB += BProb > 0.5
 
 print ("Predict A: {}, B: {}".format(predictA, predictB))
 print ("True A: {}, B: {}".format(
     testGoals.count(True), testGoals.count(False)))
+print ()
 
 print ("Correctness: {}/{} = {:2.1f}".format(
     corrects, samples, 100 * corrects / samples))
+print ()
 
-print ("log loss: {:.3f}".format(logLoss / samples))
-print ("\tlower is better, null model is .691")
-
-print ("Calculated log loss: {}".format(
+print ("log loss: {:.3f}".format(
     sklearn.metrics.log_loss(testGoals, modelGoals)))
+print ("\t(lower is better, null model is .691)")
