@@ -1,4 +1,6 @@
+import argparse
 import json
+import random
 from Util import *
 
 # API REFERENCE
@@ -19,10 +21,30 @@ FILE_NAME = DATA_DIR + 'matches{}.json'
 OUTPUT_FILE = DATA_DIR + 'output.txt'
 
 
+def getArgParse():
+  parser = argparse.ArgumentParser(description='Parses Games and produces features.')
+  parser.add_argument(
+      '-f', '--full-examples',
+      action="store_true",
+      help='print full examples')
+  parser.add_argument(
+      '-e', '--examples',
+      type=int,
+      default=2,
+      help='how many examples to print')
+  parser.add_argument(
+      '-l', '--limited',
+      action="store_true",
+      help='run over only the first match file')
+  parser.add_argument(
+      '-n', '--dry-run',
+      action="store_true",
+      help='don\'t write output file instead print to screen')
+  return parser
+
+
 # takes in a match json object and returns features about it.
 def parseGameRough(match):
-#  print ("keys:", match.keys())
-
   teamInfo = match['participants']
 
   # for now we return champtionId, firstDragon team, firstDragon time
@@ -33,13 +55,13 @@ def parseGameRough(match):
 
   teamOneChampIds = championIds[:5]
   teamTwoChampIds = championIds[5:]
- 
+
   teamOneChampFeatures = []
   teamTwoChampFeatures = []
   for champ, champId in getChamps():
       teamOneChampFeatures.append(champId in teamOneChampIds)
       teamTwoChampFeatures.append(champId in teamTwoChampIds)
- 
+
   assert teamOneChampFeatures.count(True) == 5
   assert teamTwoChampFeatures.count(True) == 5
   champNames = list(map(championIdToName, championIds))
@@ -89,29 +111,50 @@ def parseGameRough(match):
   return result, features
 
 
-# MAIN CODE
+def main(args):
 
-output = open(OUTPUT_FILE, mode='w')
+  gameNum = 0
+  outputData = []
 
-gameNum = 0
-for fileNumber in range(1, 11):
-  fileData = loadFile(FILE_NAME.format(fileNumber))
-  parsed = json.loads(fileData)
+  lastFile = 1 if args.limited else 10
+  for fileNumber in range(1, lastFile + 1):
+    fileData = loadFile(FILE_NAME.format(fileNumber))
+    parsed = json.loads(fileData)
 
-  games = parsed['matches']
-  for game in games:
-    result, features = parseGameRough(game)
-    jsonObject = {'goal': result, 'features': features}
-    jsonString = json.dumps(jsonObject)
+    games = parsed['matches']
+    for game in games:
+      result, features = parseGameRough(game)
+      jsonObject = {'goal': result, 'features': features}
+      jsonString = json.dumps(jsonObject)
 
-    output.write(jsonString + '\n')
+      outputData.append(jsonString)
+      gameNum += 1
 
-#    print ('{} <= {}'.format(result, features))
-    gameNum += 1
+  print ("parsed {} games".format(gameNum))
 
-output.close()
+  if not args.dry_run:
+    output = open(OUTPUT_FILE, mode='w')
+    for line in outputData:
+        output.write(line + '\n')
+    output.close()
 
-print ("parsed {} games".format(gameNum))
+    print ("wrote games to output file ('{}')".format(OUTPUT_FILE))
+  else:
+    for line, data in enumerate(outputData, 1):
+      print ('{}: {}'.format(line, data))
 
-example = jsonString[:70] + ('...' if (len(jsonString) > 70) else '')
-print ("example line: '{}'".format(example))
+  exampleLines = random.sample(range(gameNum), args.examples)
+  for exampleLine in exampleLines:
+    game = outputData[exampleLine]
+    if args.full_examples:
+      example = game
+    else:
+      example = game[:70] + ('..' if len(jsonString) > 70 else '')
+
+    print ()
+    print ("line {}: '{}'".format(exampleLine, example))
+
+
+# START CODE HERE
+args = getArgParse().parse_args()
+main(args)
