@@ -74,5 +74,3 @@ def getTrainingAndTestData():
   testGoals = goals[-holdBackSize:]
 
   return [trainingFeatures, trainingGoals, testFeatures, testGoals]
-
-
