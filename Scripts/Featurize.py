@@ -8,12 +8,8 @@ DATA_DIR = '../Data/'
 OUTPUT_FILE = DATA_DIR + 'output.txt'
 
 
-def parseGame(parsed):
-  gameFeatures = parsed['features']
-
-  dragons = gameFeatures['dragons']
-  towers = gameFeatures['towers']
-
+# Creates several features from dragon (team, time)
+def firstDragonFeatures(dragons):
   firstDragon = [False] * (2 + 5)
   if len(dragons) > 0:
     dragonTime, isTeamOne = dragons[0]
@@ -23,16 +19,34 @@ def parseGame(parsed):
     assert 0 < dragonTime < 2*60*60 or dragonTime == 10 ** 7
     for i in range(5):
       firstDragon[2 + i] = dragonTime < 2 ** (7 + i)
+  return firstDragon
 
-  towerFeatures = [False] * (2 * 3 * 4)
+
+# Creates several features from towers (team, position)
+def towerFeatures(towers):
+  takenTowers = [False] * (2 * 3 * 4)
+
   # Note: only use the first n tower to avoid overfitting
   # TODO(sethtroisi): block on time to avoid overfitting
   for towerData in towers[:2]:
     towerTime, towerNum = towerData
-    towerFeatures[towerNum] = True
+    takenTowers[towerNum] = True
 
-  features = firstDragon + towerFeatures
+  return takenTowers
+
+
+def parseGame(parsed):
+  gameFeatures = parsed['features']
+
+  dragons = gameFeatures['dragons']
+  towers = gameFeatures['towers']
+
+  features = []
+  features += firstDragonFeatures(dragons)
+  features += towerFeatures(towers)
+
   goal = parsed['goal']
+
   return features, goal
 
 
