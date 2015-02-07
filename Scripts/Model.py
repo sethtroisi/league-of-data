@@ -16,10 +16,10 @@ def trainModel(trainingFeatures, trainingGoals, testFeatures):
   print ("Score:", clf.score(trainingFeatures, trainingGoals))
   print ()
 
-  print (clf.coef_)
-  print ("intercept: {:4.3f}, TrueProp: {:3.1f}%".format(
-      clf.intercept_[0], 100 * trainingGoals.count(True) / len(trainingGoals)))
-  print ()
+  #print (clf.coef_)
+  #print ("intercept: {:4.3f}, TrueProp: {:3.1f}%".format(
+  #    clf.intercept_[0], 100 * trainingGoals.count(True) / len(trainingGoals)))
+  #print ()
 
   predictions = clf.predict_proba(testFeatures)
 
@@ -60,6 +60,6 @@ print ("Correctness: {}/{} = {:2.1f}".format(
     corrects, samples, 100 * corrects / samples))
 print ()
 
-print ("log loss: {:.3f}".format(
+print ("log loss: {:.4f}".format(
     sklearn.metrics.log_loss(testGoals, modelGoals)))
-print ("\t(lower is better, null model is .691)")
+print ("\t(lower is better, null model is .6912)")

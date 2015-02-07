@@ -8,7 +8,7 @@ DATA_DIR = '../Data/'
 OUTPUT_FILE = DATA_DIR + 'output.txt'
 
 
-# Creates several features from dragon (team, time)
+# Creates several features from the first dragon (team, time)
 def firstDragonFeatures(dragons):
   firstDragon = [False] * (2 + 5)
   if len(dragons) > 0:
@@ -20,6 +20,31 @@ def firstDragonFeatures(dragons):
     for i in range(5):
       firstDragon[2 + i] = dragonTime < 2 ** (7 + i)
   return firstDragon
+
+
+# Creates several features about total dragon taken (team, count)
+def dragonFeatures(dragons):
+  lastDragon = [False] * 2
+  takenDragons = [False] * (2 * 5)
+
+  dragonsA, dragonsB = 0, 0
+  for dragon in dragons[:1]:
+    dragonTime, isTeamOne = dragon
+
+    if isTeamOne:
+      lastDragon = [True, False]
+
+      dragonsA += 1
+      if dragonsA <= 5:
+        takenDragons[dragonsA - 1] = True
+    else:
+      lastDragon = [False, True]
+
+      dragonsB += 1
+      if dragonsB <= 5:
+        takenDragons[5 + dragonsB - 1] = True
+
+  return lastDragon + takenDragons
 
 
 # Creates several features from towers (team, position)
@@ -42,7 +67,7 @@ def parseGame(parsed):
   towers = gameFeatures['towers']
 
   features = []
-  features += firstDragonFeatures(dragons)
+  features += dragonFeatures(dragons)
   features += towerFeatures(towers)
 
   goal = parsed['goal']
