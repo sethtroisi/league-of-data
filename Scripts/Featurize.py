@@ -129,16 +129,4 @@ def getTrainingAndTestData():
   print ("totalBlocks: {}".format(sum(len(blocks) for blocks in matches)))
   print ()
 
-  # Decide how many games to hold back for testing.
-  holdBackPercent = 20
-  holdBackSize = (sampleSize * holdBackPercent) // 100
-
-  trainingMatches = matches[:-holdBackSize]
-  trainingFeatures = [match[2] for match in trainingMatches]
-  trainingGoals = goals[:-holdBackSize]
-
-  testMatches = matches[-holdBackSize:]
-  testFeatures = [match[2] for match in testMatches]
-  testGoals = goals[-holdBackSize:]
-
-  return [trainingFeatures, trainingGoals, testFeatures, testGoals]
+  return goals, matches
