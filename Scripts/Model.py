@@ -2,6 +2,9 @@ from Featurize import *
 
 from sklearn.linear_model import SGDClassifier
 import sklearn.metrics
+import numpy as np
+import matplotlib.pyplot as pyplot
+
 
 def trainModel(trainGoals, trainFeatures):
   #SGDClassifier(alpha=0.0001, class_weight=None, epsilon=0.1, eta0=0.0,
@@ -65,9 +68,10 @@ def testModel(trainGoals, trainFeatures, testGoals, testFeatures):
 #  print ()
 #  print ()
 
+  return corrects, samples - corrects
 
 def seperateToTrainingAndTest(goals, blocks):
-  holdBackPercent = 20
+  holdBackPercent = 25
   sampleSize = len(goals)
   holdBackAmount = (holdBackPercent * sampleSize) // 100
 
@@ -81,11 +85,15 @@ def seperateToTrainingAndTest(goals, blocks):
 
 
 # MAIN CODE
+times = []
+samples = []
+corrects = []
+incorrects = []
+testingSize = []
+ratios = []
+
 goals, matches = getTrainingAndTestData()
-
-for blockNum in range(3, 10):
-  print ("Block number: {}".format(blockNum))
-
+for blockNum in range(100):
   blockGoals = []
   blockFeatures = []
 
@@ -94,7 +102,38 @@ for blockNum in range(3, 10):
       blockGoals.append(goal)
       blockFeatures.append(blocks[blockNum])
 
+  if len(blockGoals) < 50:
+    break
+
   trainGoals, trainFeatures, testGoals, testFeatures = \
     seperateToTrainingAndTest(blockGoals, blockFeatures)
 
-  testModel(trainGoals, trainFeatures, testGoals, testFeatures)
+  correct, incorrect = testModel(trainGoals, trainFeatures, testGoals, testFeatures)
+
+  # store data to graph
+  times.append(blockNum * SECONDS_PER_BLOCK / 60)
+  samples.append(len(blockGoals))
+
+  corrects.append(correct)
+  incorrects.append(incorrect)
+  testingSize.append(correct + incorrect)
+
+  ratios.append(correct / (correct + incorrect))
+
+fig, (axis1, axis2) = pyplot.subplots(2, 1)
+fig.subplots_adjust(hspace = 0.45)
+
+axis1.plot(times, ratios)
+axis1.set_title('Correct Predictions')
+axis1.set_xlabel('time (m)')
+axis1.set_ylabel('correctness')
+
+axis2.plot(times, samples, 'b',
+           times, testingSize, 'b',
+           times, corrects, 'g',
+           times, incorrects, 'r')
+axis2.set_title('Number of samples')
+axis2.set_xlabel('time (m)')
+axis2.set_ylabel('samples')
+
+pyplot.show()
