@@ -82,9 +82,7 @@ def parseGameToBlocks(parsed):
 
     features = []
     features += dragonFeatures(dragons, time)
-#    features += towerFeatures(towers, time)
-
-#    print (blockNum, features.count(True))
+    features += towerFeatures(towers, time)
 
     blocks.append(features)
 
