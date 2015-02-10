@@ -78,11 +78,13 @@ def parseGameToBlocks(parsed):
 
   totalBlocks = duration // SECONDS_PER_BLOCK
   for blockNum in range(totalBlocks + 1):
-    time = blockNum * SECONDS_PER_BLOCK
-
     features = []
-    features += dragonFeatures(dragons, time)
-    features += towerFeatures(towers, time)
+
+    # Add historical data too.
+    for b in range(blockNum+1):
+      time = blockNum * SECONDS_PER_BLOCK
+      features += dragonFeatures(dragons, time)
+      features += towerFeatures(towers, time)
 
     blocks.append(features)
 
