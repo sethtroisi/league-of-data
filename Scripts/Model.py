@@ -11,7 +11,7 @@ def trainModel(trainGoals, trainFeatures):
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
-  clf = SGDClassifier(loss="log", penalty="l2", n_iter=1000, shuffle=True,
+  clf = SGDClassifier(loss="log", penalty="l2", n_iter=500, shuffle=True,
     alpha = 0.01, verbose = False)
 
   clf.fit(trainFeatures, trainGoals)
@@ -62,13 +62,14 @@ def testModel(trainGoals, trainFeatures, testGoals, testFeatures):
       corrects, samples, 100 * corrects / samples))
   print ()
 
-#  print ("log loss: {:.4f}".format(
-#      sklearn.metrics.log_loss(testGoals, modelGoals)))
+  logLoss = sklearn.metrics.log_loss(testGoals, modelGoals)
+#  print ("log loss: {:.4f}".format(logLoss))
 #  print ("\t(lower is better, null model is .6912)")
 #  print ()
 #  print ()
 
-  return corrects, samples - corrects
+  return corrects, samples - corrects, logLoss
+
 
 def seperateToTrainingAndTest(goals, blocks):
   holdBackPercent = 25
@@ -91,6 +92,7 @@ corrects = []
 incorrects = []
 testingSize = []
 ratios = []
+logLosses = []
 
 goals, matches = getTrainingAndTestData()
 for blockNum in range(100):
@@ -108,7 +110,8 @@ for blockNum in range(100):
   trainGoals, trainFeatures, testGoals, testFeatures = \
     seperateToTrainingAndTest(blockGoals, blockFeatures)
 
-  correct, incorrect = testModel(trainGoals, trainFeatures, testGoals, testFeatures)
+  correct, incorrect, logLoss = \
+      testModel(trainGoals, trainFeatures, testGoals, testFeatures)
 
   # store data to graph
   times.append(blockNum * SECONDS_PER_BLOCK / 60)
@@ -120,20 +123,42 @@ for blockNum in range(100):
 
   ratios.append(correct / (correct + incorrect))
 
-fig, (axis1, axis2) = pyplot.subplots(2, 1)
-fig.subplots_adjust(hspace = 0.45)
+  logLosses.append(logLoss)
 
+fig, (axis1, axis2, axis3) = pyplot.subplots(3, 1)
+fig.subplots_adjust(hspace = 0.6)
+
+# Upper graph of prediction power.
 axis1.plot(times, ratios)
 axis1.set_title('Correct Predictions')
 axis1.set_xlabel('time (m)')
 axis1.set_ylabel('correctness')
 
-axis2.plot(times, samples, 'b',
+# Middle graph of log loss.
+axis2.plot(times, logLosses)
+axis2.set_title('Log Loss')
+axis2.set_xlabel('time (m)')
+axis2.set_ylabel('loss (log)')
+axis2.set_ylim([0,1])
+
+minLogLoss = min(logLosses)
+time = logLosses.index(minLogLoss) * SECONDS_PER_BLOCK // 60
+logLossText = '$min {:.2f} (@{}m)'.format(minLogLoss, time)
+props = dict(boxstyle='round', facecolor='#abcdef', alpha=0.5)
+axis2.text(0.05, 0.4, logLossText, transform=axis2.transAxes, fontsize=14,
+        verticalalignment='top', bbox=props)
+
+
+# Lower graph of sample data.
+axis3.plot(times, samples, 'b',
            times, testingSize, 'b',
            times, corrects, 'g',
            times, incorrects, 'r')
-axis2.set_title('Number of samples')
-axis2.set_xlabel('time (m)')
-axis2.set_ylabel('samples')
+axis3.set_title('Number of samples')
+axis3.set_xlabel('time (m)')
+axis3.set_ylabel('samples')
+
+
+
 
 pyplot.show()

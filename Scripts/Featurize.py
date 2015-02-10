@@ -7,7 +7,7 @@ from sklearn.linear_model import SGDClassifier
 DATA_DIR = '../Data/'
 OUTPUT_FILE = DATA_DIR + 'output.txt'
 
-SECONDS_PER_BLOCK = 1 * 60
+SECONDS_PER_BLOCK = 2 * 60
 
 # Creates several features from the first dragon (team, time)
 def firstDragonFeatures(dragons):

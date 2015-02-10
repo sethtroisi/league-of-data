@@ -140,12 +140,12 @@ def main(args):
     output.close()
 
     print ("wrote games to output file ('{}')".format(OUTPUT_FILE))
-  else:
-    for line, data in enumerate(outputData, 1):
-      print ('{}: {}'.format(line, data))
+#  else:
+#    for line, data in enumerate(outputData, 1):
+#      print ('{}: {}'.format(line, data))
 
   exampleLines = random.sample(range(gameNum), args.examples)
-  for exampleLine in exampleLines:
+  for exampleLine in sorted(exampleLines):
     game = outputData[exampleLine]
     if args.full_examples:
       example = game
