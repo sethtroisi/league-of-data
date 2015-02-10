@@ -128,11 +128,24 @@ for blockNum in range(100):
 fig, (axis1, axis2, axis3) = pyplot.subplots(3, 1)
 fig.subplots_adjust(hspace = 0.6)
 
+# Common styling 'Patch' for text
+props = dict(boxstyle='round', facecolor='#abcdef', alpha=0.5)
+
 # Upper graph of prediction power.
 axis1.plot(times, ratios)
 axis1.set_title('Correct Predictions')
 axis1.set_xlabel('time (m)')
 axis1.set_ylabel('correctness')
+
+bestAccuracy = max(ratios[:len(ratios) * 2 // 3])
+time = times[ratios.index(bestAccuracy)]
+accuracyText = '{:.3f} (@{:2.0f}m)'.format(bestAccuracy, time)
+axis3.text(
+    time / max(times), 0.1,
+    accuracyText, transform=axis1.transAxes, fontsize=14,
+    bbox=props,
+    verticalalignment='bottom', horizontalalignment='center')
+
 
 # Middle graph of log loss.
 axis2.plot(times, logLosses)
@@ -142,11 +155,13 @@ axis2.set_ylabel('loss (log)')
 axis2.set_ylim([0,1])
 
 minLogLoss = min(logLosses)
-time = logLosses.index(minLogLoss) * SECONDS_PER_BLOCK // 60
-logLossText = '$min {:.2f} (@{}m)'.format(minLogLoss, time)
-props = dict(boxstyle='round', facecolor='#abcdef', alpha=0.5)
-axis2.text(0.05, 0.4, logLossText, transform=axis2.transAxes, fontsize=14,
-        verticalalignment='top', bbox=props)
+time = times[logLosses.index(minLogLoss)]
+logLossText = '{:.3f} (@{:2.0f}m)'.format(minLogLoss, time)
+axis2.text(
+    time / max(times), 0.1,
+    logLossText, transform=axis2.transAxes, fontsize=14,
+    bbox=props,
+    verticalalignment='bottom', horizontalalignment='center')
 
 
 # Lower graph of sample data.
