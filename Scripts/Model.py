@@ -11,8 +11,8 @@ def trainModel(trainGoals, trainFeatures):
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
-  clf = SGDClassifier(loss="log", penalty="l2", n_iter=1000, shuffle=True,
-    alpha = 0.02, verbose = False)
+  clf = SGDClassifier(loss="log", penalty="l2", n_iter=5000, shuffle=True,
+    alpha = 0.01, verbose = False)
 
   clf.fit(trainFeatures, trainGoals)
 
@@ -60,7 +60,7 @@ def testModel(trainGoals, trainFeatures, testGoals, testFeatures):
 
   print ("Correctness: {}/{} = {:2.1f}".format(
       corrects, samples, 100 * corrects / samples))
-  print ()
+#  print ()
 
   logLoss = sklearn.metrics.log_loss(testGoals, modelGoals)
 #  print ("log loss: {:.4f}".format(logLoss))
@@ -104,7 +104,7 @@ for blockNum in range(100):
       blockGoals.append(goal)
       blockFeatures.append(blocks[blockNum])
 
-  if len(blockGoals) < 50:
+  if len(blockGoals) < 100:
     break
 
   trainGoals, trainFeatures, testGoals, testFeatures = \
