@@ -5,8 +5,10 @@ import sklearn.metrics
 import numpy as np
 import matplotlib.pyplot as pyplot
 
+# TODO(sethtroisi): add flag parsing to this file to display verbose.
 
-def trainModel(trainGoals, trainFeatures):
+
+def buildClassifier(trainGoals, trainFeatures):
   #SGDClassifier(alpha=0.0001, class_weight=None, epsilon=0.1, eta0=0.0,
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
@@ -16,27 +18,21 @@ def trainModel(trainGoals, trainFeatures):
 
   clf.fit(trainFeatures, trainGoals)
 
+  print ("With training set size: {} features".format(
+      len(trainGoals), trainFeatures.shape))
+
   #print ("Score:", clf.score(trainFeatures, trainGoals))
   #print ()
 
   #print (clf.coef_)
-  #print ("intercept: {:4.3f}, TrueProp: {:3.1f}%".format(
-  #    clf.intercept_[0], 100 * trainGoals.count(True) / len(trainGoals)))
-  #print ()
+  print ("intercept: {:4.3f}, TrueProp: {:3.1f}%".format(
+      clf.intercept_[0], 100 * trainGoals.count(True) / len(trainGoals)))
+  print ()
 
-  return clf;
+  return clf
 
 
-def testModel(trainGoals, trainFeatures, testGoals, testFeatures):
-   # TODO(sethtroisi): add flag parsing to this file to display verbose.
-#  print ("With training set size: {} x {} features".format(
-#      len(trainGoals), len(trainFeatures[0])))
-
-#  print ("With testing set size: {} x {} features".format(
-#      len(testGoals), len(testFeatures[0])))
-#  print ()
-
-  classifier = trainModel(trainGoals, trainFeatures)
+def testClassifier(classifier, testGoals, testFeatures):
   modelGoals = classifier.predict_proba(testFeatures)
 
   samples = len(testGoals)
@@ -71,18 +67,20 @@ def testModel(trainGoals, trainFeatures, testGoals, testFeatures):
   return corrects, samples - corrects, logLoss
 
 
-def seperateToTrainingAndTest(goals, blocks):
+def seperate(games, goals, features):
   holdBackPercent = 25
   sampleSize = len(goals)
   holdBackAmount = (holdBackPercent * sampleSize) // 100
 
-  trainGoals = goals[:-holdBackAmount]
-  trainBlocks = blocks[:-holdBackAmount]
+  trainingGoals = goals[:-holdBackAmount]
+  trainingFeatures = features[:-holdBackAmount]
 
-  testGoals = goals[-holdBackAmount:]
-  testBlocks = blocks[-holdBackAmount:]
+  testingGames = games[-holdBackAmount:]
+  testingGoals = goals[-holdBackAmount:]
+  testingFeatures = features[-holdBackAmount:]
 
-  return (trainGoals, trainBlocks, testGoals, testBlocks)
+  return (trainingGoals, trainingFeatures,
+      testingGames, testingGoals, testingFeatures)
 
 
 # MAIN CODE
@@ -94,7 +92,16 @@ testingSize = []
 ratios = []
 logLosses = []
 
-goals, matches = getTrainingAndTestData()
+games, goals, features = getGamesData()
+data = seperate(games, goals, features)
+
+trainingGoals, trainingFeatures, testingGames, testingGoals, testingFeatures = \
+    data
+
+classifier = buildClassifier(trainingGoals, trainingFeatures)
+
+# TODO(sethtroisi): this code needs to be rewritten to support sampling at block X.
+'''
 for blockNum in range(100):
   blockGoals = []
   blockFeatures = []
@@ -107,11 +114,10 @@ for blockNum in range(100):
   if len(blockGoals) < 100:
     break
 
-  trainGoals, trainFeatures, testGoals, testFeatures = \
-    seperateToTrainingAndTest(blockGoals, blockFeatures)
+  testingFeaturesAtBlock =
 
   correct, incorrect, logLoss = \
-      testModel(trainGoals, trainFeatures, testGoals, testFeatures)
+      testClassifier(classifier, testingGoals, testingFeatures)
 
   # store data to graph
   times.append(blockNum * SECONDS_PER_BLOCK / 60)
@@ -173,7 +179,6 @@ axis3.set_title('Number of samples')
 axis3.set_xlabel('time (m)')
 axis3.set_ylabel('samples')
 
-
-
-
 pyplot.show()
+
+# '''
