@@ -13,8 +13,8 @@ def buildClassifier(trainGoals, trainFeatures):
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
-  clf = SGDClassifier(loss="log", penalty="l2", n_iter=5000, shuffle=True,
-    alpha = 0.01, verbose = False)
+  clf = SGDClassifier(loss="log", penalty="l2", n_iter=10000, shuffle=True,
+    alpha = 0.003, verbose = False)
 
   clf.fit(trainFeatures, trainGoals)
 
@@ -112,6 +112,10 @@ for blockNum in range((60 * 60) // SECONDS_PER_BLOCK):
 
     goals.append(goal)
     featuresList.append(rawFeatures)
+
+  if len(goals) <= 40:
+    # Note: Don't evaluate the model on a small number of games.
+    break
 
   sparse = vectorizer.transform(featuresList)
 
