@@ -97,7 +97,7 @@ trainingGoals, trainingFeatures, testingGames  = data
 classifier = buildClassifier(trainingGoals, trainingFeatures)
 
 # TODO(sethtroisi): this code needs to be rewritten to support sampling at block X.
-for blockNum in range((2 * 60 * 60) // SECONDS_PER_BLOCK):
+for blockNum in range((60 * 60) // SECONDS_PER_BLOCK):
   goals = []
   featuresList = []
 
@@ -118,36 +118,6 @@ for blockNum in range((2 * 60 * 60) // SECONDS_PER_BLOCK):
   # store data to graph
   times.append(time / 60)
   samples.append(len(goals))
-
-  corrects.append(correct)
-  incorrects.append(incorrect)
-  testingSize.append(correct + incorrect)
-
-  ratios.append(correct / (correct + incorrect))
-
-  logLosses.append(logLoss)
-
-'''
-for blockNum in range(100):
-  blockGoals = []
-  blockFeatures = []
-
-  for goal, blocks in zip(goals, matches):
-    if len(blocks) > blockNum:
-      blockGoals.append(goal)
-      blockFeatures.append(blocks[blockNum])
-
-  if len(blockGoals) < 100:
-    break
-
-  testingFeaturesAtBlock =
-
-  correct, incorrect, logLoss = \
-      testClassifier(classifier, testingGoals, testingFeatures)
-
-  # store data to graph
-  times.append(blockNum * SECONDS_PER_BLOCK / 60)
-  samples.append(len(blockGoals))
 
   corrects.append(correct)
   incorrects.append(incorrect)
@@ -190,7 +160,7 @@ minLogLoss = min(logLosses)
 time = times[logLosses.index(minLogLoss)]
 logLossText = '{:.3f} (@{:2.0f}m)'.format(minLogLoss, time)
 axis2.text(
-    time / max(times), 0.1,
+    time / max(times), 0.7,
     logLossText, transform=axis2.transAxes, fontsize=14,
     bbox=props,
     verticalalignment='bottom', horizontalalignment='center')
