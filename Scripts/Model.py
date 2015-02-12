@@ -104,6 +104,9 @@ for blockNum in range((60 * 60) // SECONDS_PER_BLOCK):
   time = blockNum * SECONDS_PER_BLOCK
   for game in testingGames:
     # TODO(sethtroisi): remove games that have ended.
+    duration = game['features']['duration']
+    if duration < time:
+      continue
 
     rawFeatures, goal = parseGameToFeatures(game, time)
 
