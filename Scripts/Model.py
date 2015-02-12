@@ -76,11 +76,8 @@ def seperate(games, goals, features):
   trainingFeatures = features[:-holdBackAmount]
 
   testingGames = games[-holdBackAmount:]
-  testingGoals = goals[-holdBackAmount:]
-  testingFeatures = features[-holdBackAmount:]
 
-  return (trainingGoals, trainingFeatures,
-      testingGames, testingGoals, testingFeatures)
+  return (trainingGoals, trainingFeatures, testingGames)
 
 
 # MAIN CODE
@@ -92,15 +89,44 @@ testingSize = []
 ratios = []
 logLosses = []
 
-games, goals, features = getGamesData()
+games, goals, vectorizer, features = getGamesData()
 data = seperate(games, goals, features)
 
-trainingGoals, trainingFeatures, testingGames, testingGoals, testingFeatures = \
-    data
+trainingGoals, trainingFeatures, testingGames  = data
 
 classifier = buildClassifier(trainingGoals, trainingFeatures)
 
 # TODO(sethtroisi): this code needs to be rewritten to support sampling at block X.
+for blockNum in range((2 * 60 * 60) // SECONDS_PER_BLOCK):
+  goals = []
+  featuresList = []
+
+  time = blockNum * SECONDS_PER_BLOCK
+  for game in testingGames:
+    # TODO(sethtroisi): remove games that have ended.
+
+    rawFeatures, goal = parseGameToFeatures(game, time)
+
+    goals.append(goal)
+    featuresList.append(rawFeatures)
+
+  sparse = vectorizer.transform(featuresList)
+
+  correct, incorrect, logLoss = \
+      testClassifier(classifier, goals, sparse)
+
+  # store data to graph
+  times.append(time / 60)
+  samples.append(len(goals))
+
+  corrects.append(correct)
+  incorrects.append(incorrect)
+  testingSize.append(correct + incorrect)
+
+  ratios.append(correct / (correct + incorrect))
+
+  logLosses.append(logLoss)
+
 '''
 for blockNum in range(100):
   blockGoals = []

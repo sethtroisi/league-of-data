@@ -117,10 +117,10 @@ def getGamesData():
 
   vectorizer = DictVectorizer(sparse=True)
 
-  vectorizedFeaturesList = vectorizer.fit_transform(featuresList)
+  sparseFeatures = vectorizer.fit_transform(featuresList)
 
-  print ('Data size: {}'.format(vectorizedFeaturesList.shape))
-  print ('Number non-zero: {}'.format(vectorizedFeaturesList.getnnz()))
+  print ('Data size: {}'.format(sparseFeatures.shape))
+  print ('Number non-zero: {}'.format(sparseFeatures.getnnz()))
   print ()
 
-  return games, goals, vectorizedFeaturesList
+  return games, goals, vectorizer, sparseFeatures
