@@ -59,6 +59,26 @@ def plotData(times, samples, corrects, incorrects, ratios, logLosses):
   pyplot.show()
 
 
+def stats(times, samples, corrects, incorrects, ratios, logLosses):
+  startBlock = timeToBlock(10 * 60)
+  endBlock = timeToBlock(40 * 60)
+
+  sumLosses = sum(logLosses[startBlock:endBlock+1])
+  totalCorrect = sum(corrects[startBlock:endBlock+1])
+  totalIncorrect = sum(incorrects[startBlock:endBlock+1])
+  totalSamples = totalCorrect + totalIncorrect
+  mediumRatio = np.median(ratios[startBlock:endBlock+1])
+
+  print ()
+  print ("Global Stats 10 to 40 minutes")
+  print ()
+  print ("Sum LogLoss: {:.3f}".format(sumLosses))
+  print ("Correct Predictions:", totalCorrect)
+  print ("Incorrect Predictions:", totalIncorrect)
+  print ("Global Ratio: {:2.1f}".format(100 * totalCorrect / totalSamples))
+  print ("Mean Ratio: {:2.1f}".format(100 * mediumRatio))
+
+
 def buildClassifier(trainGoals, trainFeatures):
   #SGDClassifier(alpha=0.0001, class_weight=None, epsilon=0.1, eta0=0.0,
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
@@ -69,8 +89,8 @@ def buildClassifier(trainGoals, trainFeatures):
 
   clf.fit(trainFeatures, trainGoals)
 
-  print ("With training set size: {} features".format(
-      len(trainGoals), trainFeatures.shape))
+  print ("With training set size: {} games {} features".format(
+      len(trainGoals), trainFeatures.shape[1]))
 
   #print (clf.coef_)
   print ("intercept: {:4.3f}, TrueProp: {:3.1f}%".format(
@@ -187,4 +207,5 @@ for blockNum in range((60 * 60) // SECONDS_PER_BLOCK):
 
   logLosses.append(logLoss)
 
+stats(times, samples, corrects, incorrects, ratios, logLosses)
 plotData(times, samples, corrects, incorrects, ratios, logLosses)
