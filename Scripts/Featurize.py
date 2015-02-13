@@ -66,11 +66,41 @@ def towerFeatures(towers, sampleTime):
   return features
 
 
+def goldFeatures(gold, sampleTime):
+  features = {}
+
+  # TODO(sethtroisi): investigate why this increases log loss.
+
+  # TODO(sethtroisi): verify gold use fencpost problem
+  timeBlock = timeToBlock(sampleTime)
+  for blockNum in range(1, timeBlock-1):
+    blockGold = gold.get(str(blockNum), None)
+    if not blockGold:
+      break
+
+    teamAGold = 0
+    teamBGold = 0
+    for pId, totalGold in blockGold.items():
+      pId = int(pId)
+
+      assert int(pId) in list(range(1,11))
+      if 1 <= pId <= 5:
+        teamAGold += totalGold
+      else:
+        teamBGold += totalGold
+
+    feature = 'gold-delta-{}_{}k'.format(
+      blockNum, (teamAGold - teamBGold) // 1000)
+    features[feature] = True
+
+  return features
+
 def parseGameToFeatures(parsed, time=100000):
   gameFeatures = parsed['features']
 
   dragons = gameFeatures['dragons']
   towers = gameFeatures['towers']
+  gold = gameFeatures['gold']
 
   features = {}
 
@@ -80,6 +110,7 @@ def parseGameToFeatures(parsed, time=100000):
 
   features.update(dragonFeatures(dragons, time))
   features.update(towerFeatures(towers, time))
+  features.update(goldFeatures(gold, time))
 
   goal = parsed['goal']
   return features, goal

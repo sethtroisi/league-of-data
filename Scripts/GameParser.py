@@ -2,6 +2,7 @@ import argparse
 import json
 import random
 from Util import *
+from Featurize import *
 
 # API REFERENCE
 # https://developer.riotgames.com/api/methods
@@ -52,6 +53,8 @@ def parseGameRough(match):
   participantIds = [p['participantId'] for p in teamInfo]
   teamOne = participantIds[:5]
   teamTwo = participantIds[5:]
+  assert teamOne == [1, 2, 3, 4, 5]
+  assert teamTwo == [6, 7, 8, 9, 10]
 
   teamOneChampIds = championIds[:5]
   teamTwoChampIds = championIds[5:]
@@ -70,8 +73,19 @@ def parseGameRough(match):
 
   dragons = []
   towers = []
+  gold = {}
   frames = match['timeline']['frames']
   for frame in frames:
+    frameTime = frame['timestamp'] // 1000
+    blockNum = timeToBlock(frameTime)
+
+    frameGold = {}
+    # NOTE: frames appear to be 60seconds
+    gold[blockNum+1] = frameGold
+    for pId, pFrame in frame['participantFrames'].items():
+      # TODO(sethtroisi): use item gold instead of totalGold
+      frameGold[pId] = pFrame['totalGold']
+
     events = frame.get('events', [])
     for event in events:
       monsterType = event.get('monsterType', None)
@@ -106,6 +120,9 @@ def parseGameRough(match):
   features = dict()
   features['dragons'] = dragons
   features['towers'] = towers
+  features['gold'] = gold
+
+  # TODO(sethtroisi): plumb debug info instead of reusing features.
   features['duration'] = match['matchDuration']
 
   result = match['teams'][0]['winner']
@@ -131,7 +148,12 @@ def main(args):
       outputData.append(jsonString)
       gameNum += 1
 
+  chars = sum(map(len, outputData))
+
   print ("parsed {} games".format(gameNum))
+  print ("{} chars ~ {:.1f}MB, ~{:.1f}KB/game".format(
+      chars, chars / 10 ** 6, chars /(10 ** 3 * gameNum)))
+  print ()
 
   if not args.dry_run:
     output = open(OUTPUT_FILE, mode='w')
