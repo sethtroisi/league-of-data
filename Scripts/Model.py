@@ -233,7 +233,6 @@ predict(classifier, vectorizer)
 stats(times, samples, corrects, incorrects, ratios, logLosses)
 plotData(times, samples, corrects, incorrects, ratios, logLosses)
 
-
 # Graphs that I want badly
 #
 # Graphs that might be interesting

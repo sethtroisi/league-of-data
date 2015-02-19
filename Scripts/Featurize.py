@@ -1,7 +1,11 @@
 import json
 import math
+import re
+
+from collections import Counter
 
 from sklearn.feature_extraction import DictVectorizer
+
 
 DATA_DIR = '../Data/'
 OUTPUT_FILE = DATA_DIR + 'output.txt'
@@ -11,23 +15,11 @@ SECONDS_PER_BLOCK = 2 * 60
 def timeToBlock(time):
   # I think it's more correct to return the block it's happening in.
   # IE event (T = 0) = 0, (0 < T <= 5) = 1
+  # This for sure will be a source of off by one errors be wary.
   return (time - 1) // SECONDS_PER_BLOCK + 1
 
-## Creates several features from the first dragon (team, time)
-#def firstDragonFeatures(dragons):
-#  firstDragon = [False] * (2 + 5)
-#  if len(dragons) > 0:
-#    dragonTime, isTeamOne = dragons[0]
-#    firstDragon[0] = isTeamOne
-#    firstDragon[1] = not isTeamOne
-#
-#    assert 0 < dragonTime < 2*60*60 or dragonTime == 10 ** 7
-#    for i in range(5):
-#      firstDragon[2 + i] = dragonTime < 2 ** (7 + i)
-#  return firstDragon
 
-
-# Creates several features about total dragon taken (team, count)
+# Create features about dragons taken (team, count)
 def dragonFeatures(dragons, sampleTime):
   features = {}
 
@@ -41,15 +33,15 @@ def dragonFeatures(dragons, sampleTime):
 
     if isTeamOne:
       dragonsA += 1
-      features['dragon-a-{}-{}'.format(timeBlock, dragonsA)] = True
+      features['dragon_a_{}_{}'.format(timeBlock, dragonsA)] = True
     else:
       dragonsB += 1
-      features['dragon-b-{}-{}'.format(timeBlock, dragonsB)] = True
+      features['dragon_b_{}_{}'.format(timeBlock, dragonsB)] = True
 
   return features
 
 
-# Creates several features from towers (team, position)
+# Create features from towers (team, position)
 def towerFeatures(towers, sampleTime):
   features = {}
 
@@ -61,11 +53,12 @@ def towerFeatures(towers, sampleTime):
     timeBlock = timeToBlock(towerTime)
 
 
-    features['towers-{}-{}'.format(timeBlock, towerNum)] = True
+    features['towers_{}_{}'.format(timeBlock, towerNum)] = True
 
   return features
 
 
+# Creates features from gold values (delta)
 def goldFeatures(gold, sampleTime):
   features = {}
 
@@ -89,7 +82,7 @@ def goldFeatures(gold, sampleTime):
       else:
         teamBGold += totalGold
 
-    feature = 'gold-delta-{}_{}k'.format(
+    feature = 'gold_delta_{}_{}k'.format(
       blockNum, (teamAGold - teamBGold) // 1000)
     features[feature] = True
 
@@ -139,6 +132,38 @@ def loadOutputFile():
 
   return games, goals, featuresList
 
+def generateFeatureData(featuresList):
+  # Note: This is to help find sparse features or to produce cool graphs.
+  # It's more one than the other. Take a guess which.
+
+  features = Counter()
+  for gameFeatures in featuresList:
+    features.update(gameFeatures)
+
+  split = lambda f: re.split('[_]', f)
+  splitFeatures = map(split, features.keys())
+  baseFeatures = sorted(set([f[0] for f in splitFeatures]))
+
+  for dimension in range(0, 4+1):
+    partialFeatures = Counter()
+    for f, c in features.items():
+      partial = '_'.join(split(f)[:dimension])
+      partialFeatures[partial] += c
+
+    print ("With {} dimensions {} features:".format(
+        dimension, len(partialFeatures)))
+
+    common = partialFeatures.most_common()
+    if len(common) > 10:
+
+      common = common[:5] + [("...", "...")] + common[-5:]
+
+    for pf, c in common:
+      print("\t{} x {}".format(pf, c))
+    print ()
+    #TODO(sethtroisi): cluster features with <= X count back into base names.
+    # ie 'gold_belta_34_4k' + 'gold-delta_28_2k' => 'gold_delta' x 2
+
 
 def getGamesData():
   games, goals, featuresList = loadOutputFile()
@@ -153,5 +178,7 @@ def getGamesData():
   print ('Data size: {}'.format(sparseFeatures.shape))
   print ('Number non-zero: {}'.format(sparseFeatures.getnnz()))
   print ()
+
+  generateFeatureData(featuresList)
 
   return games, goals, vectorizer, sparseFeatures
