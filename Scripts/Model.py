@@ -154,6 +154,28 @@ def seperate(games, goals, features):
   return (trainingGoals, trainingFeatures, testingGames)
 
 
+def predict(classifier, vectorizer):
+  features = [
+    {'gold-delta-10_-4k': True},
+    {'gold-delta-10_-2k': True},
+    {'gold-delta-10_1k': True},
+    {'gold-delta-10_2k': True},
+    {'gold-delta-10_4k': True},
+    {'dragon-a-6-1': True},
+    {'dragon-b-6-1': True}
+  ]
+
+  sparse = vectorizer.transform(features)
+  print ("Verify features exist {} ?= {}".format(
+      len(features), sparse.nnz))
+
+  predictions = classifier.predict_proba(sparse)
+
+  for feature, prediction in zip(features, predictions):
+    print ("Feature {} -> {:2.1f}% for blue".format(
+        sorted(feature.keys()), 100 * prediction[0]))
+
+
 # MAIN CODE
 times = []
 samples = []
@@ -169,7 +191,6 @@ trainingGoals, trainingFeatures, testingGames  = data
 
 classifier = buildClassifier(trainingGoals, trainingFeatures)
 
-# TODO(sethtroisi): this code needs to be rewritten to support sampling at block X.
 for blockNum in range((60 * 60) // SECONDS_PER_BLOCK):
   time = blockNum * SECONDS_PER_BLOCK
 
@@ -206,6 +227,14 @@ for blockNum in range((60 * 60) // SECONDS_PER_BLOCK):
   ratios.append(correct / (correct + incorrect))
 
   logLosses.append(logLoss)
+print ()
 
+predict(classifier, vectorizer)
 stats(times, samples, corrects, incorrects, ratios, logLosses)
 plotData(times, samples, corrects, incorrects, ratios, logLosses)
+
+
+# Graphs that I want badly
+#
+# Graphs that might be interesting
+#   Accuracy X minutes back from victory
