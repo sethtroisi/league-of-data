@@ -175,7 +175,7 @@ def predict(classifier, vectorizer):
 
   sparse = vectorizer.transform(features)
   print ("Verify features exist {} ?= {}".format(
-      len(features), sparse.nnz))
+      sum([len(f) for f in features]), sparse.nnz))
 
   predictions = classifier.predict_proba(sparse)
 
