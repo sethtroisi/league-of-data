@@ -11,6 +11,7 @@ DATA_DIR = '../Data/'
 OUTPUT_FILE = DATA_DIR + 'output.txt'
 
 SECONDS_PER_BLOCK = 2 * 60
+GOLD_DELTA_BLOCK = 2000
 
 def timeToBlock(time):
   # I think it's more correct to return the block it's happening in.
@@ -52,7 +53,6 @@ def towerFeatures(towers, sampleTime):
 
     timeBlock = timeToBlock(towerTime)
 
-
     features['towers_{}_{}'.format(timeBlock, towerNum)] = True
 
   return features
@@ -76,14 +76,17 @@ def goldFeatures(gold, sampleTime):
     for pId, totalGold in blockGold.items():
       pId = int(pId)
 
-      assert int(pId) in list(range(1,11))
+      assert 1 <= pId <= 10
       if 1 <= pId <= 5:
         teamAGold += totalGold
       else:
         teamBGold += totalGold
 
+    delta = teamAGold - teamBGold
+    blockedGold = GOLD_DELTA_BLOCK * (delta // GOLD_DELTA_BLOCK)
+
     feature = 'gold_delta_{}_{}k'.format(
-      blockNum, (teamAGold - teamBGold) // 1000)
+      blockNum, blockedGold // 1000)
     features[feature] = True
 
   return features

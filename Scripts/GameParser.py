@@ -101,17 +101,17 @@ def parseGameRough(match):
         killer = event['killerId']
         towerType = event['towerType']
         laneType = event['laneType']
-        isTeamOne = event['teamId'] == 100
+        isTeamOneTower = event['teamId'] == 100
 
         if towerType == 'FOUNTAIN_TURRET':
           # TODO(sehtroisi): figure out what causes this.
           continue
 
-        towerNum = getTowerNumber(isTeamOne, laneType, towerType)
+        towerNum = getTowerNumber(isTeamOneTower, laneType, towerType)
 
-#        print ("killer {} @{:.0f}s: ({} x {} x {}) = {}".format(
-#          champNames[killer - 1], time / 1000,
-#          isTeamOne, laneType, towerType, towerNum))
+        #print ("killer {}({}) @{:.0f}s: ({} x {} x {}) = {}".format(
+        #  champNames[killer - 1], killer, time,
+        #  isTeamOneTower, laneType, towerType, towerNum))
 
         # TODO(sethtroisi): Stop mid nexus turret double count.
         #assert all(tNum != towerNum for t, k, tNum in towers)

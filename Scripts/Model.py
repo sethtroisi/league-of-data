@@ -1,4 +1,5 @@
 from Featurize import *
+from Util import *
 
 from sklearn.linear_model import SGDClassifier
 import sklearn.metrics
@@ -155,14 +156,21 @@ def seperate(games, goals, features):
 
 
 def predict(classifier, vectorizer):
+  teamOneTower = getTowerNumber(True, 'MID_LANE', 'OUTER_TURRET')
+  teamTwoTower = getTowerNumber(False, 'MID_LANE', 'OUTER_TURRET')
+
   features = [
-    {'gold-delta-10_-4k': True},
-    {'gold-delta-10_-2k': True},
-    {'gold-delta-10_1k': True},
-    {'gold-delta-10_2k': True},
-    {'gold-delta-10_4k': True},
-    {'dragon-a-6-1': True},
-    {'dragon-b-6-1': True}
+    {'gold_delta_10_-4k': True},
+    {'gold_delta_10_0k': True},
+    {'gold_delta_10_4k': True},
+    {'dragon_a_5_1': True, 'dragon_a_9_2': True},
+    {'dragon_a_6_1': True},
+    {'dragon_a_7_1': True},
+    {'dragon_b_5_1': True},
+    {'dragon_b_6_1': True},
+    {'dragon_b_7_1': True},
+    {'towers_6_{}'.format(teamTwoTower): True},
+    {'towers_6_{}'.format(teamOneTower): True}
   ]
 
   sparse = vectorizer.transform(features)
@@ -173,7 +181,7 @@ def predict(classifier, vectorizer):
 
   for feature, prediction in zip(features, predictions):
     print ("Feature {} -> {:2.1f}% for blue".format(
-        sorted(feature.keys()), 100 * prediction[0]))
+        sorted(feature.keys()), 100 * prediction[1]))
 
 
 # MAIN CODE
@@ -229,9 +237,13 @@ for blockNum in range((60 * 60) // SECONDS_PER_BLOCK):
   logLosses.append(logLoss)
 print ()
 
+# Use the model to make some simple predictions.
 predict(classifier, vectorizer)
-stats(times, samples, corrects, incorrects, ratios, logLosses)
-plotData(times, samples, corrects, incorrects, ratios, logLosses)
+
+# If data was tabulated on the testingData print stats about it.
+if len(times) > 0:
+  stats(times, samples, corrects, incorrects, ratios, logLosses)
+  plotData(times, samples, corrects, incorrects, ratios, logLosses)
 
 # Graphs that I want badly
 #
