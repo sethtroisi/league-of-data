@@ -51,9 +51,8 @@ def towerFeatures(towers, sampleTime):
     if towerTime > sampleTime:
       break
 
-    timeBlock = timeToBlock(towerTime)
-
-    features['towers_{}_{}'.format(timeBlock, towerNum)] = True
+    blockDestroyed = timeToBlock(towerTime)
+    features['towers_{}_{}'.format(blockDestroyed, towerNum)] = True
 
   return features
 
@@ -62,11 +61,9 @@ def towerFeatures(towers, sampleTime):
 def goldFeatures(gold, sampleTime):
   features = {}
 
-  # TODO(sethtroisi): investigate why this increases log loss.
-
   # TODO(sethtroisi): verify gold use fencpost problem
-  timeBlock = timeToBlock(sampleTime)
-  for blockNum in range(1, timeBlock-1):
+  lastBlock = timeToBlock(sampleTime)
+  for blockNum in range(1, lastBlock-1):
     blockGold = gold.get(str(blockNum), None)
     if not blockGold:
       break
@@ -91,7 +88,7 @@ def goldFeatures(gold, sampleTime):
 
   return features
 
-def parseGameToFeatures(parsed, time=100000):
+def parseGameToFeatures(parsed, time=None):
   gameFeatures = parsed['features']
 
   dragons = gameFeatures['dragons']
@@ -100,9 +97,11 @@ def parseGameToFeatures(parsed, time=100000):
 
   features = {}
 
-  # TODO(sethtroisi): add feature
-  #duration = gameFeatures['duration']
-  #totalBlocks = duration // SECONDS_PER_BLOCK
+  if time == None:
+    duration = gameFeatures['duration']
+    time = duration + SECONDS_PER_BLOCK
+    # TODO(sethtroisi): add feature without overfitting somehow.
+    #lastBlock = timeToBlock(duration);
 
   features.update(dragonFeatures(dragons, time))
   features.update(towerFeatures(towers, time))
