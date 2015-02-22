@@ -17,25 +17,44 @@ import time
 # https://developer.riotgames.com/api/methods#!/929/3214
 
 API_KEY = "38940d99-0f69-4dfd-a2ea-5e9de11552a3"
+BASE_URL = 'https://na.api.pvp.net/api/lol/'
+HASH_PARAMS = 'api_key={}'.format(API_KEY)
 
-baseUrl = 'https://na.api.pvp.net/api/lol/'
-partial = 'static-data/na/v1.2/champion/'
-hashParam = '?api_key=38940d99-0f69-4dfd-a2ea-5e9de11552a3'
 
-champMap = {}
-for champ in range(265, 270):
-  try:
-    time.sleep(0.5)
-    url = baseUrl + partial + str(champ) + hashParam
-    print (url)
-    response = urllib.request.urlopen(url)
-    data = response.read()
-    stringData = data.decode("utf-8")
-    parsed = json.loads(stringData)
-    name = parsed['name']
-    print (parsed, name)
-    champMap[name] = champ
-  except:
-    print ("failed to find:", champ)
+def buildUrl(apiPath):
+  return BASE_URL + apiPath + '?' + HASH_PARAMS
 
-print (champMap)
+
+def getParsedResponse(url):
+  response = urllib.request.urlopen(url)
+  data = response.read()
+  # TODO(sethtroisi): verify utf-8 is correct assumption.
+  stringData = data.decode("utf-8")
+  return json.loads(stringData)
+
+
+def getChampIds():
+  apiPrefix = 'static-data/na/v1.2/champion/'
+
+  champMap = {}
+  for champ in range(1, 270):
+    try:
+      time.sleep(0.5)
+      apiPath = apiPrefix + str(champ)
+      url = buildUrl(apiPath)
+
+      parsed = getParsedResponse(url)
+      name = parsed['name']
+
+      print (parsed, name)
+
+      champMap[name] = champ
+    except urllib.request.HTTPError:
+      print ("failed to find:", champ)
+
+  print (sorted(champMap.items()))
+  print ("{} champions found".format(len(champMap)))
+  return champMap
+
+
+getChampIds()
