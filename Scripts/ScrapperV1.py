@@ -26,15 +26,61 @@ def buildUrl(apiPath):
 
 
 def getParsedResponse(url):
+  # TODO(sethtroisi): move rate limiting here?
   response = urllib.request.urlopen(url)
   data = response.read()
-  # TODO(sethtroisi): verify utf-8 is correct assumption.
+  # TODO(sethtroisi): Verify utf-8 is correct assumption.
   stringData = data.decode("utf-8")
   return json.loads(stringData)
 
 
+# Get a list of summeronIds from a list of names
+# Ex: ['inkaruga', 'kingvash']
+def getSummonerId(names):
+  apiFormat = 'na/v1.4/summoner/by-name/{summonerNames}'
+  joinedNames = ','.join(names)
+  apiPath = apiFormat.format(summonerNames = joinedNames)
+  url = buildUrl(apiPath)
+  time.sleep(0.5)
+
+  parsed = getParsedResponse(url)
+
+  ids = {}
+  for name in names:
+    ids[name] = parsed[name]['id']
+  return ids
+
+
+#summonerIds = getSummonerId(['inkaruga', 'kingvash'])
+summonerIds = {'inkaruga': 22809484, 'kingvash': 25226531}
+print (summonerIds)
+
+summonerId = summonerIds[0]
+
+
+def getMatchHistory(summonerId):
+  apiFormat = 'na/v2.2/matchhistory/{summonerId}'
+  apiPath = apiFormat.format(summonerId = summonerId)
+  url = buildUrl(apiPath)
+  time.sleep(0.5)
+
+  parsed = getParsedResponse(url)
+  print (len(parsed))
+  return parsed
+
+
+def getMatch(matchId):
+  apiFormat= 'na/v2.2/match/{matchId}'
+  apiPath = apiFormat.format(matchId = matchId)
+  url = buildUrl(apiPath)
+  time.sleep(0.5)
+
+  parsed = getParsedResponse(url)
+  print (len(parsed))
+
+
 def getChampIds():
-  apiPrefix = 'static-data/na/v1.2/champion/'
+  apiPrefix = 'static-data/na/v1.2/champion/{champId}'
 
   champMap = {}
   for champ in range(1, 270):
@@ -55,6 +101,3 @@ def getChampIds():
   print (sorted(champMap.items()))
   print ("{} champions found".format(len(champMap)))
   return champMap
-
-
-getChampIds()
