@@ -10,6 +10,7 @@ from Util import *
 SECONDS_PER_BLOCK = 2 * 60
 GOLD_DELTA_BLOCK = 2000
 
+
 def timeToBlock(time):
   # I think it's more correct to return the block it's happening in.
   # IE event (T = 0) = 0, (0 < T <= 5) = 1
@@ -114,9 +115,8 @@ def loadOutputFile():
   goals = []
 
   dataFile = getOutputFile(mode = 'r')
-  for line in dataFile.readlines():
-    parsed = json.loads(line)
-
+  outputData = json.loads(dataFile.read())
+  for parsed in outputData:
     gameFeatures, goal = parseGameToFeatures(parsed)
 
     for k, v in gameFeatures.items():

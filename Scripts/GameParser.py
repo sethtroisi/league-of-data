@@ -1,8 +1,8 @@
 import argparse
 import json
 import random
-from Util import *
 from Featurize import *
+from Util import *
 
 # API REFERENCE
 # https://developer.riotgames.com/api/methods
@@ -136,13 +136,12 @@ def main(args):
     games = parsed['matches']
     for game in games:
       result, features = parseGameRough(game)
-      jsonObject = {'goal': result, 'features': features}
-      jsonString = json.dumps(jsonObject)
-
-      outputData.append(jsonString)
+      data = {'goal': result, 'features': features}
+      outputData.append(data)
       gameNum += 1
 
-  chars = sum(map(len, outputData))
+  jsonString = json.dumps(outputData)
+  chars = len(jsonString)
 
   print ("parsed {} games".format(gameNum))
   print ("{} chars ~ {:.1f}MB, ~{:.1f}KB/game".format(
@@ -151,8 +150,7 @@ def main(args):
 
   if not args.dry_run:
     f = getOutputFile(mode = 'w')
-    for line in outputData:
-      f.write(line + '\n')
+    f.write(jsonString + '\n')
     f.close()
 
     print ("wrote games to output file ('{}')".format(f.name))
@@ -162,11 +160,11 @@ def main(args):
 
   exampleLines = random.sample(range(gameNum), args.examples)
   for exampleLine in sorted(exampleLines):
-    game = outputData[exampleLine]
+    gameStr = str(outputData[exampleLine])
     if args.full_examples:
-      example = game
+      example = gameStr
     else:
-      example = game[:70] + ('..' if len(jsonString) > 70 else '')
+      example = gameStr[:70] + ('..' if len(gameStr) > 70 else '')
 
     print ()
     print ("line {}: '{}'".format(exampleLine, example))
