@@ -19,18 +19,22 @@ def getDataDirFileName(name):
   return os.path.join(DATA_DIR, name)
 
 
-def getOutputFile(mode = 'r'):
-  outputFileName = getDataDirFileName('output.txt')
-  return open(outputFileName, mode = mode)
-
-
 def loadJsonFile(name):
   fileName = getDataDirFileName(name)
-  file = open(fileName, encoding='latin1')
-  fileData = ''.join(file.readlines())
-  file.close()
+  f = open(fileName, encoding='latin1')
+  fileData = f.read()
+  f.close()
 
   return json.loads(fileData)
+
+def writeJsonFile(name, data):
+  fileName = getDataDirFileName(name)
+  f = open(fileName, mode = 'w')
+
+  jsonString = json.dumps(data)
+  f.write(jsonString + '\n')
+
+  f.close()
 
 
 def getChamps():

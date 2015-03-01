@@ -114,20 +114,17 @@ def loadOutputFile():
   featuresList = []
   goals = []
 
-  dataFile = getOutputFile(mode = 'r')
-  outputData = json.loads(dataFile.read())
-  for parsed in outputData:
-    gameFeatures, goal = parseGameToFeatures(parsed)
+  outputData = loadJsonFile('output.txt')
+  for data in outputData:
+    gameFeatures, goal = parseGameToFeatures(data)
 
     for k, v in gameFeatures.items():
         assert v in (True, False) and type(k) == str
     assert goal in (True, False)
 
-    games.append(parsed)
+    games.append(data)
     featuresList.append(gameFeatures)
     goals.append(goal)
-
-  dataFile.close()
 
   return games, goals, featuresList
 

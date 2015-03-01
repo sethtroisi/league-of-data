@@ -140,23 +140,15 @@ def main(args):
       outputData.append(data)
       gameNum += 1
 
-  jsonString = json.dumps(outputData)
-  chars = len(jsonString)
+  chars = len(str(outputData))
 
   print ("parsed {} games".format(gameNum))
-  print ("{} chars ~ {:.1f}MB, ~{:.1f}KB/game".format(
+  print ("~{} chars ~{:.1f}MB, ~{:.1f}KB/game".format(
       chars, chars / 10 ** 6, chars /(10 ** 3 * gameNum)))
   print ()
 
   if not args.dry_run:
-    f = getOutputFile(mode = 'w')
-    f.write(jsonString + '\n')
-    f.close()
-
-    print ("wrote games to output file ('{}')".format(f.name))
-#  else:
-#    for line, data in enumerate(outputData, 1):
-#      print ('{}: {}'.format(line, data))
+    writeJsonFile('output.txt', outputData)
 
   exampleLines = random.sample(range(gameNum), args.examples)
   for exampleLine in sorted(exampleLines):
@@ -167,7 +159,7 @@ def main(args):
       example = gameStr[:70] + ('..' if len(gameStr) > 70 else '')
 
     print ()
-    print ("line {}: '{}'".format(exampleLine, example))
+    print ("line {}: {}".format(exampleLine, example))
 
 
 # START CODE HERE
