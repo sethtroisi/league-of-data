@@ -1,8 +1,9 @@
 import json
 import urllib.request
 import time
-#import IPython
-#IPython.start_ipython(argv=[])
+
+# TODO(riechelp): convert all * imports to named imports.
+from Util import *
 
 # API REFERENCE
 # https://developer.riotgames.com/api/methods
@@ -51,13 +52,6 @@ def getSummonerId(names):
   return ids
 
 
-#summonerIds = getSummonerId(['inkaruga', 'kingvash'])
-summonerIds = {'inkaruga': 22809484, 'kingvash': 25226531}
-print (summonerIds)
-
-summonerId = summonerIds[0]
-
-
 def getMatchHistory(summonerId):
   apiFormat = 'na/v2.2/matchhistory/{summonerId}'
   apiPath = apiFormat.format(summonerId = summonerId)
@@ -65,9 +59,17 @@ def getMatchHistory(summonerId):
   time.sleep(0.5)
 
   parsed = getParsedResponse(url)
-  print (len(parsed))
   return parsed
 
+
+#summonerIds = getSummonerId(['inkaruga', 'kingvash'])
+#writeJsonFile('example-getSummonerId', summonerIds)
+summonerIds = loadJsonFile('example-getSummonerId')
+firstId = min(summonerIds.values())
+
+#history = getMatchHistory(firstId)
+#writeJsonFile('example-getMatchHistory', history)
+history = loadJsonFile('example-getMatchHistory')
 
 def getMatch(matchId):
   apiFormat= 'na/v2.2/match/{matchId}'
@@ -76,7 +78,6 @@ def getMatch(matchId):
   time.sleep(0.5)
 
   parsed = getParsedResponse(url)
-  print (len(parsed))
 
 
 def getChampIds():
