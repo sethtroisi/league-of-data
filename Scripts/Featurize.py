@@ -1,14 +1,11 @@
 import json
-import math
 import re
 
 from collections import Counter
-
 from sklearn.feature_extraction import DictVectorizer
 
+from Util import *
 
-DATA_DIR = '../Data/'
-OUTPUT_FILE = DATA_DIR + 'output.txt'
 
 SECONDS_PER_BLOCK = 2 * 60
 GOLD_DELTA_BLOCK = 2000
@@ -116,7 +113,7 @@ def loadOutputFile():
   featuresList = []
   goals = []
 
-  dataFile = open(OUTPUT_FILE)
+  dataFile = getOutputFile(mode = 'r')
   for line in dataFile.readlines():
     parsed = json.loads(line)
 

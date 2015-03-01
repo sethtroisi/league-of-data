@@ -1,4 +1,5 @@
 import json
+import os.path
 
 # API REFERENCE
 # https://developer.riotgames.com/api/methods
@@ -12,16 +13,24 @@ import json
 # Match API (this is what we want most)
 # https://developer.riotgames.com/api/methods#!/929/3214
 
-DATA_DIR = '../Data/'
 
-FILE_NAME = DATA_DIR + 'matches{}.json'
-OUTPUT_FILE = DATA_DIR + 'output.txt'
+def getDataDirFileName(name):
+  DATA_DIR = '../Data/'
+  return os.path.join(DATA_DIR, name)
 
-def loadFile(fileName):
+
+def getOutputFile(mode = 'r'):
+  outputFileName = getDataDirFileName('output.txt')
+  return open(outputFileName, mode = mode)
+
+
+def loadJsonFile(name):
+  fileName = getDataDirFileName(name)
   file = open(fileName, encoding='latin1')
   fileData = ''.join(file.readlines())
   file.close()
-  return fileData
+
+  return json.loads(fileData)
 
 
 def getChamps():

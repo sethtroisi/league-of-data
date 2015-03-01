@@ -16,11 +16,6 @@ from Featurize import *
 # Match API (this is what we want most)
 # https://developer.riotgames.com/api/methods#!/929/3214
 
-DATA_DIR = '../Data/'
-
-FILE_NAME = DATA_DIR + 'matches{}.json'
-OUTPUT_FILE = DATA_DIR + 'output.txt'
-
 
 def getArgParse():
   parser = argparse.ArgumentParser(description='Parses Games and produces features.')
@@ -136,8 +131,7 @@ def main(args):
 
   lastFile = 1 if args.limited else 10
   for fileNumber in range(1, lastFile + 1):
-    fileData = loadFile(FILE_NAME.format(fileNumber))
-    parsed = json.loads(fileData)
+    parsed = loadJsonFile('matches{}.json'.format(fileNumber))
 
     games = parsed['matches']
     for game in games:
@@ -156,12 +150,12 @@ def main(args):
   print ()
 
   if not args.dry_run:
-    output = open(OUTPUT_FILE, mode='w')
+    f = getOutputFile(mode = 'w')
     for line in outputData:
-        output.write(line + '\n')
-    output.close()
+      f.write(line + '\n')
+    f.close()
 
-    print ("wrote games to output file ('{}')".format(OUTPUT_FILE))
+    print ("wrote games to output file ('{}')".format(f.name))
 #  else:
 #    for line, data in enumerate(outputData, 1):
 #      print ('{}: {}'.format(line, data))
