@@ -67,7 +67,12 @@ def parseGameRough(match):
 #  print ("Names: {}".format(champNames))
 
   dragons = []
+  barons = []
   towers = []
+  inhibs = []
+  pinkWards = []
+  stealthWards3Min = []
+  stealthWards2Min = []
   gold = {}
   frames = match['timeline']['frames']
   for frame in frames:
@@ -84,11 +89,28 @@ def parseGameRough(match):
     events = frame.get('events', [])
     for event in events:
       monsterType = event.get('monsterType', None)
-      if monsterType == 'DRAGON':
+      if monsterType:
         time = event['timestamp'] // 1000
         killer = event['killerId']
         isTeamOne = killer in teamOne
-        dragons.append((time, isTeamOne))
+        if monsterType == 'DRAGON':
+          dragons.append((time, isTeamOne))
+        elif monsterType == 'BARON_NASHOR':
+          barons.append((time, isTeamOne))
+        #Red/blue buffs aren't recorded here as specified in API
+
+      wardEvent = event.get('eventType', None)
+      if wardEvent == 'WARD_PLACED':
+        time = event['timestamp'] // 1000
+        wardType = event['wardType']
+        isTeamOne = event['creatorId'] <= 5 
+        if wardType == 'VISION_WARD':
+          pinkWards.append((time, isTeamOne))
+        elif wardType == 'YELLOW_TRINKET':
+          stealthWards2Min.append((time, isTeamOne))
+        elif wardType in ('YELLOW_TRINKET_UPGRADE', 'SIGHT_WARD'):
+          stealthWards3Min.append((time, isTeamOne))
+        #unhandled case: TEEMO_MUSHROOM
 
       buildingType = event.get('buildingType', None)
       if buildingType == 'TOWER_BUILDING':
@@ -112,17 +134,29 @@ def parseGameRough(match):
         #assert all(tNum != towerNum for t, k, tNum in towers)
         towers.append((time, towerNum))
 
+      elif buildingType == 'INHIBITOR_BUILDING':
+        time = event['timestamp'] // 1000
+        killer = event['killerId']
+        laneType = event['laneType']
+        isTeamOneInhib = event['teamId'] == 100
+        inhibNum = getInhibNumber(isTeamOneInhib, laneType)
+        inhibs.append((time, inhibNum))
+
   features = dict()
   features['dragons'] = dragons
   features['towers'] = towers
   features['gold'] = gold
+  features['pinkWards'] = pinkWards
+  features['stealthWards2Min'] = stealthWards2Min
+  features['stealthWards3Min'] = stealthWards3Min
+  features['barons'] = barons
+  features['inhibs'] = inhibs
 
   # TODO(sethtroisi): plumb debug info instead of reusing features.
   features['duration'] = match['matchDuration']
 
   result = match['teams'][0]['winner']
   return result, features
-
 
 def main(args):
 
