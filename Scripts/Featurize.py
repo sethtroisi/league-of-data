@@ -179,6 +179,7 @@ def getGamesData():
   print ('Number non-zero: {}'.format(sparseFeatures.getnnz()))
   print ()
 
-  generateFeatureData(featuresList)
+  # TODO(sethtroisi): add this under a flag.
+  #generateFeatureData(featuresList)
 
   return games, goals, vectorizer, sparseFeatures

@@ -9,7 +9,7 @@ import matplotlib.pyplot as pyplot
 # TODO(sethtroisi): add flag parsing to this file to display verbose.
 
 
-def plotData(times, samples, corrects, incorrects, ratios, logLosses):
+def plotData(times, samples, corrects, ratios, logLosses):
   fig, (axis1, axis2, axis3) = pyplot.subplots(3, 1)
   fig.subplots_adjust(hspace = 0.6)
 
@@ -31,7 +31,6 @@ def plotData(times, samples, corrects, incorrects, ratios, logLosses):
       bbox=props,
       verticalalignment='bottom', horizontalalignment='center')
 
-
   # Middle graph of log loss.
   axis2.plot(times, logLosses)
   axis2.set_title('Log Loss')
@@ -48,8 +47,9 @@ def plotData(times, samples, corrects, incorrects, ratios, logLosses):
       bbox=props,
       verticalalignment='bottom', horizontalalignment='center')
 
-
   # Lower graph of sample data.
+  incorrects = [s - c for s, c in zip(samples, corrects)]
+
   axis3.plot(times, samples, 'b',
              times, corrects, 'g',
              times, incorrects, 'r')
@@ -60,14 +60,30 @@ def plotData(times, samples, corrects, incorrects, ratios, logLosses):
   pyplot.show()
 
 
-def stats(times, samples, corrects, incorrects, ratios, logLosses):
+def plotGame(times, winPredictions):
+  fig, axis = pyplot.subplots(1, 1)
+
+  # Common styling 'Patch' for text
+  props = dict(boxstyle='round', facecolor='#abcdef', alpha=0.5)
+
+  for gamePredictions in winPredictions:
+    blocks = len(gamePredictions)
+    axis.plot(times[:blocks], gamePredictions)
+
+  axis.set_title('Predictions of win rate across the game')
+  axis.set_xlabel('time (m)')
+  axis.set_ylabel('prediction confidence')
+
+  pyplot.show()
+
+def stats(times, samples, corrects, ratios, logLosses):
   startBlock = timeToBlock(10 * 60)
   endBlock = timeToBlock(40 * 60)
 
   sumLosses = sum(logLosses[startBlock:endBlock+1])
+  totalSamples = sum(samples[startBlock:endBlock+1])
   totalCorrect = sum(corrects[startBlock:endBlock+1])
-  totalIncorrect = sum(incorrects[startBlock:endBlock+1])
-  totalSamples = totalCorrect + totalIncorrect
+  totalIncorrect = totalSamples - totalCorrect
   mediumRatio = np.median(ratios[startBlock:endBlock+1])
 
   print ()
@@ -85,7 +101,7 @@ def buildClassifier(trainGoals, trainFeatures):
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
-  clf = SGDClassifier(loss="log", penalty="l2", n_iter=20000, shuffle=True,
+  clf = SGDClassifier(loss="log", penalty="l2", n_iter=2000, shuffle=True,
     alpha = 0.0015, verbose = False)
 
   clf.fit(trainFeatures, trainGoals)
@@ -101,45 +117,18 @@ def buildClassifier(trainGoals, trainFeatures):
   return clf
 
 
-def testClassifier(time, classifier, testGoals, testFeatures):
-  modelGoals = classifier.predict_proba(testFeatures)
+def getPrediction(classifier, testGoal, testFeature):
+  modelGuesses = classifier.predict_proba(testFeature)
 
-  samples = len(testGoals)
+  # this is due to the sorting of [False, True]
+  BProb, AProb = modelGuesses[0]
 
-  corrects = 0
-  predictA = 0
-  predictB = 0
-  for modelGuess, testResult in zip(modelGoals, testGoals):
-    BProb, AProb = modelGuess # this is due to the sorting of [False, True]
+  correct = (AProb > 0.5) == testGoal
 
-    correct = (AProb > 0.5) == testResult
-    corrects += correct
+  # TODO(sethtroisi): Verify this log loss calculation
+  logLoss = sklearn.metrics.log_loss([True], [AProb if testGoal else BProb])
 
-    predictA += AProb > 0.5
-    predictB += BProb > 0.5
-
-  logLoss = sklearn.metrics.log_loss(testGoals, modelGoals)
-
-# TODO(sethtroisi): move this debug info under a flag.
-#  print ("Predict A: {}, B: {}".format(predictA, predictB))
-#  print ("True A: {}, B: {}".format(
-#      testGoals.count(True), testGoals.count(False)))
-#  print ()
-
-#  print ("Correctness: {}/{} = {:2.1f}".format(
-#      corrects, samples, 100 * corrects / samples))
-#  print ()
-
-#  print ("log loss: {:.4f}".format(logLoss))
-#  print ("\t(lower is better, null model is .6912)")
-#  print ()
-#  print ()
-
-  percent = 100 * corrects / samples
-  print ("time: {:<2d}, Predict: {:3d} - {:3d}, Correct: {:3d}/{:3d} = {:2.1f}".format(
-      time // 60, predictA, predictB, corrects, samples, percent))
-
-  return corrects, samples - corrects, logLoss
+  return correct, AProb, logLoss
 
 
 def seperate(games, goals, features):
@@ -185,65 +174,84 @@ def predict(classifier, vectorizer):
 
 
 # MAIN CODE
-times = []
-samples = []
-corrects = []
-incorrects = []
-ratios = []
-logLosses = []
+MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
+
+# Variables about testGames.
+times = [b / 60 for b in range(MAX_BLOCKS)]
+samples = [0 for b in range(MAX_BLOCKS)]
+corrects = [0 for b in range(MAX_BLOCKS)]
+# Averages over data (calculated after all data).
+logLosses = [0 for b in range(MAX_BLOCKS)]
+ratios = [0 for b in range(MAX_BLOCKS)]
+# Per Game stats.
+winPredictions = [[] for b in range(MAX_BLOCKS)]
 
 games, goals, vectorizer, features = getGamesData()
-data = seperate(games, goals, features)
-
-trainingGoals, trainingFeatures, testingGames  = data
+trainingGoals, trainingFeatures, testingGames = \
+    seperate(games, goals, features)
 
 classifier = buildClassifier(trainingGoals, trainingFeatures)
 
-for blockNum in range((60 * 60) // SECONDS_PER_BLOCK):
-  time = blockNum * SECONDS_PER_BLOCK
+for game in testingGames:
+  duration = game['features']['duration']
 
-  goals = []
-  featuresList = []
+  predictions = []
+  # TODO(sethtroisi): determine this point algorimically as 80% for game end.
+  # TODO(sethtroisi): alternatively truncate when samples < 50.
+  for blockNum in range(MAX_BLOCKS):
+    time = blockNum * SECONDS_PER_BLOCK
 
-  for game in testingGames:
     # TODO(sethtroisi): remove games that have ended.
-    duration = game['features']['duration']
     if duration < time:
       continue
 
-    rawFeatures, goal = parseGameToFeatures(game, time)
+    gameFeatures, goal = parseGameToFeatures(game, time)
 
-    goals.append(goal)
-    featuresList.append(rawFeatures)
+    sparse = vectorizer.transform(gameFeatures)
 
-  if len(goals) <= 40:
-    # Note: Don't evaluate the model on a small number of games.
-    break
+    correct, prediction, logLoss = \
+        getPrediction(classifier, goal, sparse)
 
-  sparse = vectorizer.transform(featuresList)
+    # store data to graph
+    samples[blockNum] += 1
+    corrects[blockNum] += 1 if correct else 0
+    predictions.append(prediction)
+    logLosses[blockNum] += logLoss
+  winPredictions.append(predictions)
 
-  correct, incorrect, logLoss = \
-      testClassifier(time, classifier, goals, sparse)
+# TODO(sethtroisi): calculate logLoss and ratio.
 
-  # store data to graph
-  times.append(time / 60)
-  samples.append(len(goals))
 
-  corrects.append(correct)
-  incorrects.append(incorrect)
+# TODO(sethtroisi): add a for block_num loop here.
+# TODO(sethtroisi): move this debug info under a flag.
+#  print ("Predict A: {}, B: {}".format(predictA, predictB))
+#  print ("True A: {}, B: {}".format(
+#      testGoals.count(True), testGoals.count(False)))
+#  print ()
 
-  ratios.append(correct / (correct + incorrect))
+#  print ("Correctness: {}/{} = {:2.1f}".format(
+#      corrects, samples, 100 * corrects / samples))
+#  print ()
 
-  logLosses.append(logLoss)
-print ()
+#  print ("log loss: {:.4f}".format(logLoss))
+#  print ("\t(lower is better, null model is .6912)")
+#  print ()
+#  print ()
+#  percent = 100 * corrects / samples
+#  print ("time: {:<2d}, Predict: {:3d} - {:3d}, Correct: {:3d}/{:3d} = {:2.1f}".format(
+#      time // 60, predictA, predictB, corrects, samples, percent))
+
 
 # Use the model to make some simple predictions.
-predict(classifier, vectorizer)
+# TODO(sethtroisi): move this under a flag.
+#predict(classifier, vectorizer)
 
 # If data was tabulated on the testingData print stats about it.
 if len(times) > 0:
-  stats(times, samples, corrects, incorrects, ratios, logLosses)
-  plotData(times, samples, corrects, incorrects, ratios, logLosses)
+  stats(times, samples, corrects, ratios, logLosses)
+  plotData(times, samples, corrects, ratios, logLosses)
+  plotGame(times, winPredictions)
+
 
 # Graphs that I want badly
 #
