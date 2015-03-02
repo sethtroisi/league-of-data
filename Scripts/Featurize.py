@@ -77,12 +77,16 @@ def goldFeatures(gold, sampleTime):
       else:
         teamBGold += totalGold
 
+    for thousands in range(1, 100):
+      if thousands * 1000 < teamAGold:
+        features['gold_a_{}k'.format(thousands)] = True
+
+      if thousands * 1000 < teamBGold:
+        features['gold_b_{}k'.format(thousands)] = True
+
     delta = teamAGold - teamBGold
     blockedGold = GOLD_DELTA_BLOCK * (delta // GOLD_DELTA_BLOCK)
-
-    feature = 'gold_delta_{}_{}k'.format(
-      blockNum, blockedGold // 1000)
-    features[feature] = True
+    features['gold_delta_{}_{}k'.format(blockNum, blockedGold // 1000)] = True
 
   return features
 

@@ -71,6 +71,7 @@ firstId = min(summonerIds.values())
 #writeJsonFile('example-getMatchHistory', history)
 history = loadJsonFile('example-getMatchHistory')
 
+
 def getMatch(matchId):
   apiFormat= 'na/v2.2/match/{matchId}'
   apiPath = apiFormat.format(matchId = matchId)
