@@ -221,7 +221,6 @@ for game in testingGames:
 
 # TODO(sethtroisi): calculate logLoss and ratio.
 
-
 # TODO(sethtroisi): add a for block_num loop here.
 # TODO(sethtroisi): move this debug info under a flag.
 #  print ("Predict A: {}, B: {}".format(predictA, predictB))

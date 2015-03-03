@@ -109,7 +109,7 @@ def parseGameRough(match):
         isTeamOneTower = event['teamId'] == 100
 
         if towerType == 'FOUNTAIN_TURRET':
-          # TODO(sehtroisi): figure out what causes this.
+          # NOTE: Azir turrets are coded as turrets.
           continue
 
         towerNum = getTowerNumber(isTeamOneTower, laneType, towerType)
