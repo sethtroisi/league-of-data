@@ -89,8 +89,10 @@ def parseGameRough(match):
     events = frame.get('events', [])
     for event in events:
       monsterType = event.get('monsterType', None)
+      time = event.get('timestamp', None)
+      if time:
+        time = time // 1000
       if monsterType:
-        time = event['timestamp'] // 1000
         killer = event['killerId']
         isTeamOne = killer in teamOne
         if monsterType == 'DRAGON':
@@ -99,22 +101,8 @@ def parseGameRough(match):
           barons.append((time, isTeamOne))
         #Red/blue buffs aren't recorded here as specified in API
 
-      wardEvent = event.get('eventType', None)
-      if wardEvent == 'WARD_PLACED':
-        time = event['timestamp'] // 1000
-        wardType = event['wardType']
-        isTeamOne = event['creatorId'] <= 5 
-        if wardType == 'VISION_WARD':
-          pinkWards.append((time, isTeamOne))
-        elif wardType == 'YELLOW_TRINKET':
-          stealthWards2Min.append((time, isTeamOne))
-        elif wardType in ('YELLOW_TRINKET_UPGRADE', 'SIGHT_WARD'):
-          stealthWards3Min.append((time, isTeamOne))
-        #unhandled case: TEEMO_MUSHROOM
-
       buildingType = event.get('buildingType', None)
       if buildingType == 'TOWER_BUILDING':
-        time = event['timestamp'] // 1000
         killer = event['killerId']
         towerType = event['towerType']
         laneType = event['laneType']
@@ -135,12 +123,23 @@ def parseGameRough(match):
         towers.append((time, towerNum))
 
       elif buildingType == 'INHIBITOR_BUILDING':
-        time = event['timestamp'] // 1000
         killer = event['killerId']
         laneType = event['laneType']
         isTeamOneInhib = event['teamId'] == 100
         inhibNum = getInhibNumber(isTeamOneInhib, laneType)
         inhibs.append((time, inhibNum))
+
+      wardEvent = event.get('eventType', None)
+      if wardEvent == 'WARD_PLACED':
+        wardType = event['wardType']
+        isTeamOne = event['creatorId'] <= 5 
+        if wardType == 'VISION_WARD':
+          pinkWards.append((time, isTeamOne))
+        elif wardType == 'YELLOW_TRINKET':
+          stealthWards2Min.append((time, isTeamOne))
+        elif wardType in ('YELLOW_TRINKET_UPGRADE', 'SIGHT_WARD'):
+          stealthWards3Min.append((time, isTeamOne))
+        #unhandled case: TEEMO_MUSHROOM
 
   features = dict()
   features['dragons'] = dragons
@@ -157,6 +156,7 @@ def parseGameRough(match):
 
   result = match['teams'][0]['winner']
   return result, features
+
 
 def main(args):
 
