@@ -36,7 +36,7 @@ def plotData(times, samples, corrects, ratios, logLosses):
   axis2.set_title('Log Loss')
   axis2.set_xlabel('time (m)')
   axis2.set_ylabel('loss (log)')
-  axis2.set_ylim([0,1])
+  axis2.set_ylim([0, 1.5])
 
   minLogLoss = min(logLosses)
   time = times[logLosses.index(minLogLoss)]
@@ -103,7 +103,7 @@ def buildClassifier(trainGoals, trainFeatures):
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
-  clf = SGDClassifier(loss="log", penalty="l2", n_iter=2000, shuffle=True,
+  clf = SGDClassifier(loss="log", penalty="l2", n_iter=20000, shuffle=True,
     alpha = 0.0015, verbose = False)
 
   clf.fit(trainFeatures, trainGoals)
@@ -122,13 +122,13 @@ def buildClassifier(trainGoals, trainFeatures):
 def getPrediction(classifier, testGoal, testFeature):
   modelGuesses = classifier.predict_proba(testFeature)
 
-  # this is due to the sorting of [False, True]
+  # This is due to the sorting of [False, True].
   BProb, AProb = modelGuesses[0]
 
   correct = (AProb > 0.5) == testGoal
 
   # TODO(sethtroisi): Verify this log loss calculation
-  logLoss = sklearn.metrics.log_loss([True], [AProb if testGoal else BProb])
+  logLoss = sklearn.metrics.log_loss([True], [BProb if testGoal else AProb])
 
   return correct, AProb, logLoss
 
@@ -179,7 +179,7 @@ def predict(classifier, vectorizer):
 MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
 
 # Variables about testGames.
-times = [b / 60 for b in range(MAX_BLOCKS)]
+times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
 samples = [0 for b in range(MAX_BLOCKS)]
 corrects = [0 for b in range(MAX_BLOCKS)]
 # Averages over data (calculated after all data).
@@ -225,7 +225,10 @@ for game in testingGames:
   goals.append(goal)
   winPredictions.append(predictions)
 
-# TODO(sethtroisi): calculate logLoss and ratio.
+for blockNum in range(MAX_BLOCKS):
+  logLosses[blockNum] /= samples[blockNum]
+  ratios[blockNum] = corrects[blockNum] / samples[blockNum]
+
 
 # TODO(sethtroisi): add a for block_num loop here.
 # TODO(sethtroisi): move this debug info under a flag.
