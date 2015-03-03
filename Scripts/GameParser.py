@@ -91,7 +91,8 @@ def parseGameRough(match):
       monsterType = event.get('monsterType', None)
       time = event.get('timestamp', None)
       if time:
-        time = time // 1000
+        time //= 1000
+
       if monsterType:
         killer = event['killerId']
         isTeamOne = killer in teamOne
@@ -132,7 +133,7 @@ def parseGameRough(match):
       wardEvent = event.get('eventType', None)
       if wardEvent == 'WARD_PLACED':
         wardType = event['wardType']
-        isTeamOne = event['creatorId'] <= 5 
+        isTeamOne = event['creatorId'] <= 5
         if wardType == 'VISION_WARD':
           pinkWards.append((time, isTeamOne))
         elif wardType == 'YELLOW_TRINKET':
@@ -143,13 +144,13 @@ def parseGameRough(match):
 
   features = dict()
   features['dragons'] = dragons
+  features['barons'] = barons
   features['towers'] = towers
-  features['gold'] = gold
+  features['inhibs'] = inhibs
   features['pinkWards'] = pinkWards
   features['stealthWards2Min'] = stealthWards2Min
   features['stealthWards3Min'] = stealthWards3Min
-  features['barons'] = barons
-  features['inhibs'] = inhibs
+  features['gold'] = gold
 
   # TODO(sethtroisi): plumb debug info instead of reusing features.
   features['duration'] = match['matchDuration']
