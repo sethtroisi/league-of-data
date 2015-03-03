@@ -60,21 +60,23 @@ def plotData(times, samples, corrects, ratios, logLosses):
   pyplot.show()
 
 
-def plotGame(times, winPredictions):
+def plotGame(times, results, winPredictions):
   fig, axis = pyplot.subplots(1, 1)
 
   # Common styling 'Patch' for text
   props = dict(boxstyle='round', facecolor='#abcdef', alpha=0.5)
 
-  for gamePredictions in winPredictions:
+  for result, gamePredictions in zip(results, winPredictions):
     blocks = len(gamePredictions)
-    axis.plot(times[:blocks], gamePredictions)
+    color = 'g' if result else 'r'
+    axis.plot(times[:blocks], gamePredictions, color)
 
   axis.set_title('Predictions of win rate across the game')
   axis.set_xlabel('time (m)')
   axis.set_ylabel('prediction confidence')
 
   pyplot.show()
+
 
 def stats(times, samples, corrects, ratios, logLosses):
   startBlock = timeToBlock(10 * 60)
@@ -184,6 +186,7 @@ corrects = [0 for b in range(MAX_BLOCKS)]
 logLosses = [0 for b in range(MAX_BLOCKS)]
 ratios = [0 for b in range(MAX_BLOCKS)]
 # Per Game stats.
+goals = []
 winPredictions = [[] for b in range(MAX_BLOCKS)]
 
 games, goals, vectorizer, features = getGamesData()
@@ -194,6 +197,7 @@ classifier = buildClassifier(trainingGoals, trainingFeatures)
 
 for game in testingGames:
   duration = game['features']['duration']
+  goal = game['goal']
 
   predictions = []
   # TODO(sethtroisi): determine this point algorimically as 80% for game end.
@@ -205,7 +209,7 @@ for game in testingGames:
     if duration < time:
       continue
 
-    gameFeatures, goal = parseGameToFeatures(game, time)
+    gameFeatures = parseGameToFeatures(game, time)
 
     sparse = vectorizer.transform(gameFeatures)
 
@@ -217,6 +221,8 @@ for game in testingGames:
     corrects[blockNum] += 1 if correct else 0
     predictions.append(prediction)
     logLosses[blockNum] += logLoss
+
+  goals.append(goal)
   winPredictions.append(predictions)
 
 # TODO(sethtroisi): calculate logLoss and ratio.
@@ -249,7 +255,7 @@ for game in testingGames:
 if len(times) > 0:
   stats(times, samples, corrects, ratios, logLosses)
   plotData(times, samples, corrects, ratios, logLosses)
-  plotGame(times, winPredictions)
+  plotGame(times, goals, winPredictions)
 
 
 # Graphs that I want badly

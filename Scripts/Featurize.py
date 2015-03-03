@@ -109,8 +109,7 @@ def parseGameToFeatures(parsed, time=None):
   features.update(towerFeatures(towers, time))
   features.update(goldFeatures(gold, time))
 
-  goal = parsed['goal']
-  return features, goal
+  return features
 
 
 def loadOutputFile():
@@ -120,7 +119,8 @@ def loadOutputFile():
 
   outputData = loadJsonFile('output.txt')
   for data in outputData:
-    gameFeatures, goal = parseGameToFeatures(data)
+    goal = data['goal']
+    gameFeatures = parseGameToFeatures(data)
 
     for k, v in gameFeatures.items():
         assert v in (True, False) and type(k) == str
