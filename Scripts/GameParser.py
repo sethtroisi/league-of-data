@@ -114,6 +114,7 @@ def parseGameRough(match):
           continue
 
         towerNum = getTowerNumber(isTeamOneTower, laneType, towerType)
+        assert isTeamOneTower == teamATowerKill(towerNum)
 
         #print ("killer {}({}) @{:.0f}s: ({} x {} x {}) = {}".format(
         #  champNames[killer - 1], killer, time,

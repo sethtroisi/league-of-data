@@ -226,8 +226,10 @@ for game in testingGames:
   winPredictions.append(predictions)
 
 for blockNum in range(MAX_BLOCKS):
-  logLosses[blockNum] /= samples[blockNum]
-  ratios[blockNum] = corrects[blockNum] / samples[blockNum]
+  if samples[blockNum] > 0:
+    logLosses[blockNum] /= samples[blockNum]
+    ratios[blockNum] = corrects[blockNum] / samples[blockNum]
+
 
 
 # TODO(sethtroisi): add a for block_num loop here.

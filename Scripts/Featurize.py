@@ -18,6 +18,30 @@ def timeToBlock(time):
   return (time - 1) // SECONDS_PER_BLOCK + 1
 
 
+# Create features about baron taken (team, count)
+def baronFeatures(barons, sampleTime):
+  features = {}
+
+  baronsA, baronsB = 0, 0
+  for baron in barons:
+    baronTime, isTeamOne = baron
+    if baronTime > sampleTime:
+      break
+
+    timeBlock = timeToBlock(baronTime)
+
+    if isTeamOne:
+      baronsA += 1
+      features['baron_a_{}'.format(baronsA)] = True
+      features['baron_a_{}_{}'.format(timeBlock, baronsA)] = True
+    else:
+      baronsB += 1
+      features['baron_b_{}'.format(baronsB)] = True
+      features['baron_b_{}_{}'.format(timeBlock, baronsB)] = True
+
+  return features
+
+
 # Create features about dragons taken (team, count)
 def dragonFeatures(dragons, sampleTime):
   features = {}
@@ -32,9 +56,11 @@ def dragonFeatures(dragons, sampleTime):
 
     if isTeamOne:
       dragonsA += 1
+      features['dragon_a_{}'.format(dragonsA)] = True
       features['dragon_a_{}_{}'.format(timeBlock, dragonsA)] = True
     else:
       dragonsB += 1
+      features['dragon_b_{}'.format(dragonsB)] = True
       features['dragon_b_{}_{}'.format(timeBlock, dragonsB)] = True
 
   return features
@@ -44,13 +70,22 @@ def dragonFeatures(dragons, sampleTime):
 def towerFeatures(towers, sampleTime):
   features = {}
 
+  towersA, towersB = 0, 0
   for towerData in towers:
     towerTime, towerNum = towerData
     if towerTime > sampleTime:
       break
 
-    blockDestroyed = timeToBlock(towerTime)
-    features['towers_{}_{}'.format(blockDestroyed, towerNum)] = True
+    if teamATowerKill(towerNum):
+      towersA += 1
+    else:
+      towersB += 1
+
+    timeBlock = timeToBlock(towerTime)
+    features['towers_{}'.format(towerNum)] = True
+    features['towers_{}_{}'.format(timeBlock, towerNum)] = True
+
+  features['towerskilled_{}_{}'.format(towersA, towersB)] = True
 
   return features
 
@@ -93,6 +128,7 @@ def goldFeatures(gold, sampleTime):
 def parseGameToFeatures(parsed, time=None):
   gameFeatures = parsed['features']
 
+  barons = gameFeatures['barons']
   dragons = gameFeatures['dragons']
   towers = gameFeatures['towers']
   gold = gameFeatures['gold']
@@ -105,6 +141,7 @@ def parseGameToFeatures(parsed, time=None):
     # TODO(sethtroisi): add feature without overfitting somehow.
     #lastBlock = timeToBlock(duration);
 
+  features.update(baronFeatures(barons, time))
   features.update(dragonFeatures(dragons, time))
   features.update(towerFeatures(towers, time))
   features.update(goldFeatures(gold, time))

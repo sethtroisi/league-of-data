@@ -63,6 +63,11 @@ def getTowerNumber(isTeamOneTower, lane, tower):
       lanes.index(lane) * len(towers) + \
       towers.index(tower)
 
+def teamATowerKill(towerNum):
+  lanes = 3
+  towers = 4
+  return towerNum < (lanes * towers)
+
 def getInhibNumber(isTeamOneInhib, lane):
   lanes = ('BOT_LANE', 'MID_LANE', 'TOP_LANE')
 
