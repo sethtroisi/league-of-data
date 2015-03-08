@@ -1,14 +1,17 @@
 from Featurize import *
 from Util import *
 
-from sklearn.linear_model import SGDClassifier
 import sklearn.metrics
 import numpy as np
 import matplotlib.pyplot as pyplot
 
+from matplotlib.widgets import Slider
+from sklearn.linear_model import SGDClassifier
+
 # TODO(sethtroisi): add flag parsing to this file to display verbose.
 
 
+# Plot general data about accuracy, logloss, number of samples.
 def plotData(times, samples, corrects, ratios, logLosses):
   fig, (axis1, axis2, axis3) = pyplot.subplots(3, 1)
   fig.subplots_adjust(hspace = 0.6)
@@ -60,20 +63,65 @@ def plotData(times, samples, corrects, ratios, logLosses):
   pyplot.show()
 
 
+# Plot game predictions vs time.
 def plotGame(times, results, winPredictions):
-  fig, axis = pyplot.subplots(1, 1)
+  fig, (axis1, axis2) = pyplot.subplots(2, 1)
+  fig.subplots_adjust(hspace = 0.65)
 
-  # Common styling 'Patch' for text
-  props = dict(boxstyle='round', facecolor='#abcdef', alpha=0.5)
+  # Note: I didn't have luck with subplots(3, 1) and resizing so I used this.
+  sliderAxis = pyplot.axes(
+      [0.1, 0.45, 0.8, 0.05],
+      axisbg='lightgoldenrodyellow')
 
+  resultColors = {True:'g', False:'r'}
+
+  # For every game print prediction through out the game.
   for result, gamePredictions in zip(results, winPredictions):
     blocks = len(gamePredictions)
-    color = 'g' if result else 'r'
-    axis.plot(times[:blocks], gamePredictions, color)
+    color = resultColors[result]
+    axis1.plot(times[:blocks], gamePredictions, color)
 
-  axis.set_title('Predictions of win rate across the game')
-  axis.set_xlabel('time (m)')
-  axis.set_ylabel('prediction confidence')
+  axis1.set_title('Predictions of win rate across the game')
+  axis1.set_xlabel('time (m)')
+  axis1.set_ylabel('prediction confidence')
+
+  # At X minutes print confidences.
+  sliderTime = Slider(sliderAxis, 'Time', 0, 60, valinit=20)
+
+  percents = [p / 100 for p in range(100 + 1)]
+
+  def plotConfidentAtTime(requestedTime):
+    ti = min([(abs(requestedTime - t), i) for i,t in enumerate(times)])[1]
+
+    cdfTrue = [0] * len(percents)
+    cdfFalse = [0] * len(percents)
+    for result, gamePredictions in zip(results, winPredictions):
+      if len(gamePredictions) <= ti:
+        continue
+
+      prediction = gamePredictions[ti]
+      for pi, percent in enumerate(percents):
+        if percent > prediction:
+          break
+        if result:
+          cdfTrue[pi] += 1
+        else:
+          cdfFalse[pi] += 1
+
+    axis2.cla();
+
+    axis2.plot(percents, cdfTrue, resultColors[True])
+    axis2.plot(percents, cdfFalse[::-1], resultColors[False])
+
+    axis2.set_xlabel('confidence')
+    axis2.set_ylabel('count of games')
+
+    axis2.set_ylim([0, max(cdfTrue[0], cdfFalse[0]) + 1])
+
+    fig.canvas.draw_idle()
+
+  plotConfidentAtTime(20)
+  sliderTime.on_changed(plotConfidentAtTime)
 
   pyplot.show()
 
@@ -103,8 +151,8 @@ def buildClassifier(trainGoals, trainFeatures):
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
-  clf = SGDClassifier(loss="log", penalty="l2", n_iter=10000, shuffle=True,
-    alpha = 0.005, verbose = False)
+  clf = SGDClassifier(loss="log", penalty="l2", n_iter=500, shuffle=True,
+    alpha = 0.005, verbose = True)
 
   clf.fit(trainFeatures, trainGoals)
 
@@ -178,6 +226,12 @@ def predict(classifier, vectorizer):
 # MAIN CODE
 MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
 
+games, goals, vectorizer, features = getGamesData()
+trainingGoals, trainingFeatures, testingGames = \
+    seperate(games, goals, features)
+
+classifier = buildClassifier(trainingGoals, trainingFeatures)
+
 # Variables about testGames.
 times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
 samples = [0 for b in range(MAX_BLOCKS)]
@@ -186,14 +240,8 @@ corrects = [0 for b in range(MAX_BLOCKS)]
 logLosses = [0 for b in range(MAX_BLOCKS)]
 ratios = [0 for b in range(MAX_BLOCKS)]
 # Per Game stats.
-goals = []
-winPredictions = [[] for b in range(MAX_BLOCKS)]
-
-games, goals, vectorizer, features = getGamesData()
-trainingGoals, trainingFeatures, testingGames = \
-    seperate(games, goals, features)
-
-classifier = buildClassifier(trainingGoals, trainingFeatures)
+testGoals = []
+winPredictions = []
 
 for game in testingGames:
   duration = game['features']['duration']
@@ -222,7 +270,7 @@ for game in testingGames:
     predictions.append(prediction)
     logLosses[blockNum] += logLoss
 
-  goals.append(goal)
+  testGoals.append(goal)
   winPredictions.append(predictions)
 
 for blockNum in range(MAX_BLOCKS):
@@ -260,10 +308,9 @@ for blockNum in range(MAX_BLOCKS):
 if len(times) > 0:
   stats(times, samples, corrects, ratios, logLosses)
   plotData(times, samples, corrects, ratios, logLosses)
-  plotGame(times, goals, winPredictions)
+  plotGame(times, testGoals, winPredictions)
 
 
 # Graphs that I want badly
 #
 # Graphs that might be interesting
-#   Accuracy X minutes back from victory
