@@ -1,0 +1,27 @@
+Ideas about the project.
+
+
+New Features -
+  Troll detector -
+    zero xp gain > 3 minutes
+    deaths > 5 before 5 minutes
+    teleport as a summoner?
+
+  Champ Level -
+    highest level on team,
+    lowest level on team,
+    sum of levels on team.
+
+  CS -
+    same as above
+
+  Gold -
+    same as above
+
+  Items -
+    number of completed legendary items
+      (figure out how to include sightstone, boots, ...)
+
+  Summoner spells -
+    what spells X what champions
+    up / down
