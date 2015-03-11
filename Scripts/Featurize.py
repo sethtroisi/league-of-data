@@ -22,6 +22,7 @@ def timeToBlock(time):
 def baronFeatures(barons, sampleTime):
   features = {}
 
+  baronString = ''
   baronsA, baronsB = 0, 0
   for baron in barons:
     baronTime, isTeamOne = baron
@@ -32,12 +33,14 @@ def baronFeatures(barons, sampleTime):
 
     if isTeamOne:
       baronsA += 1
+      baronString += 'A'
       features['baron_a_{}'.format(baronsA)] = True
-      features['baron_a_{}_{}'.format(timeBlock, baronsA)] = True
     else:
       baronsB += 1
+      baronString += 'B'
       features['baron_b_{}'.format(baronsB)] = True
-      features['baron_b_{}_{}'.format(timeBlock, baronsB)] = True
+
+  features['baron_order_{}'.format(baronString)] = True
 
   return features
 
@@ -46,6 +49,7 @@ def baronFeatures(barons, sampleTime):
 def dragonFeatures(dragons, sampleTime):
   features = {}
 
+  dragonString = ''
   dragonsA, dragonsB = 0, 0
   for dragon in dragons:
     dragonTime, isTeamOne = dragon
@@ -56,12 +60,14 @@ def dragonFeatures(dragons, sampleTime):
 
     if isTeamOne:
       dragonsA += 1
+      dragonString += 'A'
       features['dragon_a_{}'.format(dragonsA)] = True
-      features['dragon_a_{}_{}'.format(timeBlock, dragonsA)] = True
     else:
       dragonsB += 1
+      dragonString += 'B'
       features['dragon_b_{}'.format(dragonsB)] = True
-      features['dragon_b_{}_{}'.format(timeBlock, dragonsB)] = True
+
+  features['dragon_order_{}'.format(dragonString)] = True
 
   return features
 

@@ -151,8 +151,8 @@ def buildClassifier(trainGoals, trainFeatures):
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
-  clf = SGDClassifier(loss="log", penalty="l2", n_iter=500, shuffle=True,
-    alpha = 0.005, verbose = True)
+  clf = SGDClassifier(loss="log", penalty="l2", n_iter=1000, shuffle=True,
+    alpha = 0.005, verbose = False)
 
   clf.fit(trainFeatures, trainGoals)
 
