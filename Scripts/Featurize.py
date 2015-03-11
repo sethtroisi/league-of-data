@@ -18,56 +18,28 @@ def timeToBlock(time):
   return (time - 1) // SECONDS_PER_BLOCK + 1
 
 
-# Create features about baron taken (team, count)
-def baronFeatures(barons, sampleTime):
+# Create a feature that counts how many events of the type have happened.
+def countedFeature(name, events, sampleTime, order=False, verus=True):
   features = set()
 
-  baronString = ''
-  baronsA, baronsB = 0, 0
-  for baron in barons:
-    baronTime, isTeamOne = baron
-    if baronTime > sampleTime:
+  eventOrder = ''
+  for event in events:
+    eventTime, isTeamOne = event
+    if eventTime > sampleTime:
       break
 
-    timeBlock = timeToBlock(baronTime)
+    teamLetter = 'A' if isTeamOne else 'B'
+    eventOrder += teamLetter
+    features.add('{}_{}_{}'.format(
+        name, teamLetter, eventOrder.count(teamLetter)))
 
-    if isTeamOne:
-      baronsA += 1
-      baronString += 'A'
-      features.add('baron_a_{}'.format(baronsA))
-    else:
-      baronsB += 1
-      baronString += 'B'
-      features.add('baron_b_{}'.format(baronsB))
+    if order:
+      features.add('{}_order_{}'.format(
+            name, eventOrder))
 
-  features.add('baron_order_{}'.format(baronString))
-
-  return features
-
-
-# Create features about dragons taken (team, count)
-def dragonFeatures(dragons, sampleTime):
-  features = set()
-
-  dragonString = ''
-  dragonsA, dragonsB = 0, 0
-  for dragon in dragons:
-    dragonTime, isTeamOne = dragon
-    if dragonTime > sampleTime:
-      break
-
-    timeBlock = timeToBlock(dragonTime)
-
-    if isTeamOne:
-      dragonsA += 1
-      dragonString += 'A'
-      features.add('dragon_a_{}'.format(dragonsA))
-    else:
-      dragonsB += 1
-      dragonString += 'B'
-      features.add('dragon_b_{}'.format(dragonsB))
-
-  features.add('dragon_order_{}'.format(dragonString))
+  if verus:
+    features.add('{}_{}_to_{}'.format(
+          name, eventOrder.count('A'), eventOrder.count('B')))
 
   return features
 
@@ -138,6 +110,10 @@ def parseGameToFeatures(parsed, time=None):
   dragons = gameFeatures['dragons']
   towers = gameFeatures['towers']
   gold = gameFeatures['gold']
+  pinkWards = gameFeatures['pinkWards']
+  yellowWardsA = gameFeatures['stealthWards2Min']
+  yellowWardsB = gameFeatures['stealthWards3Min']
+  yellowWardsCombined = sorted(yellowWardsA + yellowWardsB)
 
   features = set()
 
@@ -147,10 +123,19 @@ def parseGameToFeatures(parsed, time=None):
     # TODO(sethtroisi): add feature without overfitting somehow.
     #lastBlock = timeToBlock(duration);
 
-  features.update(baronFeatures(barons, time))
-  features.update(dragonFeatures(dragons, time))
   features.update(towerFeatures(towers, time))
   features.update(goldFeatures(gold, time))
+
+  features.update(countedFeature('barons', barons, time))
+  features.update(countedFeature('dragons', dragons, time))
+
+  # TODO(sethtroisi): investigate why this increases log loss.
+  #features.update(countedFeature(
+  #    'pinkwards', pinkWards, time,
+  #    order = False, verus = True))
+  #features.update(countedFeature(
+  #    'yellowwards', yellowWardsCombined, time,
+  #    order = False, verus = False))
 
   # Model expects results in a dictionary format so map features to True.
   return dict((f, True) for f in features)
