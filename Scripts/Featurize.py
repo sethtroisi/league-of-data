@@ -24,7 +24,10 @@ def countedFeature(name, events, sampleTime, order=False, verus=True):
 
   eventOrder = ''
   for event in events:
-    eventTime, isTeamOne = event
+    eventTime, isTeamOne = event[:2]
+    assert 0 <= eventTime <= 10000
+    assert isTeamOne in (True, False)
+
     if eventTime > sampleTime:
       break
 
@@ -50,7 +53,7 @@ def towerFeatures(towers, sampleTime):
 
   towersA, towersB = 0, 0
   for towerData in towers:
-    towerTime, towerNum = towerData
+    towerTime, isTeamA, towerNum = towerData
     if towerTime > sampleTime:
       break
 
@@ -109,6 +112,7 @@ def parseGameToFeatures(parsed, time=None):
   barons = gameFeatures['barons']
   dragons = gameFeatures['dragons']
   towers = gameFeatures['towers']
+  inhibs = gameFeatures['inhibs']
   gold = gameFeatures['gold']
   pinkWards = gameFeatures['pinkWards']
   yellowWardsA = gameFeatures['stealthWards2Min']
@@ -128,6 +132,8 @@ def parseGameToFeatures(parsed, time=None):
 
   features.update(countedFeature('barons', barons, time))
   features.update(countedFeature('dragons', dragons, time))
+
+  #features.update(countedFeature('inhibs', inhibs, time))
 
   # TODO(sethtroisi): investigate why this increases log loss.
   #features.update(countedFeature(

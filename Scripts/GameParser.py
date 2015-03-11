@@ -122,14 +122,14 @@ def parseGameRough(match):
 
         # TODO(sethtroisi): Stop mid nexus turret double count.
         #assert all(tNum != towerNum for t, k, tNum in towers)
-        towers.append((time, towerNum))
+        towers.append((time, isTeamOneTower, towerNum))
 
       elif buildingType == 'INHIBITOR_BUILDING':
         killer = event['killerId']
         laneType = event['laneType']
         isTeamOneInhib = event['teamId'] == 100
         inhibNum = getInhibNumber(isTeamOneInhib, laneType)
-        inhibs.append((time, inhibNum))
+        inhibs.append((time, isTeamOneInhib, inhibNum))
 
       wardEvent = event.get('eventType', None)
       if wardEvent == 'WARD_PLACED':
