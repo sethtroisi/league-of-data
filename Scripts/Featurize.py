@@ -20,7 +20,7 @@ def timeToBlock(time):
 
 # Create features about baron taken (team, count)
 def baronFeatures(barons, sampleTime):
-  features = {}
+  features = set()
 
   baronString = ''
   baronsA, baronsB = 0, 0
@@ -34,20 +34,20 @@ def baronFeatures(barons, sampleTime):
     if isTeamOne:
       baronsA += 1
       baronString += 'A'
-      features['baron_a_{}'.format(baronsA)] = True
+      features.add('baron_a_{}'.format(baronsA))
     else:
       baronsB += 1
       baronString += 'B'
-      features['baron_b_{}'.format(baronsB)] = True
+      features.add('baron_b_{}'.format(baronsB))
 
-  features['baron_order_{}'.format(baronString)] = True
+  features.add('baron_order_{}'.format(baronString))
 
   return features
 
 
 # Create features about dragons taken (team, count)
 def dragonFeatures(dragons, sampleTime):
-  features = {}
+  features = set()
 
   dragonString = ''
   dragonsA, dragonsB = 0, 0
@@ -61,20 +61,20 @@ def dragonFeatures(dragons, sampleTime):
     if isTeamOne:
       dragonsA += 1
       dragonString += 'A'
-      features['dragon_a_{}'.format(dragonsA)] = True
+      features.add('dragon_a_{}'.format(dragonsA))
     else:
       dragonsB += 1
       dragonString += 'B'
-      features['dragon_b_{}'.format(dragonsB)] = True
+      features.add('dragon_b_{}'.format(dragonsB))
 
-  features['dragon_order_{}'.format(dragonString)] = True
+  features.add('dragon_order_{}'.format(dragonString))
 
   return features
 
 
 # Create features from towers (team, position)
 def towerFeatures(towers, sampleTime):
-  features = {}
+  features = set()
 
   towersA, towersB = 0, 0
   for towerData in towers:
@@ -88,17 +88,17 @@ def towerFeatures(towers, sampleTime):
       towersB += 1
 
     timeBlock = timeToBlock(towerTime)
-    features['towers_{}'.format(towerNum)] = True
-    features['towers_{}_{}'.format(timeBlock, towerNum)] = True
+    features.add('towers_{}'.format(towerNum))
+    features.add('towers_{}_{}'.format(timeBlock, towerNum))
 
-  features['towerskilled_{}_{}'.format(towersA, towersB)] = True
+  features.add('towerskilled_{}_{}'.format(towersA, towersB))
 
   return features
 
 
 # Creates features from gold values (delta)
 def goldFeatures(gold, sampleTime):
-  features = {}
+  features = set()
 
   # TODO(sethtroisi): verify gold use fencpost problem
   lastBlock = timeToBlock(sampleTime)
@@ -120,14 +120,14 @@ def goldFeatures(gold, sampleTime):
 
     for thousands in range(1, 100):
       if thousands * 1000 < teamAGold:
-        features['gold_a_{}k'.format(thousands)] = True
+        features.add('gold_a_{}k'.format(thousands))
 
       if thousands * 1000 < teamBGold:
-        features['gold_b_{}k'.format(thousands)] = True
+        features.add('gold_b_{}k'.format(thousands))
 
     delta = teamAGold - teamBGold
     blockedGold = GOLD_DELTA_BLOCK * (delta // GOLD_DELTA_BLOCK)
-    features['gold_delta_{}_{}k'.format(blockNum, blockedGold // 1000)] = True
+    features.add('gold_delta_{}_{}k'.format(blockNum, blockedGold // 1000))
 
   return features
 
@@ -139,7 +139,7 @@ def parseGameToFeatures(parsed, time=None):
   towers = gameFeatures['towers']
   gold = gameFeatures['gold']
 
-  features = {}
+  features = set()
 
   if time == None:
     duration = gameFeatures['duration']
@@ -152,7 +152,8 @@ def parseGameToFeatures(parsed, time=None):
   features.update(towerFeatures(towers, time))
   features.update(goldFeatures(gold, time))
 
-  return features
+  # Model expects results in a dictionary format so map features to True.
+  return dict((f, True) for f in features)
 
 
 def loadOutputFile():
@@ -174,6 +175,7 @@ def loadOutputFile():
     goals.append(goal)
 
   return games, goals, featuresList
+
 
 def generateFeatureData(featuresList):
   # Note: This is to help find sparse features or to produce cool graphs.
