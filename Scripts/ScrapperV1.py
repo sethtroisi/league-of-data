@@ -21,7 +21,8 @@ from Util import *
 API_KEY = "38940d99-0f69-4dfd-a2ea-5e9de11552a3"
 BASE_URL = 'https://na.api.pvp.net/api/lol/'
 HASH_PARAMS = 'api_key={}'.format(API_KEY)
-
+SLEEP_TIME = 1.5
+GAMES_PER_SUMMONER = 3
 
 def buildUrl(apiPath):
   return BASE_URL + apiPath + '?' + HASH_PARAMS
@@ -43,7 +44,7 @@ def getSummonerId(names):
   joinedNames = ','.join(names)
   apiPath = apiFormat.format(summonerNames = joinedNames)
   url = buildUrl(apiPath)
-  time.sleep(1)
+  time.sleep(SLEEP_TIME)
 
   parsed = getParsedResponse(url)
 
@@ -57,7 +58,7 @@ def getMatchHistory(summonerId):
   apiFormat = 'na/v2.2/matchhistory/{summonerId}'
   apiPath = apiFormat.format(summonerId = summonerId)
   url = buildUrl(apiPath)
-  time.sleep(1)
+  time.sleep(SLEEP_TIME)
 
   return getParsedResponse(url)
 
@@ -66,7 +67,7 @@ def getMatch(matchId):
   apiFormat= 'na/v2.2/match/{matchId}'
   apiPath = apiFormat.format(matchId = matchId)
   url = buildUrl(apiPath)
-  time.sleep(1)
+  time.sleep(SLEEP_TIME)
 
   return getParsedResponse(url)
 
@@ -77,7 +78,7 @@ def getChampIds():
   champMap = {}
   for champ in range(1, 270):
     try:
-      time.sleep(0.5)
+      time.sleep(SLEEP_TIME)
       apiPath = apiPrefix + str(champ)
       url = buildUrl(apiPath)
 
@@ -98,15 +99,16 @@ def getChampIds():
 def getSummonerMatches(summonerId):
   # TODO(sethtroisi): Use rankedQueues query param.
   history = getMatchHistory(summonerId)
-  writeJsonFile('example-getMatchHistory', history)
-  #history = loadJsonFile('example-getMatchHistory')
+  saveName = 'matchHistory/getMatchHistory-{}'.format(summonerId)
+  writeJsonFile(saveName, history)
+  #history = loadJsonFile(saveName)
 
   matches = history['matches']
   assert len(matches) > 0
 
   fellowSummoners = {}
   fullMatches = {}
-  for match in matches[:2]:
+  for match in matches[:GAMES_PER_SUMMONER]:
     matchId = match['matchId']
     queueType = match['queueType']
     region = match['region']
@@ -124,8 +126,9 @@ def getSummonerMatches(summonerId):
 
     print ("fetching/saving match (id: {})".format(matchId))
     fullMatch = getMatch(matchId)
-    writeJsonFile('example-getMatch-{}'.format(matchId), fullMatch)
-    #fullMatch = loadJsonFile('example-getMatch-{}'.format(matchId))
+    matchSaveName = 'matches/getMatch-{}'.format(matchId)
+    writeJsonFile(matchSaveName, fullMatch)
+    #fullMatch = loadJsonFile(matchSaveName)
     fullMatches[matchId] = fullMatch
 
     # Seems to only return information on self? duo?
@@ -136,8 +139,6 @@ def getSummonerMatches(summonerId):
       summonerId = player['summonerId']
       summonerName = player['summonerName']
       fellowSummoners[summonerName] = summonerId
-
-
 
   return fullMatches, fellowSummoners
 
@@ -161,14 +162,14 @@ def main():
     summoners[sumId] = name
     unvisited[sumId] = name
 
-  while len(matches) < 15:
+  while len(matches) < 13000:
     newId = random.choice(list(unvisited.keys()))
     newName = unvisited[newId]
     # Remove from the list of unprocessed
     del unvisited[newId]
 
-    print ("Exploying {} ({}) ({} summoners {} visited {} games)".format(
-        newName, newId, len(summoners), len(unvisited), len(matches)))
+    print ("Exploying '{}'(id: {}) ({} of {} unexplored) ({} games)".format(
+        newName, newId, len(unvisited), len(summoners), len(matches)))
 
     newMatches, fellowSummoners = getSummonerMatches(newId)
 
