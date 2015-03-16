@@ -34,13 +34,13 @@ def getArgParse():
   parser.add_argument(
       '-i', '--input-file',
       type=str,
-      default='riotSampleMatches1.json',
+      default='matchesRiotSampleSmall.json',
       help='Input match file (produced by Seth or Coalesce.py)')
 
   parser.add_argument(
       '-o', '--output-file',
       type=str,
-      default='gameFeatures.json',
+      default='featuresRiotSampleSmall.json',
       help='Output feature file (consumed by Model.py / Featurize.py)')
 
   parser.add_argument(
@@ -175,8 +175,6 @@ def main(args):
 
   gameNum = 0
   outputData = []
-
-  print (args.input_file)
 
   games = loadJsonFile(args.input_file)
   for game in games:
