@@ -18,14 +18,15 @@ from Util import *
 # Match API (this is what we want most)
 # https://developer.riotgames.com/api/methods#!/929/3214
 
-API_KEY = "38940d99-0f69-4dfd-a2ea-5e9de11552a3"
+API_KEY = '38940d99-0f69-4dfd-a2ea-5e9de11552a3'
 BASE_URL = 'https://na.api.pvp.net/api/lol/'
-HASH_PARAMS = 'api_key={}'.format(API_KEY)
+KEY_PARAM = 'api_key={}'.format(API_KEY)
 SLEEP_TIME = 1.5
-GAMES_PER_SUMMONER = 3
+GAMES_PER_SUMMONER = 1
 
-def buildUrl(apiPath):
-  return BASE_URL + apiPath + '?' + HASH_PARAMS
+def buildUrl(apiPath, params = []):
+  urlParams = '&'.join([KEY_PARAM] + params)
+  return BASE_URL + apiPath + '?' + urlParams
 
 
 def getParsedResponse(url):
@@ -33,7 +34,7 @@ def getParsedResponse(url):
   response = urllib.request.urlopen(url)
   data = response.read()
   # TODO(sethtroisi): Verify utf-8 is correct assumption.
-  stringData = data.decode("utf-8")
+  stringData = data.decode('utf-8')
   return json.loads(stringData)
 
 
@@ -66,41 +67,17 @@ def getMatchHistory(summonerId):
 def getMatch(matchId):
   apiFormat= 'na/v2.2/match/{matchId}'
   apiPath = apiFormat.format(matchId = matchId)
-  url = buildUrl(apiPath)
+  url = buildUrl(apiPath, ['includeTimeline=True'])
   time.sleep(SLEEP_TIME)
 
   return getParsedResponse(url)
-
-
-def getChampIds():
-  apiPrefix = 'static-data/na/v1.2/champion/{champId}'
-
-  champMap = {}
-  for champ in range(1, 270):
-    try:
-      time.sleep(SLEEP_TIME)
-      apiPath = apiPrefix + str(champ)
-      url = buildUrl(apiPath)
-
-      parsed = getParsedResponse(url)
-      name = parsed['name']
-
-      print (parsed, name)
-
-      champMap[name] = champ
-    except urllib.request.HTTPError:
-      print ("failed to find:", champ)
-
-  print (sorted(champMap.items()))
-  print ("{} champions found".format(len(champMap)))
-  return champMap
 
 
 def getSummonerMatches(summonerId):
   # TODO(sethtroisi): Use rankedQueues query param.
   history = getMatchHistory(summonerId)
   saveName = 'matchHistory/getMatchHistory-{}'.format(summonerId)
-  writeJsonFile(saveName, history)
+  #writeJsonFile(saveName, history)
   #history = loadJsonFile(saveName)
 
   matches = history['matches']
@@ -124,7 +101,7 @@ def getSummonerMatches(summonerId):
     if season != 'SEASON2015':
       continue
 
-    print ("fetching/saving match (id: {})".format(matchId))
+    print ('fetching/saving match (id: {})'.format(matchId))
     fullMatch = getMatch(matchId)
     matchSaveName = 'matches/getMatch-{}'.format(matchId)
     writeJsonFile(matchSaveName, fullMatch)
@@ -154,24 +131,27 @@ def main():
   matches = {}
 
   seedNames = ['inkaruga', 'kingvash']
-  #seedIds = getSummonerId(seedName)
-  #writeJsonFile('example-getSummonerId', seedIds
-  seedIds = loadJsonFile('example-getSummonerId')
+  seedIds = getSummonerId(seedNames)
+  #writeJsonFile('example-getSummonerId', seedIds)
+  #seedIds = loadJsonFile('example-getSummonerId')
 
   for name, sumId in seedIds.items():
     summoners[sumId] = name
     unvisited[sumId] = name
 
-  while len(matches) < 13000:
+  while len(matches) < 50:
     newId = random.choice(list(unvisited.keys()))
     newName = unvisited[newId]
     # Remove from the list of unprocessed
     del unvisited[newId]
 
-    print ("Exploying '{}'(id: {}) ({} of {} unexplored) ({} games)".format(
+    print ('Exploying \'{}\'(id: {}) ({} of {} unexplored) ({} games)'.format(
         newName, newId, len(unvisited), len(summoners), len(matches)))
 
     newMatches, fellowSummoners = getSummonerMatches(newId)
+
+    print ('\tadded {} games, {} summoners'.format(
+        len(newMatches), len(fellowSummoners)))
 
     matches.update(newMatches)
     for fName, fId in fellowSummoners.items():
@@ -180,5 +160,5 @@ def main():
         unvisited[fId] = fName
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   main()
