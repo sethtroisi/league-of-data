@@ -22,7 +22,7 @@ API_KEY = '38940d99-0f69-4dfd-a2ea-5e9de11552a3'
 BASE_URL = 'https://na.api.pvp.net/api/lol/'
 KEY_PARAM = 'api_key={}'.format(API_KEY)
 SLEEP_TIME = 1.5
-GAMES_PER_SUMMONER = 1
+GAMES_PER_SUMMONER = 3
 
 def buildUrl(apiPath, params = []):
   urlParams = '&'.join([KEY_PARAM] + params)
@@ -101,7 +101,7 @@ def getSummonerMatches(summonerId):
     if season != 'SEASON2015':
       continue
 
-    print ('fetching/saving match (id: {})'.format(matchId))
+    print ('\tFetching match (id: {})'.format(matchId))
     fullMatch = getMatch(matchId)
     matchSaveName = 'matches/getMatch-{}'.format(matchId)
     writeJsonFile(matchSaveName, fullMatch)
@@ -150,7 +150,8 @@ def main():
 
     newMatches, fellowSummoners = getSummonerMatches(newId)
 
-    print ('\tadded {} games, {} summoners'.format(
+    # TODO(sethtroisi): make this unique games/summoners
+    print ('\tAdded {} games, {} summoners'.format(
         len(newMatches), len(fellowSummoners)))
 
     matches.update(newMatches)

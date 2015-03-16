@@ -152,7 +152,9 @@ def loadOutputFile():
   featuresList = []
   goals = []
 
-  outputData = loadJsonFile('featuresAllMatches.json') #'featuresRiotSampleLarge.json')
+  # TODO(sethtroisi): add a flag to accept input file.
+  #outputData = loadJsonFile('featuresRiotSampleLarge.json')
+  outputData = loadJsonFile('featuresAllMatches.json')
   for data in outputData:
     goal = data['goal']
     gameFeatures = parseGameToFeatures(data)
