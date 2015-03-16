@@ -65,14 +65,6 @@ def parseGameRough(match):
   teamOneChampIds = championIds[:5]
   teamTwoChampIds = championIds[5:]
 
-  teamOneChampFeatures = []
-  teamTwoChampFeatures = []
-  for champ, champId in getChamps():
-      teamOneChampFeatures.append(champId in teamOneChampIds)
-      teamTwoChampFeatures.append(champId in teamTwoChampIds)
-
-  assert teamOneChampFeatures.count(True) == 5
-  assert teamTwoChampFeatures.count(True) == 5
   champNames = list(map(championIdToName, championIds))
 #  print ("Champions: {}".format(championIds))
 #  print ("Names: {}".format(champNames))

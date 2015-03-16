@@ -152,7 +152,7 @@ def loadOutputFile():
   featuresList = []
   goals = []
 
-  outputData = loadJsonFile('featuresRiotSampleLarge.json')
+  outputData = loadJsonFile('featuresAllMatches.json') #'featuresRiotSampleLarge.json')
   for data in outputData:
     goal = data['goal']
     gameFeatures = parseGameToFeatures(data)

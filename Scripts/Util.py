@@ -45,7 +45,6 @@ def championIdToName(champId):
   for k,v in getChamps():
     if v == champId:
       return k
-  print (champId)
   return str(champId)
 
 
