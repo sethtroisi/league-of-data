@@ -20,7 +20,7 @@ def getArgParse():
   parser.add_argument(
       '--output-file',
       type=str,
-      default='../Data/allMatches.json',
+      default='../Data/matchesAll.json',
       help='File to store concatinated matches')
 
   return parser
