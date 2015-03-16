@@ -19,23 +19,34 @@ from Util import *
 
 def getArgParse():
   parser = argparse.ArgumentParser(description='Parses Games and produces features.')
+
   parser.add_argument(
       '-f', '--full-examples',
       action="store_true",
-      help='print full examples')
+      help='Print full examples')
+
   parser.add_argument(
       '-e', '--examples',
       type=int,
       default=2,
-      help='how many examples to print')
+      help='How many examples to print')
+
   parser.add_argument(
-      '-l', '--limited',
-      action="store_true",
-      help='run over only the first match file')
+      '-i', '--input-file',
+      type=str,
+      default='riotSampleMatches1.json',
+      help='Input match file (produced by Seth or Coalesce.py)')
+
+  parser.add_argument(
+      '-o', '--output-file',
+      type=str,
+      default='gameFeatures.json',
+      help='Output feature file (consumed by Model.py / Featurize.py)')
+
   parser.add_argument(
       '-n', '--dry-run',
       action="store_true",
-      help='don\'t write output file instead print to screen')
+      help='Don\'t write output file instead print to screen')
   return parser
 
 
@@ -165,16 +176,14 @@ def main(args):
   gameNum = 0
   outputData = []
 
-  lastFile = 1 if args.limited else 10
-  for fileNumber in range(1, lastFile + 1):
-    parsed = loadJsonFile('matches{}.json'.format(fileNumber))
+  print (args.input_file)
 
-    games = parsed['matches']
-    for game in games:
-      result, features = parseGameRough(game)
-      data = {'goal': result, 'features': features}
-      outputData.append(data)
-      gameNum += 1
+  games = loadJsonFile(args.input_file)
+  for game in games:
+    result, features = parseGameRough(game)
+    data = {'goal': result, 'features': features}
+    outputData.append(data)
+    gameNum += 1
 
   chars = len(str(outputData))
 
@@ -184,7 +193,7 @@ def main(args):
   print ()
 
   if not args.dry_run:
-    writeJsonFile('output.txt', outputData)
+    writeJsonFile(args.output_file, outputData)
 
   exampleLines = random.sample(range(gameNum), args.examples)
   for exampleLine in sorted(exampleLines):
