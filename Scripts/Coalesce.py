@@ -23,11 +23,6 @@ def getArgParse():
       default='../Data/allMatches.json',
       help='File to store concatinated matches')
 
-  parser.add_argument(
-      '-r', '--ratio',
-      type=int,
-      default=25,
-      help='percent of data to holdback as testing data')
   return parser
 
 
@@ -43,9 +38,6 @@ def main(args):
       continue
 
     assert re.match('^getMatch-[0-9]{10}$', f)
-
-    if files > 15:
-      break
 
     files += 1
 
