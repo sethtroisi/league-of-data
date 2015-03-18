@@ -32,7 +32,16 @@ def writeJsonFile(name, data):
   f = open(fileName, mode = 'w')
 
   jsonString = json.dumps(data)
-  f.write(jsonString + '\n')
+  sizeJsonString = len(jsonString)
+
+  megaByte = 10 ** 6
+  if sizeJsonString > 100 * megaByte:
+    # TODO(sethtroisi): test this method
+    print (sizeJsonString)
+    for i in range(0, sizeJsonString, megaByte):
+      f.write(jsonString[i : i + megaBtye] + '\n')
+  else:
+    f.write(jsonString + '\n')
 
   f.close()
 

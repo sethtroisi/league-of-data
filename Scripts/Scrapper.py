@@ -139,7 +139,7 @@ def main():
     summoners[sumId] = name
     unvisited[sumId] = name
 
-  while len(matches) < 50:
+  while len(matches) < 5000:
     newId = random.choice(list(unvisited.keys()))
     newName = unvisited[newId]
     # Remove from the list of unprocessed
