@@ -147,14 +147,12 @@ def parseGameToFeatures(parsed, time=None):
   return dict((f, True) for f in features)
 
 
-def loadOutputFile():
+def loadOutputFile(fileName):
   games = []
   featuresList = []
   goals = []
 
-  # TODO(sethtroisi): add a flag to accept input file.
-  #outputData = loadJsonFile('featuresRiotSampleLarge.json')
-  outputData = loadJsonFile('featuresAllMatches.json')
+  outputData = loadJsonFile(fileName)
   for data in outputData:
     goal = data['goal']
     gameFeatures = parseGameToFeatures(data)
@@ -203,8 +201,8 @@ def generateFeatureData(featuresList):
     # ie 'gold_belta_34_4k' + 'gold-delta_28_2k' => 'gold_delta' x 2
 
 
-def getGamesData():
-  games, goals, featuresList = loadOutputFile()
+def getGamesData(fileName):
+  games, goals, featuresList = loadOutputFile(fileName)
 
   sampleSize = len(goals)
   print ("Loaded {} games".format(sampleSize))

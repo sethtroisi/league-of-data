@@ -27,8 +27,7 @@ def getArgParse():
 
 
 def main(args):
-  matches = []
-  files = 0
+  files = []
 
   baseDir = args.directory
   for f in listdir(baseDir):
@@ -39,14 +38,14 @@ def main(args):
 
     assert re.match('^getMatch-[0-9]{10}$', f)
 
-    files += 1
+    # TODO(sethtroisi): add filters based on dates and stuff here
+    #match = loadJsonFile(fileName)
 
-    match = loadJsonFile(fileName)
-    matches.append(match)
+    files.append(fileName)
 
-  print ('coalescing {} matches'.format(files))
+  print ('coalescing {} matches into {}'.format(len(files), args.output_file))
 
-  writeJsonFile(args.output_file, matches)
+  writeJsonFile(args.output_file, files)
 
 
 # START CODE HERE

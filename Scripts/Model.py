@@ -1,6 +1,4 @@
-from Featurize import *
-from Util import *
-
+import argparse
 import sklearn.metrics
 import numpy as np
 import matplotlib.pyplot as pyplot
@@ -8,7 +6,22 @@ import matplotlib.pyplot as pyplot
 from matplotlib.widgets import Slider
 from sklearn.linear_model import SGDClassifier
 
-# TODO(sethtroisi): add flag parsing to this file to display verbose.
+from Featurize import *
+from Util import *
+
+
+def getArgParse():
+  parser = argparse.ArgumentParser(description='Takes features and models outcomes.')
+
+  parser.add_argument(
+      '-i', '--input-file',
+      type=str,
+      default='features.json',
+      help='Input match file (produced by Seth or GameParser.py)')
+
+  # TODO(sethtroisi): Add and utilize a flag for verbosity.
+
+  return parser
 
 
 # Plot general data about accuracy, logloss, number of samples.
@@ -41,7 +54,7 @@ def plotData(times, samples, corrects, ratios, logLosses):
   axis2.set_ylabel('loss (log)')
   axis2.set_ylim([0, 1.5])
 
-  minLogLoss = min(logLosses)
+  minLogLoss = min(logLosses[:len(logLosses) * 2 // 3])
   time = times[logLosses.index(minLogLoss)]
   logLossText = '{:.3f} (@{:2.0f}m)'.format(minLogLoss, time)
   axis2.text(
@@ -79,7 +92,7 @@ def plotGame(times, results, winPredictions):
   for result, gamePredictions in zip(results, winPredictions):
     blocks = len(gamePredictions)
     color = resultColors[result]
-    axis1.plot(times[:blocks], gamePredictions, color)
+    axis1.plot(times[:blocks], gamePredictions, color, alpha = 0.1)
 
   axis1.set_title('Predictions of win rate across the game')
   axis1.set_xlabel('time (m)')
@@ -223,94 +236,94 @@ def predict(classifier, vectorizer):
         sorted(feature.keys()), 100 * prediction[1]))
 
 
-# MAIN CODE
-MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
+def main(args):
+    MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
 
-games, goals, vectorizer, features = getGamesData()
-trainingGoals, trainingFeatures, testingGames = \
-    seperate(games, goals, features)
+    games, goals, vectorizer, features = getGamesData(args.input_file)
+    trainingGoals, trainingFeatures, testingGames = \
+        seperate(games, goals, features)
 
-classifier = buildClassifier(trainingGoals, trainingFeatures)
+    classifier = buildClassifier(trainingGoals, trainingFeatures)
 
-# Variables about testGames.
-times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
-samples = [0 for b in range(MAX_BLOCKS)]
-corrects = [0 for b in range(MAX_BLOCKS)]
-# Averages over data (calculated after all data).
-logLosses = [0 for b in range(MAX_BLOCKS)]
-ratios = [0 for b in range(MAX_BLOCKS)]
-# Per Game stats.
-testGoals = []
-winPredictions = []
+    # Variables about testGames.
+    times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
+    samples = [0 for b in range(MAX_BLOCKS)]
+    corrects = [0 for b in range(MAX_BLOCKS)]
+    # Averages over data (calculated after all data).
+    logLosses = [0 for b in range(MAX_BLOCKS)]
+    ratios = [0 for b in range(MAX_BLOCKS)]
+    # Per Game stats.
+    testGoals = []
+    winPredictions = []
 
-for game in testingGames:
-  duration = game['features']['duration']
-  goal = game['goal']
+    for game in testingGames:
+      duration = game['features']['duration']
+      goal = game['goal']
 
-  predictions = []
-  # TODO(sethtroisi): determine this point algorimically as 80% for game end.
-  # TODO(sethtroisi): alternatively truncate when samples < 50.
-  for blockNum in range(MAX_BLOCKS):
-    time = blockNum * SECONDS_PER_BLOCK
+      predictions = []
+      # TODO(sethtroisi): determine this point algorimically as 80% for game end.
+      # TODO(sethtroisi): alternatively truncate when samples < 50.
+      for blockNum in range(MAX_BLOCKS):
+        time = blockNum * SECONDS_PER_BLOCK
 
-    # TODO(sethtroisi): remove games that have ended.
-    if duration < time:
-      continue
+        # TODO(sethtroisi): remove games that have ended.
+        if duration < time:
+          continue
 
-    gameFeatures = parseGameToFeatures(game, time)
+        gameFeatures = parseGameToFeatures(game, time)
 
-    sparse = vectorizer.transform(gameFeatures)
+        sparse = vectorizer.transform(gameFeatures)
 
-    correct, prediction, logLoss = \
-        getPrediction(classifier, goal, sparse)
+        correct, prediction, logLoss = \
+            getPrediction(classifier, goal, sparse)
 
-    # store data to graph
-    samples[blockNum] += 1
-    corrects[blockNum] += 1 if correct else 0
-    predictions.append(prediction)
-    logLosses[blockNum] += logLoss
+        # store data to graph
+        samples[blockNum] += 1
+        corrects[blockNum] += 1 if correct else 0
+        predictions.append(prediction)
+        logLosses[blockNum] += logLoss
 
-  testGoals.append(goal)
-  winPredictions.append(predictions)
+      testGoals.append(goal)
+      winPredictions.append(predictions)
 
-for blockNum in range(MAX_BLOCKS):
-  if samples[blockNum] > 0:
-    logLosses[blockNum] /= samples[blockNum]
-    ratios[blockNum] = corrects[blockNum] / samples[blockNum]
-
-
-
-# TODO(sethtroisi): add a for block_num loop here.
-# TODO(sethtroisi): move this debug info under a flag.
-#  print ("Predict A: {}, B: {}".format(predictA, predictB))
-#  print ("True A: {}, B: {}".format(
-#      testGoals.count(True), testGoals.count(False)))
-#  print ()
-
-#  print ("Correctness: {}/{} = {:2.1f}".format(
-#      corrects, samples, 100 * corrects / samples))
-#  print ()
-
-#  print ("log loss: {:.4f}".format(logLoss))
-#  print ("\t(lower is better, null model is .6912)")
-#  print ()
-#  print ()
-#  percent = 100 * corrects / samples
-#  print ("time: {:<2d}, Predict: {:3d} - {:3d}, Correct: {:3d}/{:3d} = {:2.1f}".format(
-#      time // 60, predictA, predictB, corrects, samples, percent))
+    for blockNum in range(MAX_BLOCKS):
+      if samples[blockNum] > 0:
+        logLosses[blockNum] /= samples[blockNum]
+        ratios[blockNum] = corrects[blockNum] / samples[blockNum]
 
 
-# Use the model to make some simple predictions.
-# TODO(sethtroisi): move this under a flag.
-#predict(classifier, vectorizer)
 
-# If data was tabulated on the testingData print stats about it.
-if len(times) > 0:
-  stats(times, samples, corrects, ratios, logLosses)
-  plotData(times, samples, corrects, ratios, logLosses)
-  plotGame(times, testGoals, winPredictions)
+    # TODO(sethtroisi): add a for block_num loop here.
+    # TODO(sethtroisi): move this debug info under a flag.
+    #  print ("Predict A: {}, B: {}".format(predictA, predictB))
+    #  print ("True A: {}, B: {}".format(
+    #      testGoals.count(True), testGoals.count(False)))
+    #  print ()
+
+    #  print ("Correctness: {}/{} = {:2.1f}".format(
+    #      corrects, samples, 100 * corrects / samples))
+    #  print ()
+
+    #  print ("log loss: {:.4f}".format(logLoss))
+    #  print ("\t(lower is better, null model is .6912)")
+    #  print ()
+    #  print ()
+    #  percent = 100 * corrects / samples
+    #  print ("time: {:<2d}, Predict: {:3d} - {:3d}, Correct: {:3d}/{:3d} = {:2.1f}".format(
+    #      time // 60, predictA, predictB, corrects, samples, percent))
 
 
-# Graphs that I want badly
-#
-# Graphs that might be interesting
+    # Use the model to make some simple predictions.
+    # TODO(sethtroisi): move this under a flag.
+    #predict(classifier, vectorizer)
+
+    # If data was tabulated on the testingData print stats about it.
+    if len(times) > 0:
+      stats(times, samples, corrects, ratios, logLosses)
+      plotData(times, samples, corrects, ratios, logLosses)
+      plotGame(times, testGoals, winPredictions)
+
+
+if __name__ == '__main__':
+  args = getArgParse().parse_args()
+  main(args)

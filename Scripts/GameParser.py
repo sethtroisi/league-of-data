@@ -40,7 +40,7 @@ def getArgParse():
   parser.add_argument(
       '-o', '--output-file',
       type=str,
-      default='featuresRiotSampleSmall.json',
+      default='features.json',
       help='Output feature file (consumed by Model.py / Featurize.py)')
 
   parser.add_argument(
@@ -168,8 +168,17 @@ def main(args):
   gameNum = 0
   outputData = []
 
-  games = loadJsonFile(args.input_file)
-  for game in games:
+  inFile = loadJsonFile(args.input_file)
+  print ("{} has {} items".format(args.input_file, len(inFile))
+  for t in inFile:
+    if type(t) == str and len(t) < 100:
+      game = loadJsonFile(t)
+    elif type(t) == dict and 'matchType' in t.keys():
+      game = t
+    else:
+      print ("no idea what is in the input file got: {}".format(type(t)))
+      assert False
+
     result, features = parseGameRough(game)
     data = {'goal': result, 'features': features}
     outputData.append(data)
