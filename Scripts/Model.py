@@ -2,6 +2,7 @@ import argparse
 import sklearn.metrics
 import numpy as np
 import matplotlib.pyplot as pyplot
+import random
 
 from matplotlib.widgets import Slider
 from sklearn.linear_model import SGDClassifier
@@ -18,6 +19,11 @@ def getArgParse():
       type=str,
       default='features.json',
       help='Input match file (produced by Seth or GameParser.py)')
+
+  parser.add_argument(
+      '-r', '--randomize',
+      action="store_true",
+      help='Select training / testing data randomly from input?')
 
   # TODO(sethtroisi): Add and utilize a flag for verbosity.
 
@@ -164,13 +170,13 @@ def buildClassifier(trainGoals, trainFeatures):
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
-  clf = SGDClassifier(loss="log", penalty="l2", n_iter=1000, shuffle=True,
-    alpha = 0.005, verbose = False)
+  clf = SGDClassifier(loss="log", penalty="l2", n_iter=3000, shuffle=True,
+    alpha = 0.005, verbose=False)
+
+  print ("With training set size: {} games {} features - {} nnz".format(
+      len(trainGoals), trainFeatures.shape[1], trainFeatures.nnz))
 
   clf.fit(trainFeatures, trainGoals)
-
-  print ("With training set size: {} games {} features".format(
-      len(trainGoals), trainFeatures.shape[1]))
 
   #print (clf.coef_)
   print ("intercept: {:4.3f}, TrueProp: {:3.1f}%".format(
@@ -194,15 +200,28 @@ def getPrediction(classifier, testGoal, testFeature):
   return correct, AProb, logLoss
 
 
-def seperate(games, goals, features):
-  holdBackPercent = 25
-  sampleSize = len(goals)
-  holdBackAmount = (holdBackPercent * sampleSize) // 100
+def seperate(args, games, goals, features):
+  holdBackPercent = 50
+  sampleSize = len(games)
+  trainingSize = sampleSize - (holdBackPercent * sampleSize) // 100
 
-  trainingGoals = goals[:-holdBackAmount]
-  trainingFeatures = features[:-holdBackAmount]
+  trainingGoals = []
+  trainingFeatures = []
+  testingGames = []
 
-  testingGames = games[-holdBackAmount:]
+  if args.randomize:
+    trainingNums = set(random.sample(range(sampleSize), trainingSize))
+  else:
+    trainingNums = set(range(trainingSize))
+
+  for i in range(sampleSize):
+    if i in trainingNums:
+      trainingGoals.append(goals[i])
+    else:
+      testingGames.append(games[i])
+
+  # features is a scipy.sparse so use the column sample directly on it
+  trainingFeatures = features[sorted(trainingNums)]
 
   return (trainingGoals, trainingFeatures, testingGames)
 
@@ -240,8 +259,9 @@ def main(args):
     MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
 
     games, goals, vectorizer, features = getGamesData(args.input_file)
+
     trainingGoals, trainingFeatures, testingGames = \
-        seperate(games, goals, features)
+        seperate(args, games, goals, features)
 
     classifier = buildClassifier(trainingGoals, trainingFeatures)
 
@@ -290,8 +310,6 @@ def main(args):
       if samples[blockNum] > 0:
         logLosses[blockNum] /= samples[blockNum]
         ratios[blockNum] = corrects[blockNum] / samples[blockNum]
-
-
 
     # TODO(sethtroisi): add a for block_num loop here.
     # TODO(sethtroisi): move this debug info under a flag.
