@@ -277,7 +277,7 @@ def main(args):
     winPredictions = []
 
     for game in testingGames:
-      duration = game['features']['duration']
+      duration = game['debug']['duration']
       goal = game['goal']
 
       predictions = []

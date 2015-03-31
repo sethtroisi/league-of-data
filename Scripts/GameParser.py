@@ -34,7 +34,7 @@ def getArgParse():
   parser.add_argument(
       '-i', '--input-file',
       type=str,
-      default='matchesRiotSampleSmall.json',
+      default='matchesAll.json',
       help='Input match file (produced by Seth or Coalesce.py)')
 
   parser.add_argument(
@@ -157,10 +157,17 @@ def parseGameRough(match):
   features['gold'] = gold
 
   # TODO(sethtroisi): plumb debug info instead of reusing features.
-  features['duration'] = match['matchDuration']
+  debug = dict()
+  debug['duration'] = match['matchDuration']
 
   result = match['teams'][0]['winner']
-  return result, features
+
+  parsed = dict()
+  parsed['features'] = features
+  parsed['debug'] = debug
+  parsed['goal'] = result
+
+  return parsed
 
 
 def main(args):
@@ -169,7 +176,10 @@ def main(args):
   outputData = []
 
   inFile = loadJsonFile(args.input_file)
-  print ("{} has {} items".format(args.input_file, len(inFile))
+  items = len(inFile)
+  print ("{} has {} items".format(args.input_file, items))
+  printEvery = items // 15
+
   for t in inFile:
     if type(t) == str and len(t) < 100:
       game = loadJsonFile(t)
@@ -179,10 +189,16 @@ def main(args):
       print ("no idea what is in the input file got: {}".format(type(t)))
       assert False
 
-    result, features = parseGameRough(game)
-    data = {'goal': result, 'features': features}
-    outputData.append(data)
+    parsed = parseGameRough(game)
+    outputData.append(parsed)
     gameNum += 1
+
+    if gameNum % printEvery == 0:
+      print ("parsed {} of {} ({:0.0f}%)".format(
+          gameNum, items, 100 * gameNum / items))
+
+  # Remove any ordering effect from game number
+  random.shuffle(outputData)
 
   chars = len(str(outputData))
 

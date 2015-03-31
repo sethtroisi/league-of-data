@@ -122,10 +122,8 @@ def parseGameToFeatures(parsed, time=None):
   features = set()
 
   if time == None:
-    duration = gameFeatures['duration']
+    duration = parsed['debug']['duration']
     time = duration + SECONDS_PER_BLOCK
-    # TODO(sethtroisi): add feature without overfitting somehow.
-    #lastBlock = timeToBlock(duration);
 
   features.update(towerFeatures(towers, time))
   features.update(goldFeatures(gold, time))

@@ -85,11 +85,15 @@ def getSummonerMatches(summonerId):
 
   fellowSummoners = {}
   fullMatches = {}
-  for match in matches[:GAMES_PER_SUMMONER]:
+
+  # Games are stored in increasing chronological order.
+  for match in reversed(matches[-GAMES_PER_SUMMONER:]):
     matchId = match['matchId']
     queueType = match['queueType']
     region = match['region']
     season = match['season']
+
+    # TODO(sethtroisi): consider filtering on matchCreation time also.
 
     # TODO(sethtroisi): count number of filtered games (by filter).
     if queueType != 'RANKED_SOLO_5x5':
@@ -100,6 +104,7 @@ def getSummonerMatches(summonerId):
 
     if season != 'SEASON2015':
       continue
+
 
     print ('\tFetching match (id: {})'.format(matchId))
     fullMatch = getMatch(matchId)
@@ -139,16 +144,23 @@ def main():
     summoners[sumId] = name
     unvisited[sumId] = name
 
+  fails = 0
   while len(matches) < 5000:
     newId = random.choice(list(unvisited.keys()))
     newName = unvisited[newId]
     # Remove from the list of unprocessed
     del unvisited[newId]
 
-    print ('Exploying \'{}\'(id: {}) ({} of {} unexplored) ({} games)'.format(
+    print ('Exploying \'{}\' (id: {}) ({} of {} unexplored) ({} games)'.format(
         newName, newId, len(unvisited), len(summoners), len(matches)))
 
-    newMatches, fellowSummoners = getSummonerMatches(newId)
+    try:
+      newMatches, fellowSummoners = getSummonerMatches(newId)
+    except:
+      fails += 1
+      if fails * 100 > len(matches):
+        print ("breaking from {} fails".format(fails))
+        return
 
     # TODO(sethtroisi): make this unique games/summoners
     print ('\tAdded {} games, {} summoners'.format(
