@@ -171,7 +171,7 @@ def buildClassifier(trainGoals, trainFeatures):
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
   clf = SGDClassifier(loss="log", penalty="l2", n_iter=3000, shuffle=True,
-    alpha = 0.005, verbose=False)
+    alpha = 0.04, verbose=True)
 
   print ("With training set size: {} games {} features - {} nnz".format(
       len(trainGoals), trainFeatures.shape[1], trainFeatures.nnz))

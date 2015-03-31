@@ -47,6 +47,21 @@ def countedFeature(name, events, sampleTime, order=False, verus=True):
   return features
 
 
+# Create features from champs
+def champFeature(champs, sampleTime):
+  features = set()
+
+  teamAChamps, teamBChamps = champs
+
+  lastBlock = timeToBlock(sampleTime)
+  for block in range(0, lastBlock + 1):
+    for team, teamChamps in (('A', teamAChamps), ('B', teamBChamps)):
+      for champ in teamChamps:
+        features.add('champ_{}_{}_{}'.format(team, champ, block))
+
+  return features
+
+
 # Create features from towers (team, position)
 def towerFeatures(towers, sampleTime):
   features = set()
@@ -109,11 +124,19 @@ def goldFeatures(gold, sampleTime):
 def parseGameToFeatures(parsed, time=None):
   gameFeatures = parsed['features']
 
+  # Gold
+  gold = gameFeatures['gold']
+
+  # Objectives
   barons = gameFeatures['barons']
   dragons = gameFeatures['dragons']
   towers = gameFeatures['towers']
   inhibs = gameFeatures['inhibs']
-  gold = gameFeatures['gold']
+
+  # Champions
+  champs = gameFeatures['champs']
+
+  # Other
   pinkWards = gameFeatures['pinkWards']
   yellowWardsA = gameFeatures['stealthWards2Min']
   yellowWardsB = gameFeatures['stealthWards3Min']
@@ -134,12 +157,14 @@ def parseGameToFeatures(parsed, time=None):
   features.update(countedFeature('inhibs', inhibs, time))
 
   # TODO(sethtroisi): investigate why this increases log loss.
-  features.update(countedFeature(
-      'pinkwards', pinkWards, time,
-      order = False, verus = False))
-  features.update(countedFeature(
-      'yellowwards', yellowWardsCombined, time,
-      order = False, verus = False))
+  features.update(champFeature(champs, time))
+
+  #features.update(countedFeature(
+  #    'pinkwards', pinkWards, time,
+  #    order = False, verus = False))
+  #features.update(countedFeature(
+  #    'yellowwards', yellowWardsCombined, time,
+  #    order = False, verus = False))
 
   # Model expects results in a dictionary format so map features to True.
   return dict((f, True) for f in features)

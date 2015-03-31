@@ -62,10 +62,8 @@ def parseGameRough(match):
   assert teamOne == [1, 2, 3, 4, 5]
   assert teamTwo == [6, 7, 8, 9, 10]
 
-  teamOneChampIds = championIds[:5]
-  teamTwoChampIds = championIds[5:]
-
   champNames = list(map(championIdToName, championIds))
+  champs = [champNames[:5], champNames[5:]]
 #  print ("Champions: {}".format(championIds))
 #  print ("Names: {}".format(champNames))
 
@@ -147,6 +145,7 @@ def parseGameRough(match):
         #unhandled case: TEEMO_MUSHROOM
 
   features = dict()
+  features['champs'] = champs
   features['dragons'] = dragons
   features['barons'] = barons
   features['towers'] = towers
