@@ -89,7 +89,7 @@ def plotGame(times, results, winPredictions):
 
   # Note: I didn't have luck with subplots(3, 1) and resizing so I used this.
   sliderAxis = pyplot.axes(
-      [0.1, 0.45, 0.8, 0.05],
+      [0.125, 0.44, 0.75, 0.05],
       axisbg='lightgoldenrodyellow')
 
   resultColors = {True:'g', False:'r'}
@@ -171,7 +171,7 @@ def buildClassifier(trainGoals, trainFeatures):
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
   clf = SGDClassifier(loss="log", penalty="l2", n_iter=3000, shuffle=True,
-    alpha = 0.04, verbose=True)
+    alpha = 0.02, verbose=False)
 
   print ("With training set size: {} games {} features - {} nnz".format(
       len(trainGoals), trainFeatures.shape[1], trainFeatures.nnz))
@@ -194,10 +194,7 @@ def getPrediction(classifier, testGoal, testFeature):
 
   correct = (AProb > 0.5) == testGoal
 
-  # TODO(sethtroisi): Verify this log loss calculation
-  logLoss = sklearn.metrics.log_loss([True], [BProb if testGoal else AProb])
-
-  return correct, AProb, logLoss
+  return correct, AProb
 
 
 def seperate(args, games, goals, features):
@@ -270,8 +267,8 @@ def main(args):
     samples = [0 for b in range(MAX_BLOCKS)]
     corrects = [0 for b in range(MAX_BLOCKS)]
     # Averages over data (calculated after all data).
-    logLosses = [0 for b in range(MAX_BLOCKS)]
     ratios = [0 for b in range(MAX_BLOCKS)]
+    logLosses = [0 for b in range(MAX_BLOCKS)]
     # Per Game stats.
     testGoals = []
     winPredictions = []
@@ -294,42 +291,28 @@ def main(args):
 
         sparse = vectorizer.transform(gameFeatures)
 
-        correct, prediction, logLoss = \
-            getPrediction(classifier, goal, sparse)
+        correct, prediction = getPrediction(classifier, goal, sparse)
 
         # store data to graph
         samples[blockNum] += 1
         corrects[blockNum] += 1 if correct else 0
         predictions.append(prediction)
-        logLosses[blockNum] += logLoss
 
       testGoals.append(goal)
       winPredictions.append(predictions)
 
     for blockNum in range(MAX_BLOCKS):
       if samples[blockNum] > 0:
-        logLosses[blockNum] /= samples[blockNum]
         ratios[blockNum] = corrects[blockNum] / samples[blockNum]
 
-    # TODO(sethtroisi): add a for block_num loop here.
-    # TODO(sethtroisi): move this debug info under a flag.
-    #  print ("Predict A: {}, B: {}".format(predictA, predictB))
-    #  print ("True A: {}, B: {}".format(
-    #      testGoals.count(True), testGoals.count(False)))
-    #  print ()
+        goals = []
+        predictions = []
+        for testGoal, gamePredictions in zip(testGoals, winPredictions):
+          if len(gamePredictions) > blockNum:
+            goals.append(testGoal)
+            predictions.append(gamePredictions[blockNum])
 
-    #  print ("Correctness: {}/{} = {:2.1f}".format(
-    #      corrects, samples, 100 * corrects / samples))
-    #  print ()
-
-    #  print ("log loss: {:.4f}".format(logLoss))
-    #  print ("\t(lower is better, null model is .6912)")
-    #  print ()
-    #  print ()
-    #  percent = 100 * corrects / samples
-    #  print ("time: {:<2d}, Predict: {:3d} - {:3d}, Correct: {:3d}/{:3d} = {:2.1f}".format(
-    #      time // 60, predictA, predictB, corrects, samples, percent))
-
+        logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions)
 
     # Use the model to make some simple predictions.
     # TODO(sethtroisi): move this under a flag.

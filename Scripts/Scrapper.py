@@ -30,6 +30,8 @@ def buildUrl(apiPath, params = []):
 
 
 def getParsedResponse(url):
+  time.sleep(SLEEP_TIME)
+
   # TODO(sethtroisi): move rate limiting here?
   response = urllib.request.urlopen(url)
   data = response.read()
@@ -45,8 +47,6 @@ def getSummonerId(names):
   joinedNames = ','.join(names)
   apiPath = apiFormat.format(summonerNames = joinedNames)
   url = buildUrl(apiPath)
-  time.sleep(SLEEP_TIME)
-
   parsed = getParsedResponse(url)
 
   ids = {}
@@ -59,8 +59,6 @@ def getMatchHistory(summonerId):
   apiFormat = 'na/v2.2/matchhistory/{summonerId}'
   apiPath = apiFormat.format(summonerId = summonerId)
   url = buildUrl(apiPath)
-  time.sleep(SLEEP_TIME)
-
   return getParsedResponse(url)
 
 
@@ -68,8 +66,6 @@ def getMatch(matchId):
   apiFormat= 'na/v2.2/match/{matchId}'
   apiPath = apiFormat.format(matchId = matchId)
   url = buildUrl(apiPath, ['includeTimeline=True'])
-  time.sleep(SLEEP_TIME)
-
   return getParsedResponse(url)
 
 
@@ -145,7 +141,7 @@ def main():
     unvisited[sumId] = name
 
   fails = 0
-  while len(matches) < 5000:
+  while len(matches) < 15000:
     newId = random.choice(list(unvisited.keys()))
     newName = unvisited[newId]
     # Remove from the list of unprocessed
