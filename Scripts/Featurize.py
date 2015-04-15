@@ -92,7 +92,7 @@ def goldFeatures(gold, sampleTime):
 
   # TODO(sethtroisi): verify gold use fencpost problem
   lastBlock = timeToBlock(sampleTime)
-  for blockNum in range(1, lastBlock-1):
+  for blockNum in range(1, lastBlock):
     blockGold = gold.get(str(blockNum), None)
     if not blockGold:
       break

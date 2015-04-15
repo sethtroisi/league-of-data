@@ -152,9 +152,10 @@ def main():
 
     try:
       newMatches, fellowSummoners = getSummonerMatches(newId)
-    except:
+    except e:
+      print ("FAIL: '{}'".format(e))
       fails += 1
-      if fails * 100 > len(matches):
+      if fails * 120 > len(matches):
         print ("breaking from {} fails".format(fails))
         return
 
