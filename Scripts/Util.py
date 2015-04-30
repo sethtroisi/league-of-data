@@ -15,6 +15,9 @@ import os.path
 
 
 def getDataDirFileName(name):
+  if name.startswith('../'):
+    return name
+
   DATA_DIR = '../Data/'
   return os.path.join(DATA_DIR, name)
 
@@ -39,7 +42,7 @@ def writeJsonFile(name, data):
     # TODO(sethtroisi): test this method
     print (sizeJsonString)
     for i in range(0, sizeJsonString, megaByte):
-      f.write(jsonString[i : i + megaBtye] + '\n')
+      f.write(jsonString[i : i + megaByte] + '\n')
   else:
     f.write(jsonString + '\n')
 
