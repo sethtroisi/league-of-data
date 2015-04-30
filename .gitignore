@@ -1,5 +1,7 @@
 Data/output.txt
 Scripts/__pycache__/
+Scripts/.ipynb_checkpoints/
+
 
 # Compiled source #
 ###################
@@ -9,6 +11,7 @@ Scripts/__pycache__/
 *.exe
 *.o
 *.so
+*.pyc
 
 # Packages #
 ############
