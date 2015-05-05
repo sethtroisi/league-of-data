@@ -1,5 +1,6 @@
 import json
 import os.path
+import pprint
 
 # API REFERENCE
 # https://developer.riotgames.com/api/methods
@@ -24,27 +25,22 @@ def getDataDirFileName(name):
 
 def loadJsonFile(name):
   fileName = getDataDirFileName(name)
-  f = open(fileName, encoding='latin1')
+  f = open(fileName) #, encoding='latin1')
   fileData = f.read()
   f.close()
 
   return json.loads(fileData)
 
+
+def getJsonString(data):
+  return json.dumps(data)
+
+
 def writeJsonFile(name, data):
   fileName = getDataDirFileName(name)
   f = open(fileName, mode = 'w')
 
-  jsonString = json.dumps(data)
-  sizeJsonString = len(jsonString)
-
-  megaByte = 10 ** 6
-  if sizeJsonString > 100 * megaByte:
-    # TODO(sethtroisi): test this method
-    print (sizeJsonString)
-    for i in range(0, sizeJsonString, megaByte):
-      f.write(jsonString[i : i + megaByte] + '\n')
-  else:
-    f.write(jsonString + '\n')
+  json.dump(data, f, indent=1)
 
   f.close()
 

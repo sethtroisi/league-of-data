@@ -150,9 +150,9 @@ def parseGameRough(match):
   features['barons'] = barons
   features['towers'] = towers
   features['inhibs'] = inhibs
-  features['pinkWards'] = pinkWards
-  features['stealthWards2Min'] = stealthWards2Min
-  features['stealthWards3Min'] = stealthWards3Min
+  #features['pinkWards'] = pinkWards
+  #features['stealthWards2Min'] = stealthWards2Min
+  #features['stealthWards3Min'] = stealthWards3Min
   features['gold'] = gold
 
   # TODO(sethtroisi): plumb debug info instead of reusing features.

@@ -137,10 +137,10 @@ def parseGameToFeatures(parsed, time=None):
   champs = gameFeatures['champs']
 
   # Other
-  pinkWards = gameFeatures['pinkWards']
-  yellowWardsA = gameFeatures['stealthWards2Min']
-  yellowWardsB = gameFeatures['stealthWards3Min']
-  yellowWardsCombined = sorted(yellowWardsA + yellowWardsB)
+  #pinkWards = gameFeatures['pinkWards']
+  #yellowWardsA = gameFeatures['stealthWards2Min']
+  #yellowWardsB = gameFeatures['stealthWards3Min']
+  #yellowWardsCombined = sorted(yellowWardsA + yellowWardsB)
 
   features = set()
 
@@ -159,12 +159,12 @@ def parseGameToFeatures(parsed, time=None):
   # TODO(sethtroisi): investigate why this increases log loss.
   features.update(champFeature(champs, time))
 
-  features.update(countedFeature(
-      'pinkwards', pinkWards, time,
-      order = False, verus = False))
-  features.update(countedFeature(
-      'yellowwards', yellowWardsCombined, time,
-      order = False, verus = False))
+  #features.update(countedFeature(
+  #    'pinkwards', pinkWards, time,
+  #    order = False, verus = False))
+  #features.update(countedFeature(
+  #    'yellowwards', yellowWardsCombined, time,
+  #    order = False, verus = False))
 
   # Model expects results in a dictionary format so map features to True.
   return dict((f, True) for f in features)
