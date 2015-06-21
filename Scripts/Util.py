@@ -1,6 +1,5 @@
 import json
 import os.path
-import pprint
 
 # API REFERENCE
 # https://developer.riotgames.com/api/methods

@@ -1,8 +1,8 @@
 import argparse
 import json
 import random
-from Featurize import *
 from Util import *
+from BoolFeaturize import *
 
 # API REFERENCE
 # https://developer.riotgames.com/api/methods
@@ -220,6 +220,8 @@ def main(args):
     print ()
     print ("line {}: {}".format(exampleLine, example))
 
+  if args.examples > 0:
+    writeJsonFile('example-feature.json', outputData[exampleLines[0]])
 
 # START CODE HERE
 args = getArgParse().parse_args()
