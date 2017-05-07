@@ -6,6 +6,7 @@ import random
 
 from matplotlib.widgets import Slider
 from sklearn.linear_model import SGDClassifier
+from sklearn.neural_network import MLPClassifier
 
 from BoolFeaturize import *
 from Util import *
@@ -165,29 +166,57 @@ def stats(times, samples, corrects, ratios, logLosses):
   print ("Mean Ratio: {:2.1f}".format(100 * mediumRatio))
 
 
-def buildClassifier(trainGoals, trainFeatures):
+def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer, testFoo):
   #SGDClassifier(alpha=0.0001, class_weight=None, epsilon=0.1, eta0=0.0,
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
   #       random_state=None, shuffle=False, verbose=True, warm_start=False)
-  clf = SGDClassifier(loss="log", penalty="l2", n_iter=3000, shuffle=True,
-    alpha = 0.02, verbose=False)
+  #clf = SGDClassifier(loss="log", penalty="l2", n_iter=3000, shuffle=True,
+  #  alpha = 0.02, verbose=False)
 
-  print ("With training set size: {} games {} features - {} nnz".format(
-      len(trainGoals), trainFeatures.shape[1], trainFeatures.nnz))
+  clfs = []
+  for blockNum in range(numBlocks):
+    time = blockNum * SECONDS_PER_BLOCK
+    clf = MLPClassifier(
+        solver='lbfgs',
+        random_state=1,
+        max_iter=5000,
+        hidden_layer_sizes=(10,10))
 
-  clf.fit(trainFeatures, trainGoals)
+    subTrainGoals= []
+    subTrainFeatures = []
+    for goal, game in zip(trainGoals, trainGames):
+      duration = game['debug']['duration']
+      if duration < time:
+        continue
+
+      subTrainGoals.append(goal)
+      gameFeatures = parseGameToFeatures(game, time)
+      subTrainFeatures.append(gameFeatures)
+
+    if len(subTrainGoals) <= 1:
+      break
+
+    vectorizer = DictVectorizer(sparse=True)
+    sparseFeatures = vectorizer.fit_transform(subTrainFeatures)
+
+    clf.fit(sparseFeatures, subTrainGoals)
+    clfs.append(clf)
+
+  #print ("With training set size: {} games {} features - {} nnz".format(
+  #    len(trainGoals), trainFeatures.shape[1], trainFeatures.nnz))
+
 
   #print (clf.coef_)
-  print ("intercept: {:4.3f}, TrueProp: {:3.1f}%".format(
-      clf.intercept_[0], 100 * trainGoals.count(True) / len(trainGoals)))
-  print ()
+  #print ("intercept: {:4.3f}, TrueProp: {:3.1f}%".format(
+  #    clf.intercept_[0], 100 * trainGoals.count(True) / len(trainGoals)))
+  #print ()
 
-  return clf
+  return clfs
 
 
-def getPrediction(classifier, testGoal, testFeature):
-  modelGuesses = classifier.predict_proba(testFeature)
+def getPrediction(classifiers, blockNum, testGoal, testFeature):
+  modelGuesses = classifiers[blockNum].predict_proba(testFeature)
 
   # This is due to the sorting of [False, True].
   BProb, AProb = modelGuesses[0]
@@ -197,13 +226,13 @@ def getPrediction(classifier, testGoal, testFeature):
   return correct, AProb
 
 
-def seperate(args, games, goals, features):
+def seperate(args, games, goals):
   holdBackPercent = 50
   sampleSize = len(games)
   trainingSize = sampleSize - (holdBackPercent * sampleSize) // 100
 
   trainingGoals = []
-  trainingFeatures = []
+  trainingGames = []
   testingGames = []
 
   if args.randomize:
@@ -214,42 +243,11 @@ def seperate(args, games, goals, features):
   for i in range(sampleSize):
     if i in trainingNums:
       trainingGoals.append(goals[i])
+      trainingGames.append(games[i])
     else:
       testingGames.append(games[i])
 
-  # features is a scipy.sparse so use the column sample directly on it
-  trainingFeatures = features[sorted(trainingNums)]
-
-  return (trainingGoals, trainingFeatures, testingGames)
-
-
-def predict(classifier, vectorizer):
-  teamOneTower = getTowerNumber(True, 'MID_LANE', 'OUTER_TURRET')
-  teamTwoTower = getTowerNumber(False, 'MID_LANE', 'OUTER_TURRET')
-
-  features = [
-    {'gold_delta_10_-4k': True},
-    {'gold_delta_10_0k': True},
-    {'gold_delta_10_4k': True},
-    {'dragon_a_5_1': True, 'dragon_a_9_2': True},
-    {'dragon_a_6_1': True},
-    {'dragon_a_7_1': True},
-    {'dragon_b_5_1': True},
-    {'dragon_b_6_1': True},
-    {'dragon_b_7_1': True},
-    {'towers_6_{}'.format(teamTwoTower): True},
-    {'towers_6_{}'.format(teamOneTower): True}
-  ]
-
-  sparse = vectorizer.transform(features)
-  print ("Verify features exist {} ?= {}".format(
-      sum([len(f) for f in features]), sparse.nnz))
-
-  predictions = classifier.predict_proba(sparse)
-
-  for feature, prediction in zip(features, predictions):
-    print ("Feature {} -> {:2.1f}% for blue".format(
-        sorted(feature.keys()), 100 * prediction[1]))
+  return (trainingGoals, trainingGames, testingGames)
 
 
 def main(args):
@@ -257,10 +255,10 @@ def main(args):
 
     games, goals, vectorizer, features = getGamesData(args.input_file)
 
-    trainingGoals, trainingFeatures, testingGames = \
-        seperate(args, games, goals, features)
+    trainingGoals, trainingGames, testingGames = \
+        seperate(args, games, goals)
 
-    classifier = buildClassifier(trainingGoals, trainingFeatures)
+    classifiers = buildClassifiers(MAX_BLOCKS, trainingGoals, trainingGames, vectorizer, features)
 
     # Variables about testGames.
     times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
@@ -291,7 +289,7 @@ def main(args):
 
         sparse = vectorizer.transform(gameFeatures)
 
-        correct, prediction = getPrediction(classifier, goal, sparse)
+        correct, prediction = getPrediction(classifiers, blockNum, goal, sparse)
 
         # store data to graph
         samples[blockNum] += 1
@@ -312,11 +310,9 @@ def main(args):
             goals.append(testGoal)
             predictions.append(gamePredictions[blockNum])
 
+        if len(goals) <= 1:
+          break
         logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions)
-
-    # Use the model to make some simple predictions.
-    # TODO(sethtroisi): move this under a flag.
-    #predict(classifier, vectorizer)
 
     # If data was tabulated on the testingData print stats about it.
     if len(times) > 0:
