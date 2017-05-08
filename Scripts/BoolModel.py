@@ -186,9 +186,9 @@ def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer):
     clf = MLPClassifier(
         solver='adam',
         max_iter = 1500,
-        alpha = 5.0,
-        learning_rate_init = 0.0002,
-        hidden_layer_sizes = (10, 10),
+        alpha = 10.0,
+        learning_rate_init = 0.0005,
+        hidden_layer_sizes = (4, 2),
 #        early_stopping = True,
 #        validation_fraction = 0.1,
         verbose = False)
@@ -207,8 +207,8 @@ def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer):
     if len(subTrainGoals) <= 0:
       continue
 
+    print ("training on {} datums (block {})".format(len(subTrainGoals), blockNum))
     sparseFeatures = vectorizer.transform(subTrainFeatures)
-
     clf.fit(sparseFeatures, subTrainGoals)
     clfs.append(clf)
 
@@ -231,7 +231,6 @@ def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer):
 def getPrediction(classifiers, gameI, blockNum, testGoal, testFeature):
   if blockNum >= len(classifiers):
     return None, None    
-
   modelGuesses = classifiers[blockNum].predict_proba(testFeature)
 
   # This is due to the sorting of [False, True].
@@ -241,7 +240,7 @@ def getPrediction(classifiers, gameI, blockNum, testGoal, testFeature):
 
 
 def seperate(args, games, goals):
-  holdBackPercent = 30
+  holdBackPercent = 15
   sampleSize = len(games)
   trainingSize = sampleSize - (holdBackPercent * sampleSize) // 100
 
