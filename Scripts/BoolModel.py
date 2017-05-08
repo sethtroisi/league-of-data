@@ -185,10 +185,10 @@ def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer):
 
     clf = MLPClassifier(
         solver='adam',
-        max_iter = 1000,
-        alpha = 1.0,
-        learning_rate_init = 0.002,
-        hidden_layer_sizes = (10, 5),
+        max_iter = 1500,
+        alpha = 5.0,
+        learning_rate_init = 0.0002,
+        hidden_layer_sizes = (10, 10),
 #        early_stopping = True,
 #        validation_fraction = 0.1,
         verbose = False)
@@ -204,8 +204,8 @@ def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer):
       gameFeatures = parseGameToFeatures(game, time)
       subTrainFeatures.append(gameFeatures)
 
-    if len(subTrainGoals) <= 1:
-      break
+    if len(subTrainGoals) <= 0:
+      continue
 
     sparseFeatures = vectorizer.transform(subTrainFeatures)
 
@@ -229,6 +229,9 @@ def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer):
 
 
 def getPrediction(classifiers, gameI, blockNum, testGoal, testFeature):
+  if blockNum >= len(classifiers):
+    return None, None    
+
   modelGuesses = classifiers[blockNum].predict_proba(testFeature)
 
   # This is due to the sorting of [False, True].
@@ -238,7 +241,7 @@ def getPrediction(classifiers, gameI, blockNum, testGoal, testFeature):
 
 
 def seperate(args, games, goals):
-  holdBackPercent = 50
+  holdBackPercent = 30
   sampleSize = len(games)
   trainingSize = sampleSize - (holdBackPercent * sampleSize) // 100
 
@@ -289,18 +292,21 @@ def main(args):
       predictions = []
       # TODO(sethtroisi): determine this point algorimically as 80% for game end.
       # TODO(sethtroisi): alternatively truncate when samples < 50.
-      for blockNum in range(min(MAX_BLOCKS, timeToBlock(30 * 60) + 1)):
+      for blockNum in range(MAX_BLOCKS):
         time = blockNum * SECONDS_PER_BLOCK
 
         # TODO(sethtroisi): remove games that have ended.
         if duration < time:
-          continue
+          break
 
         gameFeatures = parseGameToFeatures(game, time)
 
         sparse = vectorizer.transform(gameFeatures)
 
         correct, gamePredictions = getPrediction(classifiers, gameI, blockNum, goal, sparse)
+
+        if correct == None:
+          continue
 
         # store data to graph
         samples[blockNum] += 1

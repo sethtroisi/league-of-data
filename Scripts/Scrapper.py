@@ -31,7 +31,7 @@ KEY_PARAM = 'api_key={apiKey}'
 SLEEP_TIME = 1.0
 GAMES_PER_SUMMONER = 3
 
-socket.setdefaulttimeout(1.0)
+socket.setdefaulttimeout(2.0)
 
 def buildUrl(apiPath, params = []):
   urlParams = '&'.join([KEY_PARAM] + params)
