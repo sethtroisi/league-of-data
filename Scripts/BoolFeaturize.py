@@ -53,11 +53,15 @@ def champFeature(champs, sampleTime):
 
   teamAChamps, teamBChamps = champs
 
-  lastBlock = timeToBlock(sampleTime)
-  for block in range(0, lastBlock + 1):
-    for team, teamChamps in (('A', teamAChamps), ('B', teamBChamps)):
-      for champ in teamChamps:
-        features.add('champ_{}_{}_{}'.format(team, champ, block))
+  #lastBlock = timeToBlock(sampleTime)
+  #for block in range(0, lastBlock + 1):
+  #  for team, teamChamps in (('A', teamAChamps), ('B', teamBChamps)):
+  #    for champ in teamChamps:
+  #      features.add('champ_{}_{}_{}'.format(team, champ, block))
+
+  for team, teamChamps in (('A', teamAChamps), ('B', teamBChamps)):
+    for champ in teamChamps:
+      features.add('champ_{}_{}'.format(team, champ))
 
   return features
 
@@ -130,8 +134,8 @@ def parseGameToFeatures(parsed, time=None):
   # Objectives
   #barons = gameFeatures['barons']
   #dragons = gameFeatures['dragons']
-  #towers = gameFeatures['towers']
-  #inhibs = gameFeatures['inhibs']
+  towers = gameFeatures['towers']
+  inhibs = gameFeatures['inhibs']
 
   # Champions
   champs = gameFeatures['champs']
@@ -148,13 +152,13 @@ def parseGameToFeatures(parsed, time=None):
     duration = parsed['debug']['duration']
     time = duration + SECONDS_PER_BLOCK
 
-  #features.update(towerFeatures(towers, time))
   features.update(goldFeatures(gold, time))
+
+  features.update(towerFeatures(towers, time))
+  features.update(countedFeature('inhibs', inhibs, time))
 
   #features.update(countedFeature('barons', barons, time))
   #features.update(countedFeature('dragons', dragons, time))
-
-  #features.update(countedFeature('inhibs', inhibs, time))
 
   # TODO(sethtroisi): investigate why this increases log loss.
   features.update(champFeature(champs, time))

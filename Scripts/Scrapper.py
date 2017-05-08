@@ -174,7 +174,7 @@ def main():
     unvisited[sumId] = name
 
   fails = 0
-  while len(matchIds) < 15000:
+  while len(matchIds) < 20000:
     newId = random.choice(list(unvisited.keys()))
     newName = unvisited[newId]
     # Remove from the list of unprocessed

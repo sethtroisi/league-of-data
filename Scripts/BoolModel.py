@@ -88,6 +88,8 @@ def plotData(times, samples, corrects, ratios, logLosses):
 # Plot game predictions vs time.
 def plotGame(times, results, winPredictions):
   fig, (axis1, axis2) = pyplot.subplots(2, 1)
+  axis2_2 = axis2.twinx()
+
   fig.subplots_adjust(hspace = 0.65)
 
   # Note: I didn't have luck with subplots(3, 1) and resizing so I used this.
@@ -110,14 +112,18 @@ def plotGame(times, results, winPredictions):
   # At X minutes print confidences.
   sliderTime = Slider(sliderAxis, 'Time', 0, 60, valinit=20)
 
-  percents = [p / 100 for p in range(100 + 1)]
+  percentBuckets = 100
+  percents = [p / percentBuckets for p in range(percentBuckets + 1)]
 
   def plotConfidentAtTime(requestedTime):
     ti = min([(abs(requestedTime - t), i) for i,t in enumerate(times)])[1]
 
     cdfTrue = [0] * len(percents)
     cdfFalse = [0] * len(percents)
-    for result, gamePredictions in zip(results, winPredictions):
+    pdfTrue = [0] * len(percents)
+    pdfFalse = [0] * len(percents)
+
+    for gameResult, gamePredictions in zip(results, winPredictions):
       if len(gamePredictions) <= ti:
         continue
 
@@ -125,20 +131,35 @@ def plotGame(times, results, winPredictions):
       for pi, percent in enumerate(percents):
         if percent > prediction:
           break
-        if result:
+        if gameResult:
           cdfTrue[pi] += 1
         else:
           cdfFalse[pi] += 1
 
+      bucket = int(percentBuckets * prediction)
+      if gameResult:
+        pdfTrue[bucket] += 1
+      else:
+        pdfFalse[bucket] += 1
+ 
     axis2.cla();
+    axis2_2.cla();   
 
-    axis2.plot(percents, cdfTrue, resultColors[True])
-    axis2.plot(percents, cdfFalse[::-1], resultColors[False])
+    axis2.plot(percents, cdfTrue, color = resultColors[True], alpha = 0.9)
+    axis2.plot(percents, cdfFalse, color = resultColors[False], alpha = 0.9)
+
+    axis2_2.bar(percents, pdfTrue,  width = 0.008, color = resultColors[True],  alpha = 0.5)
+    axis2_2.bar(percents, pdfFalse, width = 0.008, color = resultColors[False], alpha = 0.5)
 
     axis2.set_xlabel('confidence')
-    axis2.set_ylabel('count of games')
+    axis2.set_ylabel('count of games (cdf)')
+    axis2_2.set_ylabel('count of games (pdf)')
 
-    axis2.set_ylim([0, max(cdfTrue[0], cdfFalse[0]) + 1])
+    axis2.set_xlim([0, 1]);
+    axis2_2.set_xlim([0, 1]);
+
+#    axis2.set_ylim([0, max(cdfTrue[0], cdfFalse[0]) + 1])
+#    axis2_2.set_ylim([0, max(max(pdfTrue), max(pdfFalse)) + 1]])
 
     fig.canvas.draw_idle()
 
@@ -177,21 +198,23 @@ def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer):
   #  alpha = 0.02, verbose=False)
 
   clfs = []
-  for blockNum in range(numBlocks):
+  for blockNum in range(min(21, numBlocks)):
     time = blockNum * SECONDS_PER_BLOCK
 
-    #clf = SGDClassifier(loss="log", penalty="l2", n_iter=3000, shuffle=True,
-    #  alpha = 0.02, verbose=False)
+#    clf = SGDClassifier(loss="log", penalty="l2", n_iter=3000, shuffle=True,
+#        alpha = 0.02, verbose=False)
 
+#    '''
     clf = MLPClassifier(
         solver='adam',
         max_iter = 1500,
-        alpha = 10.0,
-        learning_rate_init = 0.0005,
-        hidden_layer_sizes = (4, 2),
+        alpha = 0.2,
+        learning_rate_init = 0.001,
+        hidden_layer_sizes = (10, 4),
 #        early_stopping = True,
 #        validation_fraction = 0.1,
-        verbose = False)
+        verbose = True)
+    #'''
 
     subTrainGoals= []
     subTrainFeatures = []
@@ -205,15 +228,15 @@ def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer):
       subTrainFeatures.append(gameFeatures)
 
     if len(subTrainGoals) <= 0:
-      continue
+      break
 
     print ("training on {} datums (block {})".format(len(subTrainGoals), blockNum))
     sparseFeatures = vectorizer.transform(subTrainFeatures)
     clf.fit(sparseFeatures, subTrainGoals)
     clfs.append(clf)
 
-    print ("clf {:2d}: loss: {:.3f} after {:4d} iters".format(
-      blockNum, clf.loss_, clf.n_iter_))
+#    print ("clf {:2d}: loss: {:.3f} after {:4d} iters".format(
+#      blockNum, clf.loss_, clf.n_iter_))
 
 
   #print ("With training set size: {} games {} features - {} nnz".format(
@@ -326,7 +349,7 @@ def main(args):
             goals.append(testGoal)
             predictions.append(gamePredictions[blockNum])
 
-        if len(goals) <= 1:
+        if len(set(goals)) <= 1:
           break
         logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions)
 

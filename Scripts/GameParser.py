@@ -81,7 +81,7 @@ def parseGameRough(match, timeline):
     blockNum = timeToBlock(frameTime)
 
     frameGold = {}
-    # NOTE: frames appear to be 60seconds
+    # NOTE: frames appear to be 60 seconds
     gold[blockNum+1] = frameGold
     for pId, pFrame in frame['participantFrames'].items():
       # TODO(sethtroisi): use item gold instead of totalGold
@@ -148,8 +148,9 @@ def parseGameRough(match, timeline):
   features['champs'] = champs
   #features['dragons'] = dragons
   #features['barons'] = barons
-  #features['towers'] = towers
-  #features['inhibs'] = inhibs
+
+  features['towers'] = towers
+  features['inhibs'] = inhibs
   #features['pinkWards'] = pinkWards
   #features['stealthWards2Min'] = stealthWards2Min
   #features['stealthWards3Min'] = stealthWards3Min
