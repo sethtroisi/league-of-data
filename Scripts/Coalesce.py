@@ -27,23 +27,39 @@ def getArgParse():
 
 
 def main(args):
-  files = []
-
   baseDir = args.directory
+  
+  timelines = {}
+  matches = {}
+  
   for f in listdir(baseDir):
     fileName = join(baseDir, f)
 
     if not isfile(fileName):
       continue
 
-    assert re.match('^getMatch-[0-9]{10}$', f)
+    isMatch = re.match('^getMatch-[0-9]{10}$', f)
+    isTimeline = re.match('^getTimeline-[0-9]{10}$', f)
+    matchId = f[-10:]
+    assert isMatch or isTimeline, f
+    
+    if isMatch:
+      matches[matchId] = f
+    else:
+      timelines[matchId] = f
 
     # TODO(sethtroisi): add filters based on dates and stuff here
     #match = loadJsonFile(fileName)
 
-    files.append(fileName)
 
-  print ('coalescing {} matches into {}'.format(len(files), args.output_file))
+  files = []
+  for matchId in matches.keys():
+    if matchId in timelines:
+      files.append((matches[matchId], timelines[matchId]))
+
+
+  print ('coalescing {} matches, {} timelines into {} pairs'.format(
+      len(matches), len(timelines), len(files), args.output_file))
 
   writeJsonFile(args.output_file, files)
 

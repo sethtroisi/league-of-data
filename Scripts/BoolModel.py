@@ -55,11 +55,13 @@ def plotData(times, samples, corrects, ratios, logLosses):
       verticalalignment='bottom', horizontalalignment='center')
 
   # Middle graph of log loss.
+  maxLogLoss = max(1.4, min(10, 1.2 * max(logLosses)))
+
   axis2.plot(times, logLosses)
   axis2.set_title('Log Loss')
   axis2.set_xlabel('time (m)')
   axis2.set_ylabel('loss (log)')
-  axis2.set_ylim([0, 1.5])
+  axis2.set_ylim([0, maxLogLoss])
 
   minLogLoss = min(logLosses[:len(logLosses) * 2 // 3])
   time = times[logLosses.index(minLogLoss)]
@@ -99,7 +101,7 @@ def plotGame(times, results, winPredictions):
   for result, gamePredictions in zip(results, winPredictions):
     blocks = len(gamePredictions)
     color = resultColors[result]
-    axis1.plot(times[:blocks], gamePredictions, color, alpha = 0.1)
+    axis1.plot(times[:blocks], [gP[1] for gP in gamePredictions], color, alpha = 0.1)
 
   axis1.set_title('Predictions of win rate across the game')
   axis1.set_xlabel('time (m)')
@@ -119,7 +121,7 @@ def plotGame(times, results, winPredictions):
       if len(gamePredictions) <= ti:
         continue
 
-      prediction = gamePredictions[ti]
+      prediction = gamePredictions[ti][1]
       for pi, percent in enumerate(percents):
         if percent > prediction:
           break
@@ -166,7 +168,7 @@ def stats(times, samples, corrects, ratios, logLosses):
   print ("Mean Ratio: {:2.1f}".format(100 * mediumRatio))
 
 
-def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer, testFoo):
+def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer):
   #SGDClassifier(alpha=0.0001, class_weight=None, epsilon=0.1, eta0=0.0,
   #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
   #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
@@ -177,11 +179,19 @@ def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer, testFoo):
   clfs = []
   for blockNum in range(numBlocks):
     time = blockNum * SECONDS_PER_BLOCK
+
+    #clf = SGDClassifier(loss="log", penalty="l2", n_iter=3000, shuffle=True,
+    #  alpha = 0.02, verbose=False)
+
     clf = MLPClassifier(
-        solver='lbfgs',
-        random_state=1,
-        max_iter=5000,
-        hidden_layer_sizes=(10,10))
+        solver='adam',
+        max_iter = 1000,
+        alpha = 1.0,
+        learning_rate_init = 0.002,
+        hidden_layer_sizes = (10, 5),
+#        early_stopping = True,
+#        validation_fraction = 0.1,
+        verbose = False)
 
     subTrainGoals= []
     subTrainFeatures = []
@@ -197,11 +207,14 @@ def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer, testFoo):
     if len(subTrainGoals) <= 1:
       break
 
-    vectorizer = DictVectorizer(sparse=True)
-    sparseFeatures = vectorizer.fit_transform(subTrainFeatures)
+    sparseFeatures = vectorizer.transform(subTrainFeatures)
 
     clf.fit(sparseFeatures, subTrainGoals)
     clfs.append(clf)
+
+    print ("clf {:2d}: loss: {:.3f} after {:4d} iters".format(
+      blockNum, clf.loss_, clf.n_iter_))
+
 
   #print ("With training set size: {} games {} features - {} nnz".format(
   #    len(trainGoals), trainFeatures.shape[1], trainFeatures.nnz))
@@ -215,15 +228,13 @@ def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer, testFoo):
   return clfs
 
 
-def getPrediction(classifiers, blockNum, testGoal, testFeature):
+def getPrediction(classifiers, gameI, blockNum, testGoal, testFeature):
   modelGuesses = classifiers[blockNum].predict_proba(testFeature)
 
   # This is due to the sorting of [False, True].
   BProb, AProb = modelGuesses[0]
-
   correct = (AProb > 0.5) == testGoal
-
-  return correct, AProb
+  return correct, [BProb, AProb]
 
 
 def seperate(args, games, goals):
@@ -258,7 +269,7 @@ def main(args):
     trainingGoals, trainingGames, testingGames = \
         seperate(args, games, goals)
 
-    classifiers = buildClassifiers(MAX_BLOCKS, trainingGoals, trainingGames, vectorizer, features)
+    classifiers = buildClassifiers(MAX_BLOCKS, trainingGoals, trainingGames, vectorizer)
 
     # Variables about testGames.
     times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
@@ -269,16 +280,16 @@ def main(args):
     logLosses = [0 for b in range(MAX_BLOCKS)]
     # Per Game stats.
     testGoals = []
-    winPredictions = []
+    testWinProbs = []
 
-    for game in testingGames:
+    for gameI, game in enumerate(testingGames):
       duration = game['debug']['duration']
       goal = game['goal']
 
       predictions = []
       # TODO(sethtroisi): determine this point algorimically as 80% for game end.
       # TODO(sethtroisi): alternatively truncate when samples < 50.
-      for blockNum in range(MAX_BLOCKS):
+      for blockNum in range(min(MAX_BLOCKS, timeToBlock(30 * 60) + 1)):
         time = blockNum * SECONDS_PER_BLOCK
 
         # TODO(sethtroisi): remove games that have ended.
@@ -289,15 +300,15 @@ def main(args):
 
         sparse = vectorizer.transform(gameFeatures)
 
-        correct, prediction = getPrediction(classifiers, blockNum, goal, sparse)
+        correct, gamePredictions = getPrediction(classifiers, gameI, blockNum, goal, sparse)
 
         # store data to graph
         samples[blockNum] += 1
         corrects[blockNum] += 1 if correct else 0
-        predictions.append(prediction)
+        predictions.append(gamePredictions)
 
       testGoals.append(goal)
-      winPredictions.append(predictions)
+      testWinProbs.append(predictions)
 
     for blockNum in range(MAX_BLOCKS):
       if samples[blockNum] > 0:
@@ -305,7 +316,7 @@ def main(args):
 
         goals = []
         predictions = []
-        for testGoal, gamePredictions in zip(testGoals, winPredictions):
+        for testGoal, gamePredictions in zip(testGoals, testWinProbs):
           if len(gamePredictions) > blockNum:
             goals.append(testGoal)
             predictions.append(gamePredictions[blockNum])
@@ -318,7 +329,7 @@ def main(args):
     if len(times) > 0:
       stats(times, samples, corrects, ratios, logLosses)
       plotData(times, samples, corrects, ratios, logLosses)
-      plotGame(times, testGoals, winPredictions)
+      plotGame(times, testGoals, testWinProbs)
 
 
 if __name__ == '__main__':

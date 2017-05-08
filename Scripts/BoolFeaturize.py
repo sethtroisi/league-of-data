@@ -128,10 +128,10 @@ def parseGameToFeatures(parsed, time=None):
   gold = gameFeatures['gold']
 
   # Objectives
-  barons = gameFeatures['barons']
-  dragons = gameFeatures['dragons']
-  towers = gameFeatures['towers']
-  inhibs = gameFeatures['inhibs']
+  #barons = gameFeatures['barons']
+  #dragons = gameFeatures['dragons']
+  #towers = gameFeatures['towers']
+  #inhibs = gameFeatures['inhibs']
 
   # Champions
   champs = gameFeatures['champs']
@@ -148,13 +148,13 @@ def parseGameToFeatures(parsed, time=None):
     duration = parsed['debug']['duration']
     time = duration + SECONDS_PER_BLOCK
 
-  features.update(towerFeatures(towers, time))
+  #features.update(towerFeatures(towers, time))
   features.update(goldFeatures(gold, time))
 
-  features.update(countedFeature('barons', barons, time))
-  features.update(countedFeature('dragons', dragons, time))
+  #features.update(countedFeature('barons', barons, time))
+  #features.update(countedFeature('dragons', dragons, time))
 
-  features.update(countedFeature('inhibs', inhibs, time))
+  #features.update(countedFeature('inhibs', inhibs, time))
 
   # TODO(sethtroisi): investigate why this increases log loss.
   features.update(champFeature(champs, time))

@@ -51,7 +51,7 @@ def getArgParse():
 
 
 # takes in a match json object and returns features about it.
-def parseGameRough(match):
+def parseGameRough(match, timeline):
   teamInfo = match['participants']
 
   # for now we return champtionId, firstDragon team, firstDragon time
@@ -75,7 +75,7 @@ def parseGameRough(match):
   stealthWards3Min = []
   stealthWards2Min = []
   gold = {}
-  frames = match['timeline']['frames']
+  frames = timeline['frames']
   for frame in frames:
     frameTime = frame['timestamp'] // 1000
     blockNum = timeToBlock(frameTime)
@@ -146,10 +146,10 @@ def parseGameRough(match):
 
   features = dict()
   features['champs'] = champs
-  features['dragons'] = dragons
-  features['barons'] = barons
-  features['towers'] = towers
-  features['inhibs'] = inhibs
+  #features['dragons'] = dragons
+  #features['barons'] = barons
+  #features['towers'] = towers
+  #features['inhibs'] = inhibs
   #features['pinkWards'] = pinkWards
   #features['stealthWards2Min'] = stealthWards2Min
   #features['stealthWards3Min'] = stealthWards3Min
@@ -157,9 +157,11 @@ def parseGameRough(match):
 
   # TODO(sethtroisi): plumb debug info instead of reusing features.
   debug = dict()
-  debug['duration'] = match['matchDuration']
+  debug['duration'] = match['gameDuration']
 
-  result = match['teams'][0]['winner']
+  rawResult = match['teams'][0]['win']
+  assert rawResult in ('Win', 'Fail'), rawResult
+  result = rawResult == 'Win'
 
   parsed = dict()
   parsed['features'] = features
@@ -181,14 +183,20 @@ def main(args):
 
   for t in inFile:
     if type(t) == str and len(t) < 100:
-      game = loadJsonFile(t)
+      assert False, "old v2 no being used anymore"
+      match = loadJsonFile(t)
+    elif type(t) == list:
+      assert len(t) == 2
+      match = loadJsonFile('matches/' + t[0])
+      timeline = loadJsonFile('matches/' + t[1])
+      
     elif type(t) == dict and 'matchType' in t.keys():
       game = t
     else:
       print ("no idea what is in the input file got: {}".format(type(t)))
       assert False
 
-    parsed = parseGameRough(game)
+    parsed = parseGameRough(match, timeline)
     outputData.append(parsed)
     gameNum += 1
 

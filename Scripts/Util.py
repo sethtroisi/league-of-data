@@ -52,7 +52,7 @@ def championIdToName(champId):
   for k,v in getChamps():
     if v == champId:
       return k
-  return str(champId)
+  return 'unknown-champion-{}'.format(champId)
 
 
 def getTowerNumber(isTeamOneTower, lane, tower):
