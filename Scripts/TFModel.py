@@ -1,16 +1,17 @@
 import argparse
+import functools
 import numpy as np
 import matplotlib.pyplot as pyplot
 import random
+import pandas
 import sklearn.metrics
 import tensorflow as tf
 
 from matplotlib.widgets import Slider
 from sklearn.model_selection import train_test_split
 
-from TFFeaturize import *
+from BoolFeaturize import *
 from Util import *
-
 
 def getArgParse():
   parser = argparse.ArgumentParser(description='Takes features and models outcomes.')
@@ -185,58 +186,67 @@ def stats(times, samples, corrects, ratios, logLosses):
   print ("Mean Ratio: {:2.1f}".format(100 * mediumRatio))
 
 
-def buildClassifier(trainGoals, trainGames):
-
-  subTrainGoals= []
-  subTrainFeatures = []
-  for goal, game in zip(trainGoals, trainGames):
+vectorizer = DictVectorizer(sparse = False)
+def gameToPDF(games, training = False):
+  features = []
+  for game in games:
     duration = game['debug']['duration']
+    gameFeatures = parseGameToFeatures(game, duration)
+    features.append(gameFeatures)
+    assert len(gameFeatures) > 0
+  assert len(features) > 0
 
-    subTrainGoals.append(goal)
-    gameFeatures = parseGameToFeatures(game, duration + 1)
-    subTrainFeatures.append(gameFeatures)
+  if training:
+    print ("Rebuilding feature transformer")
+    sparse = vectorizer.fit_transform(features)
+    print ("training on {} datums, {} features".format(
+        len(game),
+        len(vectorizer.get_feature_names())))
+  else:
+    sparse = vectorizer.transform(features)
 
-  columns = ["gold"]
-  df = pandas.DataFrame(columns = columns)
+  return pandas.DataFrame(
+      data = sparse,
+      index = range(len(games)),
+      columns = vectorizer.get_feature_names())
 
 
-  assert len(subTrainGoals) > 0
+def inputFn(df, goals = None):
+  featureCols = {k: tf.constant(df[k].values, shape=[df[k].size, 1]) for k in df.columns.values}
+  labels = goals and tf.constant(goals, shape=[len(goals), 1])
+  return featureCols, labels
 
-  print ("training on {} datums".format(len(subTrainGoals)))
-  columns = ["gold"]
-  df = pandas.DataFrame(columns = columns)
 
+def buildClassifier(trainGoals, trainGames):
+  df = gameToPDF(trainGames, training = True)
+  features = vectorizer.get_feature_names()
 
-  featureColumns = [
-    tf.contrib.layers.
+  featureColumns = [tf.contrib.layers.real_valued_column(k) for k in features]
+
   classifier = tf.contrib.learn.DNNClassifier(
       feature_columns = featureColumns,
       hidden_units = [10, 10],
-      n_classes = 1))
+      n_classes = 2,
+      model_dir = "/tmp/lodm/")
 
 
-#  def inputFn(dataFrame):
-#    featureCols = {label: valueList}
-#    labels = subTrainGoals
-#    return featureCols, labels
-#  classifier.fit(input_fn=inputFn, steps = 5000)
-  
+  tf.logging.set_verbosity(tf.logging.INFO)
+
   classifier.fit(
-      x = np.array(subTrainFeatures, dtype = int64),
-      y = np.array(subTrainGoals,    dtype = int64),
-      steps = 5000)
-
+      input_fn = functools.partial(inputFn, df, trainGoals),
+      steps = 500)
+  
 #    print ("clf {:2d}: loss: {:.3f} after {:4d} iters".format(
 #      blockNum, clf.loss_, clf.n_iter_))
 
   return classifier
 
 
-def getPrediction(classifier, blockNum, testGoal, testFeature):
-  guess = classifier.predict(testFeature),
-  modelGuesses = classifier.predict_proba(testFeature)
-
-  print (guess, "\t", modelGuesses)
+def getPrediction(classifier, blockNum, testGame, testGoal):
+  df = gameToPDF([testGame])
+  
+  modelGuesses = list(classifier.predict_proba(
+      input_fn = functools.partial(inputFn, df, None)))
 
   # This is due to the sorting of [False, True].
   BProb, AProb = modelGuesses[0]
@@ -244,87 +254,83 @@ def getPrediction(classifier, blockNum, testGoal, testFeature):
   return correct, [BProb, AProb]
 
 
-
 def main(args):
-    MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
+  MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
 
-    games, goals = getRawGameData(args.input_file)
+  games, goals, allFeatures = getRawGameData(args.input_file)
+  trainingGames, testingGames, trainingGoals, testingGoals = train_test_split(
+      games,
+      goals,
+      test_size = 0.15,
+      random_state = 42)
+  del games, goals
 
-    trainingGames, testingGames, trainingGoals, testingGoals = train_test_split(
-        games,
-        goals,
-        test_size = 0.15,
-        random_state = 42)
+  print ("Training games: {}, Testing holdback: {}".format(
+    len(trainingGames), len(testingGames)))
+  assert len(trainingGames) == len(trainingGoals)
+  assert len(testingGames) == len(testingGoals)
 
-    print ("Training games: {}, Testing holdback: {}".format(
-      len(trainingGames), len(testingGames)))
-    assert len(trainingGames) == len(trainingGoals)
-    assert len(testingGames) == len(testingGoals)
+  classifier = buildClassifier(trainingGoals, trainingGames)
 
-    classifier = buildClassifier(trainingGoals, trainingGames)
+  # Variables about testGames.
+  times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
+  samples = [0 for b in range(MAX_BLOCKS)]
+  corrects = [0 for b in range(MAX_BLOCKS)]
+  # Averages over data (calculated after all data).
+  ratios = [0 for b in range(MAX_BLOCKS)]
+  logLosses = [0 for b in range(MAX_BLOCKS)]
+  # Per Game stats.
+  testGoals = []
+  testWinProbs = []
 
-    # Variables about testGames.
-    times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
-    samples = [0 for b in range(MAX_BLOCKS)]
-    corrects = [0 for b in range(MAX_BLOCKS)]
-    # Averages over data (calculated after all data).
-    ratios = [0 for b in range(MAX_BLOCKS)]
-    logLosses = [0 for b in range(MAX_BLOCKS)]
-    # Per Game stats.
-    testGoals = []
-    testWinProbs = []
+  for gameI, (game, tGoal) in enumerate(zip(testingGames, testingGoals)):
+    duration = game['debug']['duration']
+    goal = game['goal']
+    assert tGoal == goal
 
-    for gameI, (game, tGoal) in enumerate(zip(testingGames, testingGoals)):
-      duration = game['debug']['duration']
-      goal = game['goal']
-      assert tGoal == goal
-
-      predictions = []
-      # TODO(sethtroisi): determine this point algorimically as 80% for game end.
-      # TODO(sethtroisi): alternatively truncate when samples < 50.
-      for blockNum in range(MAX_BLOCKS):
-        time = blockNum * SECONDS_PER_BLOCK
-
-        # TODO(sethtroisi): remove games that have ended.
-        if duration < time:
-          break
-
-        gameFeatures = parseGameToFeatures(game, time)
-        sparse = vectorizer.transform(gameFeatures)
-
-        correct, gamePredictions = getPrediction(classifier, blockNum, goal, sparse)
-
-        if correct == None:
-          continue
-
-        # store data to graph
-        samples[blockNum] += 1
-        corrects[blockNum] += 1 if correct else 0
-        predictions.append(gamePredictions)
-
-      testGoals.append(goal)
-      testWinProbs.append(predictions)
-
+    predictions = []
+    # TODO(sethtroisi): determine this point algorimically as 80% for game end.
+    # TODO(sethtroisi): alternatively truncate when samples < 50.
     for blockNum in range(MAX_BLOCKS):
-      if samples[blockNum] > 0:
-        ratios[blockNum] = corrects[blockNum] / samples[blockNum]
+      time = blockNum * SECONDS_PER_BLOCK
 
-        goals = []
-        predictions = []
-        for testGoal, gamePredictions in zip(testGoals, testWinProbs):
-          if len(gamePredictions) > blockNum:
-            goals.append(testGoal)
-            predictions.append(gamePredictions[blockNum])
+      # TODO(sethtroisi): remove games that have ended.
+      if duration < time:
+        break
 
-        if len(set(goals)) <= 1:
-          break
-        logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions)
+      correct, gamePredictions = getPrediction(classifier, blockNum, game, goal)
 
-    # If data was tabulated on the testingData print stats about it.
-    if len(times) > 0:
-      stats(times, samples, corrects, ratios, logLosses)
-      plotData(times, samples, corrects, ratios, logLosses)
-      plotGame(times, testGoals, testWinProbs)
+      if correct == None:
+        continue
+
+      # store data to graph
+      samples[blockNum] += 1
+      corrects[blockNum] += 1 if correct else 0
+      predictions.append(gamePredictions)
+
+    testGoals.append(goal)
+    testWinProbs.append(predictions)
+
+  for blockNum in range(MAX_BLOCKS):
+    if samples[blockNum] > 0:
+      ratios[blockNum] = corrects[blockNum] / samples[blockNum]
+
+      goals = []
+      predictions = []
+      for testGoal, gamePredictions in zip(testGoals, testWinProbs):
+        if len(gamePredictions) > blockNum:
+          goals.append(testGoal)
+          predictions.append(gamePredictions[blockNum])
+
+      if len(set(goals)) <= 1:
+        break
+      logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions)
+
+  # If data was tabulated on the testingData print stats about it.
+  if len(times) > 0:
+    stats(times, samples, corrects, ratios, logLosses)
+    plotData(times, samples, corrects, ratios, logLosses)
+    plotGame(times, testGoals, testWinProbs)
 
 
 if __name__ == '__main__':

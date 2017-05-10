@@ -118,14 +118,15 @@ def goldFeatures(gold, sampleTime):
       if thousands * 1000 < teamBGold:
         features.add('g_b_{}k'.format(thousands))
 
-    deltaSign = teamAGold > teamBGold
-    delta = abs(teamAGold - teamBGold)
-    bucketsOfGold = delta // GOLD_DELTA_BUCKET_SIZE
-    for bucket in range(bucketsOfGold):
-      features.add('g_d_{}_{}_{}'.format(
-          blockNum,
-          '+' if deltaSign else '-', 
-          bucket * GOLD_DELTA_BUCKET_SIZE))
+# TODO(sethtroisi) DO NOT SUBMIT readd
+#    deltaSign = teamAGold > teamBGold
+#    delta = abs(teamAGold - teamBGold)
+#    bucketsOfGold = delta // GOLD_DELTA_BUCKET_SIZE
+#    for bucket in range(bucketsOfGold):
+#      features.add('g_d_{}_{}_{}'.format(
+#          blockNum,
+#          'p' if deltaSign else 'n', 
+#          bucket * GOLD_DELTA_BUCKET_SIZE))
 
   return features
 
@@ -138,11 +139,11 @@ def parseGameToFeatures(parsed, time=None):
   # Objectives
   #barons = gameFeatures['barons']
   #dragons = gameFeatures['dragons']
-  towers = gameFeatures['towers']
-  inhibs = gameFeatures['inhibs']
+  #towers = gameFeatures['towers']
+  #inhibs = gameFeatures['inhibs']
 
   # Champions
-  champs = gameFeatures['champs']
+  #champs = gameFeatures['champs']
 
   # Other
   #pinkWards = gameFeatures['pinkWards']
@@ -158,14 +159,14 @@ def parseGameToFeatures(parsed, time=None):
 
   features.update(goldFeatures(gold, time))
 
-  features.update(towerFeatures(towers, time))
-  features.update(countedFeature('inhibs', inhibs, time))
+  #features.update(towerFeatures(towers, time))
+  #features.update(countedFeature('inhibs', inhibs, time))
 
   #features.update(countedFeature('barons', barons, time))
   #features.update(countedFeature('dragons', dragons, time))
 
   # TODO(sethtroisi): investigate why this increases log loss.
-  features.update(champFeature(champs, time))
+  #features.update(champFeature(champs, time))
 
   #features.update(countedFeature(
   #    'pinkwards', pinkWards, time,
@@ -184,7 +185,11 @@ def loadOutputFile(fileName):
   goals = []
 
   outputData = loadJsonFile(fileName)
-  for data in outputData:
+  for dataI, data in enumerate(outputData):
+    if dataI > 200:
+      print ("Breaking to keep data small")
+      break
+  
     goal = data['goal']
     gameFeatures = parseGameToFeatures(data)
 
@@ -244,7 +249,7 @@ def getRawGameData(fileName):
 def getGamesData(fileName):
   games, goals, allFeatures = getRawGameData(fileName)
 
-  vectorizer = DictVectorizer(sparse=True)
+  vectorizer = DictVectorizer(sparse = True)
   sparseFeatures = vectorizer.fit_transform(allFeatures)
 
   print ('Data size: {}'.format(sparseFeatures.shape))
