@@ -1,15 +1,14 @@
 import argparse
-import sklearn.metrics
 import numpy as np
 import matplotlib.pyplot as pyplot
 import random
+import sklearn.metrics
+import tensorflow as tf
 
 from matplotlib.widgets import Slider
-from sklearn.linear_model import SGDClassifier
-from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
 
-from BoolFeaturize import *
+from TFFeaturize import *
 from Util import *
 
 
@@ -186,72 +185,58 @@ def stats(times, samples, corrects, ratios, logLosses):
   print ("Mean Ratio: {:2.1f}".format(100 * mediumRatio))
 
 
-def buildClassifiers(numBlocks, trainGoals, trainGames, vectorizer):
-  #SGDClassifier(alpha=0.0001, class_weight=None, epsilon=0.1, eta0=0.0,
-  #       fit_intercept=True, l1_ratio=0.15, learning_rate='optimal',
-  #       loss='hinge', n_iter=2, n_jobs=1, penalty='l2', power_t=0.5,
-  #       random_state=None, shuffle=False, verbose=True, warm_start=False)
-  #clf = SGDClassifier(loss="log", penalty="l2", n_iter=3000, shuffle=True,
-  #  alpha = 0.02, verbose=False)
+def buildClassifier(trainGoals, trainGames):
 
-  clfs = []
-  for blockNum in range(min(21, numBlocks)):
-    time = blockNum * SECONDS_PER_BLOCK
+  subTrainGoals= []
+  subTrainFeatures = []
+  for goal, game in zip(trainGoals, trainGames):
+    duration = game['debug']['duration']
 
-#    clf = SGDClassifier(loss="log", penalty="l2", n_iter=3000, shuffle=True,
-#        alpha = 0.02, verbose=False)
+    subTrainGoals.append(goal)
+    gameFeatures = parseGameToFeatures(game, duration + 1)
+    subTrainFeatures.append(gameFeatures)
 
-#    '''
-    clf = MLPClassifier(
-        solver='adam',
-        max_iter = 150,
-        alpha = 0.5,
-        learning_rate_init = 0.001,
-        hidden_layer_sizes = (10, 4),
-#        early_stopping = True,
-#        validation_fraction = 0.1,
-        verbose = True)
-    #'''
+  columns = ["gold"]
+  df = pandas.DataFrame(columns = columns)
 
-    subTrainGoals= []
-    subTrainFeatures = []
-    for goal, game in zip(trainGoals, trainGames):
-      duration = game['debug']['duration']
-      if duration < time:
-        continue
 
-      subTrainGoals.append(goal)
-      gameFeatures = parseGameToFeatures(game, time)
-      subTrainFeatures.append(gameFeatures)
+  assert len(subTrainGoals) > 0
 
-    if len(subTrainGoals) <= 0:
-      break
+  print ("training on {} datums".format(len(subTrainGoals)))
+  columns = ["gold"]
+  df = pandas.DataFrame(columns = columns)
 
-    print ("training on {} datums (block {})".format(len(subTrainGoals), blockNum))
-    sparseFeatures = vectorizer.transform(subTrainFeatures)
-    clf.fit(sparseFeatures, subTrainGoals)
-    clfs.append(clf)
+
+  featureColumns = [
+    tf.contrib.layers.
+  classifier = tf.contrib.learn.DNNClassifier(
+      feature_columns = featureColumns,
+      hidden_units = [10, 10],
+      n_classes = 1))
+
+
+#  def inputFn(dataFrame):
+#    featureCols = {label: valueList}
+#    labels = subTrainGoals
+#    return featureCols, labels
+#  classifier.fit(input_fn=inputFn, steps = 5000)
+  
+  classifier.fit(
+      x = np.array(subTrainFeatures, dtype = int64),
+      y = np.array(subTrainGoals,    dtype = int64),
+      steps = 5000)
 
 #    print ("clf {:2d}: loss: {:.3f} after {:4d} iters".format(
 #      blockNum, clf.loss_, clf.n_iter_))
 
-
-  #print ("With training set size: {} games {} features - {} nnz".format(
-  #    len(trainGoals), trainFeatures.shape[1], trainFeatures.nnz))
+  return classifier
 
 
-  #print (clf.coef_)
-  #print ("intercept: {:4.3f}, TrueProp: {:3.1f}%".format(
-  #    clf.intercept_[0], 100 * trainGoals.count(True) / len(trainGoals)))
-  #print ()
+def getPrediction(classifier, blockNum, testGoal, testFeature):
+  guess = classifier.predict(testFeature),
+  modelGuesses = classifier.predict_proba(testFeature)
 
-  return clfs
-
-
-def getPrediction(classifiers, gameI, blockNum, testGoal, testFeature):
-  if blockNum >= len(classifiers):
-    return None, None    
-  modelGuesses = classifiers[blockNum].predict_proba(testFeature)
+  print (guess, "\t", modelGuesses)
 
   # This is due to the sorting of [False, True].
   BProb, AProb = modelGuesses[0]
@@ -263,7 +248,7 @@ def getPrediction(classifiers, gameI, blockNum, testGoal, testFeature):
 def main(args):
     MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
 
-    games, goals, vectorizer, features = getGamesData(args.input_file)
+    games, goals = getRawGameData(args.input_file)
 
     trainingGames, testingGames, trainingGoals, testingGoals = train_test_split(
         games,
@@ -276,7 +261,7 @@ def main(args):
     assert len(trainingGames) == len(trainingGoals)
     assert len(testingGames) == len(testingGoals)
 
-    classifiers = buildClassifiers(MAX_BLOCKS, trainingGoals, trainingGames, vectorizer)
+    classifier = buildClassifier(trainingGoals, trainingGames)
 
     # Variables about testGames.
     times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
@@ -305,10 +290,9 @@ def main(args):
           break
 
         gameFeatures = parseGameToFeatures(game, time)
-
         sparse = vectorizer.transform(gameFeatures)
 
-        correct, gamePredictions = getPrediction(classifiers, gameI, blockNum, goal, sparse)
+        correct, gamePredictions = getPrediction(classifier, blockNum, goal, sparse)
 
         if correct == None:
           continue

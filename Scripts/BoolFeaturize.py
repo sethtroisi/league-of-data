@@ -8,7 +8,7 @@ from Util import *
 
 
 SECONDS_PER_BLOCK = 2 * 60
-GOLD_DELTA_BLOCK = 2000
+GOLD_DELTA_BUCKET_SIZE = 2000
 
 
 def timeToBlock(time):
@@ -61,7 +61,7 @@ def champFeature(champs, sampleTime):
 
   for team, teamChamps in (('A', teamAChamps), ('B', teamBChamps)):
     for champ in teamChamps:
-      features.add('champ_{}_{}'.format(team, champ))
+      features.add('c_{}_{}'.format(team, champ))
 
   return features
 
@@ -82,10 +82,10 @@ def towerFeatures(towers, sampleTime):
       towersB += 1
 
     timeBlock = timeToBlock(towerTime)
-    features.add('towers_{}'.format(towerNum))
-    features.add('towers_{}_{}'.format(timeBlock, towerNum))
+    features.add('t_d_{}'.format(towerNum))
+    features.add('t_d_at_{}_{}'.format(timeBlock, towerNum))
 
-  features.add('towerskilled_{}_{}'.format(towersA, towersB))
+  features.add('t_d_{}_{}'.format(towersA, towersB))
 
   return features
 
@@ -94,7 +94,6 @@ def towerFeatures(towers, sampleTime):
 def goldFeatures(gold, sampleTime):
   features = set()
 
-  # TODO(sethtroisi): verify gold use fencpost problem
   lastBlock = timeToBlock(sampleTime)
   for blockNum in range(1, lastBlock):
     blockGold = gold.get(str(blockNum), None)
@@ -114,14 +113,19 @@ def goldFeatures(gold, sampleTime):
 
     for thousands in range(1, 100):
       if thousands * 1000 < teamAGold:
-        features.add('gold_a_{}k'.format(thousands))
+        features.add('g_a_{}k'.format(thousands))
 
       if thousands * 1000 < teamBGold:
-        features.add('gold_b_{}k'.format(thousands))
+        features.add('g_b_{}k'.format(thousands))
 
-    delta = teamAGold - teamBGold
-    blockedGold = GOLD_DELTA_BLOCK * (delta // GOLD_DELTA_BLOCK)
-    features.add('gold_delta_{}_{}k'.format(blockNum, blockedGold // 1000))
+    deltaSign = teamAGold > teamBGold
+    delta = abs(teamAGold - teamBGold)
+    bucketsOfGold = delta // GOLD_DELTA_BUCKET_SIZE
+    for bucket in range(bucketsOfGold):
+      features.add('g_d_{}_{}_{}'.format(
+          blockNum,
+          '+' if deltaSign else '-', 
+          bucket * GOLD_DELTA_BUCKET_SIZE))
 
   return features
 
@@ -228,15 +232,20 @@ def generateFeatureData(featuresList):
     # ie 'gold_belta_34_4k' + 'gold-delta_28_2k' => 'gold_delta' x 2
 
 
-def getGamesData(fileName):
-  games, goals, featuresList = loadOutputFile(fileName)
+def getRawGameData(fileName):
+  games, goals, allFeatures = loadOutputFile(fileName)
 
   sampleSize = len(goals)
   print ("Loaded {} games".format(sampleSize))
 
-  vectorizer = DictVectorizer(sparse=True)
+  return games, goals, allFeatures
 
-  sparseFeatures = vectorizer.fit_transform(featuresList)
+
+def getGamesData(fileName):
+  games, goals, allFeatures = getRawGameData(fileName)
+
+  vectorizer = DictVectorizer(sparse=True)
+  sparseFeatures = vectorizer.fit_transform(allFeatures)
 
   print ('Data size: {}'.format(sparseFeatures.shape))
   print ('Number non-zero: {}'.format(sparseFeatures.getnnz()))
@@ -246,3 +255,4 @@ def getGamesData(fileName):
   #generateFeatureData(featuresList)
 
   return games, goals, vectorizer, sparseFeatures
+

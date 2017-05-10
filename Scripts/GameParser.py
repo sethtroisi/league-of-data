@@ -1,6 +1,7 @@
 import argparse
 import json
 import random
+import time
 from Util import *
 from BoolFeaturize import *
 
@@ -71,9 +72,6 @@ def parseGameRough(match, timeline):
   barons = []
   towers = []
   inhibs = []
-  pinkWards = []
-  stealthWards3Min = []
-  stealthWards2Min = []
   gold = {}
   frames = timeline['frames']
   for frame in frames:
@@ -136,24 +134,16 @@ def parseGameRough(match, timeline):
       if wardEvent == 'WARD_PLACED':
         wardType = event['wardType']
         isTeamOne = event['creatorId'] <= 5
-        if wardType == 'VISION_WARD':
-          pinkWards.append((time, isTeamOne))
-        elif wardType == 'YELLOW_TRINKET':
-          stealthWards2Min.append((time, isTeamOne))
-        elif wardType in ('YELLOW_TRINKET_UPGRADE', 'SIGHT_WARD'):
-          stealthWards3Min.append((time, isTeamOne))
-        #unhandled case: TEEMO_MUSHROOM
+        # TODO save and record ward events
 
   features = dict()
   features['champs'] = champs
   #features['dragons'] = dragons
   #features['barons'] = barons
-
   features['towers'] = towers
   features['inhibs'] = inhibs
-  #features['pinkWards'] = pinkWards
-  #features['stealthWards2Min'] = stealthWards2Min
-  #features['stealthWards3Min'] = stealthWards3Min
+  #features['wards'] = wards
+
   features['gold'] = gold
 
   # TODO(sethtroisi): plumb debug info instead of reusing features.
@@ -173,6 +163,7 @@ def parseGameRough(match, timeline):
 
 
 def main(args):
+  T0 = time.time()
 
   gameNum = 0
   outputData = []
@@ -183,27 +174,18 @@ def main(args):
   printEvery = items // 15
 
   for t in inFile:
-    if type(t) == str and len(t) < 100:
-      assert False, "old v2 no being used anymore"
-      match = loadJsonFile(t)
-    elif type(t) == list:
-      assert len(t) == 2
-      match = loadJsonFile('matches/' + t[0])
-      timeline = loadJsonFile('matches/' + t[1])
-      
-    elif type(t) == dict and 'matchType' in t.keys():
-      game = t
-    else:
-      print ("no idea what is in the input file got: {}".format(type(t)))
-      assert False
+    assert type(t) == list
+    assert len(t) == 2
+    match = loadJsonFile('matches/' + t[0])
+    timeline = loadJsonFile('matches/' + t[1]) 
 
     parsed = parseGameRough(match, timeline)
     outputData.append(parsed)
     gameNum += 1
 
     if gameNum % printEvery == 0:
-      print ("parsed {} of {} ({:0.0f}%)".format(
-          gameNum, items, 100 * gameNum / items))
+      print ("parsed {} of {} ({:0.0f}%) ({:.2f}s)".format(
+          gameNum, items, 100 * gameNum / items, time.time() - T0))
 
   # Remove any ordering effect from game number
   random.shuffle(outputData)
