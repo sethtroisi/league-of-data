@@ -10,10 +10,10 @@ import time
 
 from matplotlib.widgets import Slider
 from sklearn.model_selection import train_test_split
-
 from BoolFeaturize import *
 from Util import *
 import GraphModelStats
+import TFFeaturize
 
 def getArgParse():
   parser = argparse.ArgumentParser(description='Takes features and models outcomes.')
@@ -29,37 +29,47 @@ def getArgParse():
   return parser
 
 
-vectorizer = DictVectorizer(sparse = False)
+allColumns = []
 def gameToPDF(games, *, blockNum = 0, training = False):
-  features = []
-  for game in games:
+  global allColumns
+
+  if training:
+    print ("featurizing {} games".format(len(games)))
+
+
+  frames = []
+  for index, game in enumerate(games):
     if training:
       time = game['debug']['duration']
     else:
       time = blockNum * SECONDS_PER_BLOCK
 
-    gameFeatures = parseGameToFeatures(game, time)
-    features.append(gameFeatures)
-    assert len(gameFeatures) > 0, time
-  assert len(features) > 0
+    gameFrame = TFFeaturize.parseGameToPD(index, game, time)
+    frames.append(gameFrame)
 
   if training:
-    print ("Rebuilding feature transformer")
-    sparse = vectorizer.fit_transform(features)
-    print ("training on {} datums, {} features".format(
-        len(game),
-        len(vectorizer.get_feature_names())))
-  else:
-    sparse = vectorizer.transform(features)
+    print ("joining {} games".format(len(games)))
 
-  return pandas.DataFrame(
-      data = sparse,
-      index = range(len(games)),
-      columns = vectorizer.get_feature_names())
+  test = pandas.concat(frames).fillna(0)
+
+  if training:
+    allColumns = list(test.columns.values)
+    print ("saving {} feature columns".format(len(allColumns)))
+  else:
+    curCols = set(test.columns.values)
+    for col in allColumns:
+      if col not in curCols:
+        test[col] = 0
+    
+#  print ("df shape:", test.shape)
+#  print ("allColumns:", len(allColumns))
+  return test
 
 
 def inputFn(df, goals = None):
-  featureCols = {k: tf.constant(df[k].values, shape=[df[k].size, 1]) for k in df.columns.values}
+  global allColumns
+  featureCols = {k: tf.constant(df[k].values, shape=[df[k].size, 1]) for k in allColumns}
+  print ("input:", df.shape, len(allColumns))
   if goals == None:
     return  featureCols
   labels = tf.constant(goals, shape=[len(goals), 1])
@@ -67,17 +77,17 @@ def inputFn(df, goals = None):
 
 
 def buildClassifier(trainGoals, trainGames):
+  global allColumns
   df = gameToPDF(trainGames, training = True)
-  features = vectorizer.get_feature_names()
 
   params = {
-    'dropout': 0.5,
+    'dropout': 0.7,
     'learningRate': 0.001,
     'steps': 250
   }
 
-  featureColumns = [tf.contrib.layers.real_valued_column(k) for k in features]
-
+  featureColumns = [tf.contrib.layers.real_valued_column(k) for k in allColumns]
+  print ("featureColumns:", len(featureColumns))
 
   optimizer = tf.train.AdamOptimizer(learning_rate = params['learningRate'])
   classifier = tf.contrib.learn.DNNClassifier(
@@ -87,8 +97,6 @@ def buildClassifier(trainGoals, trainGames):
       dropout = params['dropout'],
       optimizer = optimizer,
   )
-# one day :)      model_dir = "/tmp/lodm2/")
-
 
   tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -96,44 +104,7 @@ def buildClassifier(trainGoals, trainGames):
       input_fn = functools.partial(inputFn, df, trainGoals),
       steps = params['steps'])
   
-#    print ("clf {:2d}: loss: {:.3f} after {:4d} iters".format(
-#      blockNum, clf.loss_, clf.n_iter_))
-
   return classifier
-
-
-''' Gragabe that didn't work :(
-def getPredictorFunction(classifier, warmupGame):
-  game = warmupGame
-  blockNum = 10
-  def updatingInputFn():
-    print ("Hi!", len(str(game)))
-    while game != None:
-      df = gameToPDF([warmupGame], blockNum = 10)
-#      game = None
-      return inputFn(df, None)
-
-  modelGuess = classifier.predict_proba(
-      input_fn = updatingInputFn,
-      as_iterable=True)
-
-#  print (modelGuess)
-
-  def predict(testGame, testBlockNum, testGoal):
-    # changes game which will now be consumed by updatingInputFn
-    game = testGame
-    blockNum = testBlockNum
-
-    print ("hi")
-    probs = next(modelGuess)
-    
-    # This is due to the sorting of [False, True].
-    BProb, AProb = probs
-    correct = (AProb > 0.5) == testGoal
-    return correct, [BProb, AProb]
-
-  return predict
-  '''
 
 
 def getPrediction(classifier, testGames, blockNum, testGoals):
@@ -153,7 +124,7 @@ def getPrediction(classifier, testGames, blockNum, testGoals):
 def main(args):
   MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
 
-  games, goals, allFeatures = getRawGameData(args.input_file)
+  games, goals = TFFeaturize.getRawGameData(args.input_file)
   trainingGames, testingGames, trainingGoals, testingGoals = train_test_split(
       games,
       goals,

@@ -130,6 +130,7 @@ def goldFeatures(gold, sampleTime):
 
   return features
 
+
 def parseGameToFeatures(parsed, time=None):
   if time == None:
     duration = parsed['debug']['duration']
@@ -160,7 +161,7 @@ def parseGameToFeatures(parsed, time=None):
 
   features.update(goldFeatures(gold, time))
 
-  features.update(towerFeatures(towers, time))
+  #features.update(towerFeatures(towers, time))
   features.update(countedFeature('inhibs', inhibs, time))
 
   #features.update(countedFeature('barons', barons, time))
