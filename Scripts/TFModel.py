@@ -1,17 +1,19 @@
 import argparse
 import functools
-import numpy as np
+
 import matplotlib.pyplot as pyplot
 import random
 import pandas
 import sklearn.metrics
 import tensorflow as tf
+import time
 
 from matplotlib.widgets import Slider
 from sklearn.model_selection import train_test_split
 
 from BoolFeaturize import *
 from Util import *
+import GraphModelStats
 
 def getArgParse():
   parser = argparse.ArgumentParser(description='Takes features and models outcomes.')
@@ -27,173 +29,18 @@ def getArgParse():
   return parser
 
 
-# Plot general data about accuracy, logloss, number of samples.
-def plotData(times, samples, corrects, ratios, logLosses):
-  fig, (axis1, axis2, axis3) = pyplot.subplots(3, 1)
-  fig.subplots_adjust(hspace = 0.6)
-
-  # Common styling 'Patch' for text
-  props = dict(boxstyle='round', facecolor='#abcdef', alpha=0.5)
-
-  # Upper graph of prediction power.
-  axis1.plot(times, ratios)
-  axis1.set_title('Correct Predictions')
-  axis1.set_xlabel('time (m)')
-  axis1.set_ylabel('correctness')
-
-  bestAccuracy = max(ratios[:len(ratios) * 2 // 3])
-  time = times[ratios.index(bestAccuracy)]
-  accuracyText = '{:.3f} (@{:2.0f}m)'.format(bestAccuracy, time)
-  axis3.text(
-      time / max(times), 0.1,
-      accuracyText, transform=axis1.transAxes, fontsize=14,
-      bbox=props,
-      verticalalignment='bottom', horizontalalignment='center')
-
-  # Middle graph of log loss.
-  maxLogLoss = max(1.4, min(10, 1.2 * max(logLosses)))
-
-  axis2.plot(times, logLosses)
-  axis2.set_title('Log Loss')
-  axis2.set_xlabel('time (m)')
-  axis2.set_ylabel('loss (log)')
-  axis2.set_ylim([0, maxLogLoss])
-
-  minLogLoss = min(logLosses[:len(logLosses) * 2 // 3])
-  time = times[logLosses.index(minLogLoss)]
-  logLossText = '{:.3f} (@{:2.0f}m)'.format(minLogLoss, time)
-  axis2.text(
-      time / max(times), 0.7,
-      logLossText, transform=axis2.transAxes, fontsize=14,
-      bbox=props,
-      verticalalignment='bottom', horizontalalignment='center')
-
-  # Lower graph of sample data.
-  incorrects = [s - c for s, c in zip(samples, corrects)]
-
-  axis3.plot(times, samples, 'b',
-             times, corrects, 'g',
-             times, incorrects, 'r')
-  axis3.set_title('Number of samples')
-  axis3.set_xlabel('time (m)')
-  axis3.set_ylabel('samples')
-
-  pyplot.show()
-
-
-# Plot game predictions vs time.
-def plotGame(times, results, winPredictions):
-  fig, (axis1, axis2) = pyplot.subplots(2, 1)
-  axis2_2 = axis2.twinx()
-
-  fig.subplots_adjust(hspace = 0.65)
-
-  # Note: I didn't have luck with subplots(3, 1) and resizing so I used this.
-  sliderAxis = pyplot.axes(
-      [0.125, 0.44, 0.75, 0.05],
-      axisbg='lightgoldenrodyellow')
-
-  resultColors = {True:'g', False:'r'}
-
-  # For every game print prediction through out the game.
-  for result, gamePredictions in zip(results, winPredictions):
-    blocks = len(gamePredictions)
-    color = resultColors[result]
-    axis1.plot(times[:blocks], [gP[1] for gP in gamePredictions], color, alpha = 0.1)
-
-  axis1.set_title('Predictions of win rate across the game')
-  axis1.set_xlabel('time (m)')
-  axis1.set_ylabel('prediction confidence')
-
-  # At X minutes print confidences.
-  sliderTime = Slider(sliderAxis, 'Time', 0, 60, valinit=20)
-
-  percentBuckets = 100
-  percents = [p / percentBuckets for p in range(percentBuckets + 1)]
-
-  def plotConfidentAtTime(requestedTime):
-    ti = min([(abs(requestedTime - t), i) for i,t in enumerate(times)])[1]
-
-    cdfTrue = [0] * len(percents)
-    cdfFalse = [0] * len(percents)
-    pdfTrue = [0] * len(percents)
-    pdfFalse = [0] * len(percents)
-
-    for gameResult, gamePredictions in zip(results, winPredictions):
-      if len(gamePredictions) <= ti:
-        continue
-
-      prediction = gamePredictions[ti][1]
-      for pi, percent in enumerate(percents):
-        if percent > prediction:
-          break
-        if gameResult:
-          cdfTrue[pi] += 1
-        else:
-          cdfFalse[pi] += 1
-
-      bucket = int(percentBuckets * prediction)
-      if gameResult:
-        pdfTrue[bucket] += 1
-      else:
-        # ~ is a fun trick to get the negative index (0 => -1, 1 => -2, ...) of an item
-        pdfFalse[~bucket] += 1
- 
-    axis2.cla();
-    axis2_2.cla();   
-
-    axis2.plot(percents, cdfTrue, color = resultColors[True], alpha = 0.9)
-    axis2.plot(percents, cdfFalse, color = resultColors[False], alpha = 0.9)
-
-    axis2_2.bar(percents, pdfTrue,  width = 0.008, color = resultColors[True],  alpha = 0.5)
-    axis2_2.bar(percents, pdfFalse, width = 0.008, color = resultColors[False], alpha = 0.5)
-
-    axis2.set_xlabel('confidence')
-    axis2.set_ylabel('count of games (cdf)')
-    axis2_2.set_ylabel('count of games (pdf)')
-
-    axis2.set_xlim([0, 1]);
-    axis2_2.set_xlim([0, 1]);
-
-#    axis2.set_ylim([0, max(cdfTrue[0], cdfFalse[0]) + 1])
-#    axis2_2.set_ylim([0, max(max(pdfTrue), max(pdfFalse)) + 1]])
-
-    fig.canvas.draw_idle()
-
-  plotConfidentAtTime(20)
-  sliderTime.on_changed(plotConfidentAtTime)
-
-  pyplot.show()
-
-
-def stats(times, samples, corrects, ratios, logLosses):
-  startBlock = timeToBlock(10 * 60)
-  endBlock = timeToBlock(40 * 60)
-
-  sumLosses = sum(logLosses[startBlock:endBlock+1])
-  totalSamples = sum(samples[startBlock:endBlock+1])
-  totalCorrect = sum(corrects[startBlock:endBlock+1])
-  totalIncorrect = totalSamples - totalCorrect
-  mediumRatio = np.median(ratios[startBlock:endBlock+1])
-
-  print ()
-  print ("Global Stats 10 to 40 minutes")
-  print ()
-  print ("Sum LogLoss: {:.3f}".format(sumLosses))
-  print ("Correct Predictions:", totalCorrect)
-  print ("Incorrect Predictions:", totalIncorrect)
-  print ("Global Ratio: {:2.1f}".format(100 * totalCorrect / totalSamples))
-  print ("Mean Ratio: {:2.1f}".format(100 * mediumRatio))
-
-
 vectorizer = DictVectorizer(sparse = False)
-def gameToPDF(games, training = False):
+def gameToPDF(games, *, blockNum = 0, training = False):
   features = []
   for game in games:
-    duration = game['debug']['duration']
-    gameFeatures = parseGameToFeatures(game, duration)
+    if training:
+      time = game['debug']['duration']
+    else:
+      time = blockNum * SECONDS_PER_BLOCK
+
+    gameFeatures = parseGameToFeatures(game, time)
     features.append(gameFeatures)
-    assert len(gameFeatures) > 0
+    assert len(gameFeatures) > 0, time
   assert len(features) > 0
 
   if training:
@@ -213,7 +60,9 @@ def gameToPDF(games, training = False):
 
 def inputFn(df, goals = None):
   featureCols = {k: tf.constant(df[k].values, shape=[df[k].size, 1]) for k in df.columns.values}
-  labels = goals and tf.constant(goals, shape=[len(goals), 1])
+  if goals == None:
+    return  featureCols
+  labels = tf.constant(goals, shape=[len(goals), 1])
   return featureCols, labels
 
 
@@ -226,8 +75,8 @@ def buildClassifier(trainGoals, trainGames):
   classifier = tf.contrib.learn.DNNClassifier(
       feature_columns = featureColumns,
       hidden_units = [10, 10],
-      n_classes = 2,
-      model_dir = "/tmp/lodm/")
+      n_classes = 2)
+     # model_dir = "/tmp/lodm/")
 
 
   tf.logging.set_verbosity(tf.logging.INFO)
@@ -242,16 +91,52 @@ def buildClassifier(trainGoals, trainGames):
   return classifier
 
 
-def getPrediction(classifier, blockNum, testGame, testGoal):
-  df = gameToPDF([testGame])
-  
-  modelGuesses = list(classifier.predict_proba(
-      input_fn = functools.partial(inputFn, df, None)))
+''' Gragabe that didn't work :(
+def getPredictorFunction(classifier, warmupGame):
+  game = warmupGame
+  blockNum = 10
+  def updatingInputFn():
+    print ("Hi!", len(str(game)))
+    while game != None:
+      df = gameToPDF([warmupGame], blockNum = 10)
+#      game = None
+      return inputFn(df, None)
 
-  # This is due to the sorting of [False, True].
-  BProb, AProb = modelGuesses[0]
-  correct = (AProb > 0.5) == testGoal
-  return correct, [BProb, AProb]
+  modelGuess = classifier.predict_proba(
+      input_fn = updatingInputFn,
+      as_iterable=True)
+
+#  print (modelGuess)
+
+  def predict(testGame, testBlockNum, testGoal):
+    # changes game which will now be consumed by updatingInputFn
+    game = testGame
+    blockNum = testBlockNum
+
+    print ("hi")
+    probs = next(modelGuess)
+    
+    # This is due to the sorting of [False, True].
+    BProb, AProb = probs
+    correct = (AProb > 0.5) == testGoal
+    return correct, [BProb, AProb]
+
+  return predict
+  '''
+
+
+def getPrediction(classifier, testGames, blockNum, testGoals):
+  df = gameToPDF(testGames, blockNum = blockNum)
+  modelGuess = classifier.predict_proba(
+      input_fn = functools.partial(inputFn, df, testGoals))
+
+  for testGoal in testGoals:
+    probs = next(modelGuess)
+    
+    # This is due to the sorting of [False, True].
+    BProb, AProb = probs
+    correct = (AProb > 0.5) == testGoal
+    yield correct, [BProb, AProb]
 
 
 def main(args):
@@ -280,44 +165,39 @@ def main(args):
   ratios = [0 for b in range(MAX_BLOCKS)]
   logLosses = [0 for b in range(MAX_BLOCKS)]
   # Per Game stats.
-  testGoals = []
-  testWinProbs = []
+  testWinProbs = [[] for a in range(len(testingGames))]
 
-  for gameI, (game, tGoal) in enumerate(zip(testingGames, testingGoals)):
-    duration = game['debug']['duration']
-    goal = game['goal']
-    assert tGoal == goal
+  for blockNum in range(MAX_BLOCKS):
+    time = blockNum * SECONDS_PER_BLOCK
 
-    predictions = []
-    # TODO(sethtroisi): determine this point algorimically as 80% for game end.
-    # TODO(sethtroisi): alternatively truncate when samples < 50.
-    for blockNum in range(MAX_BLOCKS):
-      time = blockNum * SECONDS_PER_BLOCK
-
-      # TODO(sethtroisi): remove games that have ended.
+    gameIs = []
+    partialGames = []
+    partialGoals = []
+    for gameI, game in enumerate(testingGames):
+      duration = game['debug']['duration']
       if duration < time:
         break
 
-      correct, gamePredictions = getPrediction(classifier, blockNum, game, goal)
+      gameIs.append(gameI)
+      partialGames.append(game)
+      partialGoals.append(game['goal'])
 
-      if correct == None:
-        continue
+    preditions = getPrediction(classifier, partialGames, blockNum, partialGoals)
+    for gameI, partialGoal, predition in zip(gameIs, partialGoals, preditions):
+      correct, gamePredictions = predition
 
       # store data to graph
       samples[blockNum] += 1
       corrects[blockNum] += 1 if correct else 0
-      predictions.append(gamePredictions)
+      testWinProbs[gameI].append(gamePredictions)
 
-    testGoals.append(goal)
-    testWinProbs.append(predictions)
-
-  for blockNum in range(MAX_BLOCKS):
+  for blockNum in range(1, MAX_BLOCKS):
     if samples[blockNum] > 0:
       ratios[blockNum] = corrects[blockNum] / samples[blockNum]
 
       goals = []
       predictions = []
-      for testGoal, gamePredictions in zip(testGoals, testWinProbs):
+      for testGoal, gamePredictions in zip(testingGoals, testWinProbs):
         if len(gamePredictions) > blockNum:
           goals.append(testGoal)
           predictions.append(gamePredictions[blockNum])
@@ -328,9 +208,9 @@ def main(args):
 
   # If data was tabulated on the testingData print stats about it.
   if len(times) > 0:
-    stats(times, samples, corrects, ratios, logLosses)
-    plotData(times, samples, corrects, ratios, logLosses)
-    plotGame(times, testGoals, testWinProbs)
+    GraphModelStats.stats(times, samples, corrects, ratios, logLosses)
+    GraphModelStats.plotData(times, samples, corrects, ratios, logLosses)
+    GraphModelStats.plotGame(times, testingGoals, testWinProbs)
 
 
 if __name__ == '__main__':

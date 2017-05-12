@@ -95,10 +95,10 @@ def goldFeatures(gold, sampleTime):
   features = set()
 
   lastBlock = timeToBlock(sampleTime)
-  for blockNum in range(1, lastBlock):
+  for blockNum in range(lastBlock+1):
     blockGold = gold.get(str(blockNum), None)
     if not blockGold:
-      break
+      continue
 
     teamAGold = 0
     teamBGold = 0
@@ -118,19 +118,22 @@ def goldFeatures(gold, sampleTime):
       if thousands * 1000 < teamBGold:
         features.add('g_b_{}k'.format(thousands))
 
-# TODO(sethtroisi) DO NOT SUBMIT readd
-#    deltaSign = teamAGold > teamBGold
-#    delta = abs(teamAGold - teamBGold)
-#    bucketsOfGold = delta // GOLD_DELTA_BUCKET_SIZE
-#    for bucket in range(bucketsOfGold):
-#      features.add('g_d_{}_{}_{}'.format(
-#          blockNum,
-#          'p' if deltaSign else 'n', 
-#          bucket * GOLD_DELTA_BUCKET_SIZE))
+    deltaSign = teamAGold > teamBGold
+    delta = abs(teamAGold - teamBGold)
+    bucketsOfGold = delta // GOLD_DELTA_BUCKET_SIZE
+    for bucket in range(bucketsOfGold):
+      features.add('g_d_{}_{}_{}'.format(
+          blockNum,
+          'p' if deltaSign else 'n', 
+          bucket * GOLD_DELTA_BUCKET_SIZE))
 
   return features
 
 def parseGameToFeatures(parsed, time=None):
+  if time == None:
+    duration = parsed['debug']['duration']
+    time = duration
+
   gameFeatures = parsed['features']
 
   # Gold
@@ -153,9 +156,6 @@ def parseGameToFeatures(parsed, time=None):
 
   features = set()
 
-  if time == None:
-    duration = parsed['debug']['duration']
-    time = duration + SECONDS_PER_BLOCK
 
   features.update(goldFeatures(gold, time))
 
@@ -186,10 +186,6 @@ def loadOutputFile(fileName):
 
   outputData = loadJsonFile(fileName)
   for dataI, data in enumerate(outputData):
-    if dataI > 200:
-      print ("Breaking to keep data small")
-      break
-  
     goal = data['goal']
     gameFeatures = parseGameToFeatures(data)
 
@@ -238,6 +234,7 @@ def generateFeatureData(featuresList):
 
 
 def getRawGameData(fileName):
+  # Consider passing in a variable to limit number loaded
   games, goals, allFeatures = loadOutputFile(fileName)
 
   sampleSize = len(goals)
