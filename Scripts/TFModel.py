@@ -70,20 +70,31 @@ def buildClassifier(trainGoals, trainGames):
   df = gameToPDF(trainGames, training = True)
   features = vectorizer.get_feature_names()
 
+  params = {
+    'dropout': 0.5,
+    'learningRate': 0.001,
+    'steps': 250
+  }
+
   featureColumns = [tf.contrib.layers.real_valued_column(k) for k in features]
 
+
+  optimizer = tf.train.AdamOptimizer(learning_rate = params['learningRate'])
   classifier = tf.contrib.learn.DNNClassifier(
       feature_columns = featureColumns,
-      hidden_units = [10, 10],
-      n_classes = 2)
-     # model_dir = "/tmp/lodm/")
+      hidden_units = [20, 10],
+      n_classes = 2,
+      dropout = params['dropout'],
+      optimizer = optimizer,
+  )
+# one day :)      model_dir = "/tmp/lodm2/")
 
 
   tf.logging.set_verbosity(tf.logging.INFO)
 
   classifier.fit(
       input_fn = functools.partial(inputFn, df, trainGoals),
-      steps = 500)
+      steps = params['steps'])
   
 #    print ("clf {:2d}: loss: {:.3f} after {:4d} iters".format(
 #      blockNum, clf.loss_, clf.n_iter_))
@@ -176,12 +187,13 @@ def main(args):
     for gameI, game in enumerate(testingGames):
       duration = game['debug']['duration']
       if duration < time:
-        break
+        continue
 
       gameIs.append(gameI)
       partialGames.append(game)
       partialGoals.append(game['goal'])
 
+    # Do all predictions at the sametime (needed because of how predict reloads the model each time).
     preditions = getPrediction(classifier, partialGames, blockNum, partialGoals)
     for gameI, partialGoal, predition in zip(gameIs, partialGoals, preditions):
       correct, gamePredictions = predition
@@ -191,7 +203,7 @@ def main(args):
       corrects[blockNum] += 1 if correct else 0
       testWinProbs[gameI].append(gamePredictions)
 
-  for blockNum in range(1, MAX_BLOCKS):
+  for blockNum in range(MAX_BLOCKS):
     if samples[blockNum] > 0:
       ratios[blockNum] = corrects[blockNum] / samples[blockNum]
 
@@ -202,9 +214,7 @@ def main(args):
           goals.append(testGoal)
           predictions.append(gamePredictions[blockNum])
 
-      if len(set(goals)) <= 1:
-        break
-      logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions)
+      logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions, labels = [True, False])
 
   # If data was tabulated on the testingData print stats about it.
   if len(times) > 0:

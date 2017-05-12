@@ -138,8 +138,8 @@ def parseGameRough(match, timeline):
 
   features = dict()
   features['champs'] = champs
-  #features['dragons'] = dragons
-  #features['barons'] = barons
+  features['dragons'] = dragons
+  features['barons'] = barons
   features['towers'] = towers
   features['inhibs'] = inhibs
   #features['wards'] = wards

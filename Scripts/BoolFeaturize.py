@@ -61,7 +61,8 @@ def champFeature(champs, sampleTime):
 
   for team, teamChamps in (('A', teamAChamps), ('B', teamBChamps)):
     for champ in teamChamps:
-      features.add('c_{}_{}'.format(team, champ))
+      # TODO remove the strip after GameParser finishs.
+      features.add('c_{}_{}'.format(team, filter(str.isalnum, champ)))
 
   return features
 
@@ -142,8 +143,8 @@ def parseGameToFeatures(parsed, time=None):
   # Objectives
   #barons = gameFeatures['barons']
   #dragons = gameFeatures['dragons']
-  #towers = gameFeatures['towers']
-  #inhibs = gameFeatures['inhibs']
+  towers = gameFeatures['towers']
+  inhibs = gameFeatures['inhibs']
 
   # Champions
   #champs = gameFeatures['champs']
@@ -159,13 +160,12 @@ def parseGameToFeatures(parsed, time=None):
 
   features.update(goldFeatures(gold, time))
 
-  #features.update(towerFeatures(towers, time))
-  #features.update(countedFeature('inhibs', inhibs, time))
+  features.update(towerFeatures(towers, time))
+  features.update(countedFeature('inhibs', inhibs, time))
 
   #features.update(countedFeature('barons', barons, time))
   #features.update(countedFeature('dragons', dragons, time))
 
-  # TODO(sethtroisi): investigate why this increases log loss.
   #features.update(champFeature(champs, time))
 
   #features.update(countedFeature(
