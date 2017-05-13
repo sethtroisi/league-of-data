@@ -1,9 +1,8 @@
 import argparse
 import functools
-
 import matplotlib.pyplot as pyplot
-import random
 import pandas
+import random
 import sklearn.metrics
 import tensorflow as tf
 import time
@@ -53,11 +52,11 @@ def gameToPDF(games, *, blockNum = 0, training = False):
   frames = []
   for index, game in enumerate(games):
     if training:
-      time = game['debug']['duration']
+      gameTime = game['debug']['duration']
     else:
-      time = blockNum * SECONDS_PER_BLOCK
+      gameTime = blockNum * SECONDS_PER_BLOCK
 
-    gameFrame = TFFeaturize.parseGameToPD(index, game, time)
+    gameFrame = TFFeaturize.parseGameToPD(index, game, gameTime)
     frames.append(gameFrame)
 
   if training:
@@ -143,9 +142,15 @@ def getPrediction(classifier, testGames, blockNum, testGoals):
 
 
 def main(args):
+  T0 = time.time()
+
   MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
 
   games, goals = TFFeaturize.getRawGameData(args.input_file, args.num_games)
+
+  T1 = time.time()
+  loadTime = T1 - T0
+  
   trainingGames, testingGames, trainingGoals, testingGoals = train_test_split(
       games,
       goals,
@@ -158,7 +163,14 @@ def main(args):
   assert len(trainingGames) == len(trainingGoals)
   assert len(testingGames) == len(testingGoals)
 
+
+  T2 = time.time()
+  splitTime = T2 - T1
+
   classifier = buildClassifier(trainingGoals, trainingGames)
+
+  T3 = time.time()
+  trainTime = T3-T2
 
   # Variables about testGames.
   times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
@@ -171,14 +183,14 @@ def main(args):
   testWinProbs = [[] for a in range(len(testingGames))]
 
   for blockNum in range(MAX_BLOCKS):
-    time = blockNum * SECONDS_PER_BLOCK
+    blockTime = blockNum * SECONDS_PER_BLOCK
 
     gameIs = []
     partialGames = []
     partialGoals = []
     for gameI, game in enumerate(testingGames):
       duration = game['debug']['duration']
-      if duration < time:
+      if duration < blockTime:
         continue
 
       gameIs.append(gameI)
@@ -208,11 +220,25 @@ def main(args):
 
       logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions, labels = [True, False])
 
+  T4 = time.time()
+  statsTime = T4 - T3
+
   # If data was tabulated on the testingData print stats about it.
   if len(times) > 0:
     GraphModelStats.stats(times, samples, corrects, ratios, logLosses)
     GraphModelStats.plotData(times, samples, corrects, ratios, logLosses)
     GraphModelStats.plotGame(times, testingGoals, testWinProbs)
+
+  T5 = time.time()
+  viewTime = T5 - T4
+  
+  print ("Timings:")
+  print ("\tloadTime: {:.3f}".format(loadTime))
+  print ("\tsplitTime: {:.3f}".format(splitTime))
+  print ("\ttrainTime: {:.3f}".format(trainTime))
+  print ("\tstatsTime: {:.3f}".format(statsTime))
+  print ("\tviewTime: {:.3f}".format(viewTime))
+  
 
 
 if __name__ == '__main__':

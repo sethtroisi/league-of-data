@@ -2,6 +2,7 @@ import json
 import re
 import pandas
 
+
 from collections import Counter
 
 from Util import *
@@ -168,7 +169,7 @@ def parseGameToPD(index, parsed, time=None):
   goldFeatures(df, gold, time)
 
   #features.update(towerFeatures(towers, time))
-  #countedFeature(df, 'inhibs', inhibs, time)
+  countedFeature(df, 'inhibs', inhibs, time)
 
   #features.update(countedFeature('barons', barons, time))
   #features.update(countedFeature('dragons', dragons, time))
