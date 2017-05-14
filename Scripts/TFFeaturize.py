@@ -60,8 +60,11 @@ def champFeature(champs, sampleTime):
 
 
 # Create features from towers (team, position)
-def towerFeatures(towers, sampleTime):
+def towerFeatures(df, towers, sampleTime):
   features = set()
+
+#  for tower in range(0, 24):
+#    df.set_value(0, 'tower_{}_destroyed_at',     
 
   towersA, towersB = 0, 0
   for towerData in towers:
@@ -88,6 +91,7 @@ def goldFeatures(df, gold, sampleTime):
   lastBlock = timeToBlock(sampleTime)
   lastBlockNum = max(b for b in map(int, gold.keys()) if b <= lastBlock)
 
+  '''
   blockGold = gold.get(str(lastBlockNum), None)
   assert blockGold, gold.keys()
 
@@ -109,38 +113,30 @@ def goldFeatures(df, gold, sampleTime):
 
   '''
   for blockNum in range(lastBlock+1):
-    blockGold = gold.get(str(blockNum), None)
-    if not blockGold:
-      continue
-
     teamAGold = 0
     teamBGold = 0
-    for pId, totalGold in blockGold.items():
-      pId = int(pId)
 
-      assert 1 <= pId <= 10
-      if 1 <= pId <= 5:
-        teamAGold += totalGold
-      else:
-        teamBGold += totalGold
+    blockGold = gold.get(str(blockNum), None)
+    if blockGold:
+      for pId, totalGold in blockGold.items():
+        pId = int(pId)
 
-   # for thousands in range(1, 100):
-   #   if thousands * 1000 < teamAGold:
-   #     df.set_value(0, 'g_a_{}k'.format(thousands), 1.0)
+        assert 1 <= pId <= 10
+        if 1 <= pId <= 5:
+          teamAGold += totalGold
+        else:
+          teamBGold += totalGold
 
-   #   if thousands * 1000 < teamBGold:
-   #     df.set_value(0, 'g_b_{}k'.format(thousands), 1.0)
-
-   # deltaSign = teamAGold > teamBGold
-   # delta = abs(teamAGold - teamBGold)
-   # bucketsOfGold = delta // GOLD_DELTA_BUCKET_SIZE
-   # for bucket in range(bucketsOfGold):
-   #   feature = 'g_d_{}_{}_{}'.format(
-   #       blockNum,
-   #       'p' if deltaSign else 'n', 
-   #       bucket * GOLD_DELTA_BUCKET_SIZE)
-   #   df.set_value(0, feature, 1.0)
-  '''
+    # Each team gets ~3k more gold every 2 minutes, makes vars ~ (0, 1.5]
+    normalizeFactor = 3000 * (blockNum + 1)
+    df.set_value(0, 'gold_a_block_{}'.format(blockNum), teamAGold / normalizeFactor)
+    df.set_value(0, 'gold_b_block_{}'.format(blockNum), teamBGold / normalizeFactor)
+    
+    # A huge win is +15k gold at 40 minutes so maybe ~1k every 2 minutes, to get [-2, +2]
+    deltaGold = teamAGold - teamBGold
+    normalizeFactor = 1000 * (blockNum + 1)
+    df.set_value(0, 'gold_a_adv_block_{}'.format(blockNum), deltaGold / normalizeFactor) 
+  
 
 def parseGameToPD(index, parsed, time=None):
   if time == None:
@@ -155,7 +151,7 @@ def parseGameToPD(index, parsed, time=None):
   # Objectives
   #barons = gameFeatures['barons']
   #dragons = gameFeatures['dragons']
-  #towers = gameFeatures['towers']
+  towers = gameFeatures['towers']
   inhibs = gameFeatures['inhibs']
 
   # Champions
@@ -168,7 +164,7 @@ def parseGameToPD(index, parsed, time=None):
 
   goldFeatures(df, gold, time)
 
-  #features.update(towerFeatures(towers, time))
+  towerFeatures(df, towers, time)
   countedFeature(df, 'inhibs', inhibs, time)
 
   #features.update(countedFeature('barons', barons, time))

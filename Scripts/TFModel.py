@@ -49,6 +49,8 @@ def gameToPDF(games, *, blockNum = 0, training = False):
     print ("featurizing {} games".format(len(games)))
 
 
+  T0 = time.time()
+
   frames = []
   for index, game in enumerate(games):
     if training:
@@ -59,19 +61,30 @@ def gameToPDF(games, *, blockNum = 0, training = False):
     gameFrame = TFFeaturize.parseGameToPD(index, game, gameTime)
     frames.append(gameFrame)
 
+  T1 = time.time()
+
   if training:
     print ("joining {} games".format(len(games)))
 
   test = pandas.concat(frames).fillna(0)
 
+  T2 = time.time()
+
   if training:
     allColumns = list(test.columns.values)
     print ("saving {} feature columns".format(len(allColumns)))
+    print (test.describe())
+    
   else:
     curCols = set(test.columns.values)
     for col in allColumns:
       if col not in curCols:
         test[col] = 0
+
+  T3 = time.time()
+  
+  print ("Featurize Timing: {:.2f} build, {:.2f} concat, {:2f} fill".format(
+      T1 - T0, T2 - T1, T3 - T2))
     
 #  print ("df shape:", test.shape)
 #  print ("allColumns:", len(allColumns))
@@ -88,24 +101,24 @@ def inputFn(df, goals = None):
   return featureCols, labels
 
 
-def buildClassifier(trainGoals, trainGames):
+def buildClassifier(trainDF, trainGoals):
   global allColumns
-  df = gameToPDF(trainGames, training = True)
 
   params = {
     'dropout': 0.7,
-    'learningRate': 0.001,
-    'steps': 250
+    'learningRate': 0.0001,
+    'steps': 5000
   }
 
   featureColumns = [
       tf.contrib.layers.real_valued_column(k) for k in allColumns if not k.startswith('gold_')
-  ] + [
-      tf.contrib.layers.embedding_column(
-          tf.contrib.layers.sparse_column_with_integerized_feature(k, 100),
-          dimension = 20)
-              for k in allColumns if k.startswith('gold_')
   ]
+#   + [
+#      tf.contrib.layers.embedding_column(
+#          tf.contrib.layers.sparse_column_with_integerized_feature(k, 100),
+#          dimension = 20)
+#              for k in allColumns if k.startswith('gold_')
+#  ]
 
   print ("featureColumns:", len(featureColumns))
 
@@ -121,8 +134,10 @@ def buildClassifier(trainGoals, trainGames):
   tf.logging.set_verbosity(tf.logging.INFO)
 
   classifier.fit(
-      input_fn = functools.partial(inputFn, df, trainGoals),
+      input_fn = functools.partial(inputFn, trainDF, trainGoals),
       steps = params['steps'])
+
+  tf.logging.set_verbosity(tf.logging.WARN)
   
   return classifier
 
@@ -167,10 +182,14 @@ def main(args):
   T2 = time.time()
   splitTime = T2 - T1
 
-  classifier = buildClassifier(trainingGoals, trainingGames)
-
+  trainingDF = gameToPDF(trainingGames, training = True)
   T3 = time.time()
-  trainTime = T3-T2
+  featurizeTime = T3 - T2
+
+  classifier = buildClassifier(trainingDF, trainingGoals)
+
+  T4 = time.time()
+  trainTime = T4 - T3
 
   # Variables about testGames.
   times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
@@ -220,8 +239,8 @@ def main(args):
 
       logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions, labels = [True, False])
 
-  T4 = time.time()
-  statsTime = T4 - T3
+  T5 = time.time()
+  statsTime = T5 - T4
 
   # If data was tabulated on the testingData print stats about it.
   if len(times) > 0:
@@ -229,12 +248,13 @@ def main(args):
     GraphModelStats.plotData(times, samples, corrects, ratios, logLosses)
     GraphModelStats.plotGame(times, testingGoals, testWinProbs)
 
-  T5 = time.time()
-  viewTime = T5 - T4
+  T6 = time.time()
+  viewTime = T6 - T5
   
   print ("Timings:")
   print ("\tloadTime: {:.3f}".format(loadTime))
   print ("\tsplitTime: {:.3f}".format(splitTime))
+  print ("\tfeaturizeTime: {:.3f}".format(featurizeTime))
   print ("\ttrainTime: {:.3f}".format(trainTime))
   print ("\tstatsTime: {:.3f}".format(statsTime))
   print ("\tviewTime: {:.3f}".format(viewTime))
