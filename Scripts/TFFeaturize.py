@@ -159,7 +159,8 @@ def parseGameToPD(index, parsed, time=None):
 
   # Other
 
-  df = pandas.DataFrame()
+  df = pandas.DataFrame()# columns = columnGuess)
+  #print (columnGuess, df)
 
 
   goldFeatures(df, gold, time)
@@ -181,7 +182,11 @@ def loadOutputFile(fileName, numGames):
 
   outputData = loadJsonFile(fileName)
   for dataI, data in enumerate(outputData):
-    if dataI == numGames:
+    if data['debug']['duration'] < 600:
+      # Filtering remakes and stuff
+      continue
+  
+    if len(games) == numGames:
       break
 
     goal = data['goal']

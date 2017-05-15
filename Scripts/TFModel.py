@@ -35,18 +35,38 @@ def getArgParse():
       default=15,
       help='percent of games to holdback for testing/validation')
 
-
-  # TODO(sethtroisi): Add and utilize a flag for verbosity.
+  parser.add_argument(
+      '-v', '--verbose',
+      type=int,
+      default=0,
+      help='how much data to print (0 = little, 1 = most, 3 = everything)')
 
   return parser
+  
+  
+def filterMaxBlock(blockNum, games, goals):
+  blockStart = blockNum * SECONDS_PER_BLOCK
+
+  inds, gas, gos = [], [], []
+  for i, (ga, go) in enumerate(zip(games, goals)):
+    if blockStart > ga['debug']['duration']:
+      continue
+  
+    inds.append(i)
+    gas.append(ga)
+    gos.append(go)
+
+  return inds, gas, gos
 
 
-allColumns = []
-def gameToPDF(games, *, blockNum = 0, training = False):
-  global allColumns
+featurizerTime = 0
+pandasTime = 0
+trainTime = 0
+def gameToPDF(args, games, *, columnsToExport = None, blockNum = 0, training = False):
+  global featurizerTime, pandasTime, trainTime
 
-  if training:
-    print ("featurizing {} games".format(len(games)))
+  if training and args.verbose >= 2:
+    print ("\tfeaturizing {} games".format(len(games)))
 
 
   T0 = time.time()
@@ -63,8 +83,8 @@ def gameToPDF(games, *, blockNum = 0, training = False):
 
   T1 = time.time()
 
-  if training:
-    print ("joining {} games".format(len(games)))
+  if training and args.verbose >= 2:
+    print ("\tjoining {} games".format(len(games)))
 
   test = pandas.concat(frames).fillna(0)
 
@@ -72,37 +92,38 @@ def gameToPDF(games, *, blockNum = 0, training = False):
 
   if training:
     allColumns = list(test.columns.values)
-    print ("saving {} feature columns".format(len(allColumns)))
-    print (test.describe())
+    #print ("saving {} feature columns".format(len(allColumns)))
+    #print (test.describe())
     
   else:
     curCols = set(test.columns.values)
-    for col in allColumns:
+    for col in columnsToExport:
       if col not in curCols:
         test[col] = 0
 
   T3 = time.time()
-  
-  print ("Featurize Timing: {:.2f} build, {:.2f} concat, {:2f} fill".format(
-      T1 - T0, T2 - T1, T3 - T2))
-    
-#  print ("df shape:", test.shape)
-#  print ("allColumns:", len(allColumns))
+  featurizerTime += T1 - T0
+  pandasTime += T3 - T1
+  if training and args.verbose >= 1:
+    print ("\t\tFeaturize Timing: {:.2f} build, {:.2f} concat, {:2f} fill".format(
+        T1 - T0, T2 - T1, T3 - T2))
+
+  if training:
+    return test, allColumns
   return test
 
 
-def inputFn(df, goals = None):
-  global allColumns
-  featureCols = {k: tf.constant(df[k].values, shape=[df[k].size, 1], dtype='int32') for k in allColumns}
-  print ("input:", df.shape, len(allColumns))
+def inputFn(columnsUsed, df, goals = None):
+  featureCols = {k: tf.constant(df[k].values, shape=[df[k].size, 1], dtype='int32') for k in columnsUsed}
+  #print ("input:", df.shape, len(columnsUsed))
   if goals == None:
     return  featureCols
   labels = tf.constant(goals, shape=[len(goals), 1], dtype='int32')
   return featureCols, labels
 
 
-def buildClassifier(trainDF, trainGoals):
-  global allColumns
+def buildClassifier(args, numBlocks, trainGames, trainGoals):
+  global featurizerTime, pandasTime, trainTime
 
   params = {
     'dropout': 0.7,
@@ -110,42 +131,60 @@ def buildClassifier(trainDF, trainGoals):
     'steps': 5000
   }
 
-  featureColumns = [
-      tf.contrib.layers.real_valued_column(k) for k in allColumns if not k.startswith('gold_')
-  ]
-#   + [
-#      tf.contrib.layers.embedding_column(
-#          tf.contrib.layers.sparse_column_with_integerized_feature(k, 100),
-#          dimension = 20)
-#              for k in allColumns if k.startswith('gold_')
-#  ]
-
-  print ("featureColumns:", len(featureColumns))
-
-  optimizer = tf.train.AdamOptimizer(learning_rate = params['learningRate'])
-  classifier = tf.contrib.learn.DNNClassifier(
-      feature_columns = featureColumns,
-      hidden_units = [20, 10],
-      n_classes = 2,
-      dropout = params['dropout'],
-      optimizer = optimizer,
-  )
-
-  tf.logging.set_verbosity(tf.logging.INFO)
-
-  classifier.fit(
-      input_fn = functools.partial(inputFn, trainDF, trainGoals),
-      steps = params['steps'])
-
-  tf.logging.set_verbosity(tf.logging.WARN)
+  classifiers = []
+  columnUses = []
   
-  return classifier
+  for blockNum in range(numBlocks):
+    blockTime = blockNum * SECONDS_PER_BLOCK
+    usableIndexes, usableGames, usableGoals = filterMaxBlock(blockNum, trainGames, trainGoals)
+
+    if (args.verbose >= 1):
+      print ("\ttraining block {} on {} games".format(blockNum, len(usableGames)))
+        
+    if len(usableGames) == 0:
+      break
+  
+    trainDF, columnsUsed = gameToPDF(args, usableGames, blockNum = blockNum, training = True)
+
+    featureColumns = [
+        tf.contrib.layers.real_valued_column(k) for k in columnsUsed
+    ]
+# tf.contrib.layers.embedding_column(tf.contrib.layers.sparse_column_with_integerized_feature(k, 100), dimension = 20)
+
+    T0 = time.time()
+
+    optimizer = tf.train.AdamOptimizer(learning_rate = params['learningRate'])
+    classifier = tf.contrib.learn.DNNClassifier(
+        feature_columns = featureColumns,
+        hidden_units = [20, 10],
+        n_classes = 2,
+        dropout = params['dropout'],
+        optimizer = optimizer,
+    )
+
+    classifier.fit(
+        input_fn = functools.partial(inputFn, columnsUsed, trainDF, usableGoals),
+        steps = params['steps'])
+
+    T1 = time.time()
+    trainTime += T1 - T0
+
+    print ("\t", blockNum, len(columnsUsed), classifier != None)
+
+    classifiers.append(classifier)
+    columnUses.append(columnsUsed)
+
+  return classifiers, columnUses
 
 
-def getPrediction(classifier, testGames, blockNum, testGoals):
-  df = gameToPDF(testGames, blockNum = blockNum)
+def getPrediction(args, classifiers, columnUses, testGames, blockNum, testGoals):
+  blockIndex = min(blockNum, len(classifiers) - 1)
+  classifier = classifiers[blockIndex]
+  columnsUsed = columnUses[blockIndex]
+  
+  df = gameToPDF(args, testGames, blockNum = blockNum, columnsToExport = columnsUsed)
   modelGuess = classifier.predict_proba(
-      input_fn = functools.partial(inputFn, df, testGoals))
+      input_fn = functools.partial(inputFn, columnsUsed, df, testGoals))
 
   for testGoal in testGoals:
     probs = next(modelGuess)
@@ -157,6 +196,16 @@ def getPrediction(classifier, testGames, blockNum, testGoals):
 
 
 def main(args):
+  global featurizerTime, pandasTime, trainTime
+
+  if args.verbose == 0:
+    tf.logging.set_verbosity(tf.logging.ERROR)
+  elif args.verbose >= 1:
+    tf.logging.set_verbosity(tf.logging.ERROR)
+  elif (args.verbose >= 2):
+    tf.logging.set_verbosity(tf.logging.INFO)
+
+  
   T0 = time.time()
 
   MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
@@ -173,8 +222,9 @@ def main(args):
       random_state = 42)
   del games, goals
 
-  print ("Training games: {}, Testing holdback: {}".format(
-    len(trainingGames), len(testingGames)))
+  if args.verbose == 0:
+    print ("Training games: {}, Testing holdback: {}".format(
+      len(trainingGames), len(testingGames)))
   assert len(trainingGames) == len(trainingGoals)
   assert len(testingGames) == len(testingGoals)
 
@@ -182,14 +232,11 @@ def main(args):
   T2 = time.time()
   splitTime = T2 - T1
 
-  trainingDF = gameToPDF(trainingGames, training = True)
+  classifiers, columnUses = \
+      buildClassifier(args, MAX_BLOCKS, trainingGames, trainingGoals)
+
   T3 = time.time()
-  featurizeTime = T3 - T2
-
-  classifier = buildClassifier(trainingDF, trainingGoals)
-
-  T4 = time.time()
-  trainTime = T4 - T3
+  innerTrainTime = T3 - T2
 
   # Variables about testGames.
   times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
@@ -204,21 +251,13 @@ def main(args):
   for blockNum in range(MAX_BLOCKS):
     blockTime = blockNum * SECONDS_PER_BLOCK
 
-    gameIs = []
-    partialGames = []
-    partialGoals = []
-    for gameI, game in enumerate(testingGames):
-      duration = game['debug']['duration']
-      if duration < blockTime:
-        continue
-
-      gameIs.append(gameI)
-      partialGames.append(game)
-      partialGoals.append(game['goal'])
+    gameIs, testingBlockGames, testingBlockGoals = \
+        filterMaxBlock(blockNum, testingGames, testingGoals)
 
     # Do all predictions at the sametime (needed because of how predict reloads the model each time).
-    preditions = getPrediction(classifier, partialGames, blockNum, partialGoals)
-    for gameI, partialGoal, predition in zip(gameIs, partialGoals, preditions):
+    preditions = getPrediction(args, classifiers, columnUses, testingBlockGames, blockNum, testingBlockGoals)
+
+    for gameI, predition in zip(gameIs, preditions):
       correct, gamePredictions = predition
 
       # store data to graph
@@ -239,8 +278,8 @@ def main(args):
 
       logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions, labels = [True, False])
 
-  T5 = time.time()
-  statsTime = T5 - T4
+  T4 = time.time()
+  statsTime = T4 - T3
 
   # If data was tabulated on the testingData print stats about it.
   if len(times) > 0:
@@ -248,17 +287,19 @@ def main(args):
     GraphModelStats.plotData(times, samples, corrects, ratios, logLosses)
     GraphModelStats.plotGame(times, testingGoals, testWinProbs)
 
-  T6 = time.time()
-  viewTime = T6 - T5
+  T5 = time.time()
+  viewTime = T5 - T4
   
   print ("Timings:")
   print ("\tloadTime: {:.3f}".format(loadTime))
   print ("\tsplitTime: {:.3f}".format(splitTime))
-  print ("\tfeaturizeTime: {:.3f}".format(featurizeTime))
-  print ("\ttrainTime: {:.3f}".format(trainTime))
+  print ("\ttrainTime: {:.3f}".format(innerTrainTime))
   print ("\tstatsTime: {:.3f}".format(statsTime))
   print ("\tviewTime: {:.3f}".format(viewTime))
-  
+  print ()
+  print ("\tfeaturizerTime: {:.3f}".format(featurizerTime))
+  print ("\ttrainTime: {:.3f}".format(trainTime))
+  print ("\tpandasTime: {:.3f}".format(pandasTime))
 
 
 if __name__ == '__main__':
