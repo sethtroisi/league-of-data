@@ -24,6 +24,19 @@ def getArgParse():
       default='features.json',
       help='Input match file (produced by Seth or GameParser.py)')
 
+  parser.add_argument(
+      '-n', '--num-games',
+      type=int,
+      default=-1,
+      help='Numbers of games to load (default -1 = all)')
+
+  parser.add_argument(
+      '-p', '--holdback',
+      type=int,
+      default=15,
+      help='percent of games to holdback for testing/validation')
+
+
   # TODO(sethtroisi): Add and utilize a flag for verbosity.
 
   return parser
@@ -68,11 +81,11 @@ def gameToPDF(games, *, blockNum = 0, training = False):
 
 def inputFn(df, goals = None):
   global allColumns
-  featureCols = {k: tf.constant(df[k].values, shape=[df[k].size, 1]) for k in allColumns}
+  featureCols = {k: tf.constant(df[k].values, shape=[df[k].size, 1], dtype='int32') for k in allColumns}
   print ("input:", df.shape, len(allColumns))
   if goals == None:
     return  featureCols
-  labels = tf.constant(goals, shape=[len(goals), 1])
+  labels = tf.constant(goals, shape=[len(goals), 1], dtype='int32')
   return featureCols, labels
 
 
@@ -86,7 +99,15 @@ def buildClassifier(trainGoals, trainGames):
     'steps': 250
   }
 
-  featureColumns = [tf.contrib.layers.real_valued_column(k) for k in allColumns]
+  featureColumns = [
+      tf.contrib.layers.real_valued_column(k) for k in allColumns if not k.startswith('gold_')
+  ] + [
+      tf.contrib.layers.embedding_column(
+          tf.contrib.layers.sparse_column_with_integerized_feature(k, 100),
+          dimension = 20)
+              for k in allColumns if k.startswith('gold_')
+  ]
+
   print ("featureColumns:", len(featureColumns))
 
   optimizer = tf.train.AdamOptimizer(learning_rate = params['learningRate'])
@@ -124,11 +145,11 @@ def getPrediction(classifier, testGames, blockNum, testGoals):
 def main(args):
   MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
 
-  games, goals = TFFeaturize.getRawGameData(args.input_file)
+  games, goals = TFFeaturize.getRawGameData(args.input_file, args.num_games)
   trainingGames, testingGames, trainingGoals, testingGoals = train_test_split(
       games,
       goals,
-      test_size = 0.15,
+      test_size = args.holdback / 100,
       random_state = 42)
   del games, goals
 

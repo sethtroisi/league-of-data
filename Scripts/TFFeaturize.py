@@ -85,6 +85,28 @@ def towerFeatures(towers, sampleTime):
 # Creates features from gold values (delta)
 def goldFeatures(df, gold, sampleTime):
   lastBlock = timeToBlock(sampleTime)
+  lastBlockNum = max(b for b in map(int, gold.keys()) if b <= lastBlock)
+
+  blockGold = gold.get(str(lastBlockNum), None)
+  assert blockGold, gold.keys()
+
+  teamAGold = 0
+  teamBGold = 0
+  for pId, totalGold in blockGold.items():
+    pId = int(pId)
+
+    assert 1 <= pId <= 10
+    if 1 <= pId <= 5:
+      teamAGold += totalGold
+    else:
+      teamBGold += totalGold
+
+  df.set_value(0, 'gold_a', teamAGold // 1000)
+  df.set_value(0, 'gold_b', teamBGold // 1000)
+  df.set_value(0, 'gold_a_adv', max(0, teamAGold - teamBGold) // 1000) 
+  df.set_value(0, 'gold_b_adv', max(0, teamBGold - teamAGold) // 1000) 
+
+  '''
   for blockNum in range(lastBlock+1):
     blockGold = gold.get(str(blockNum), None)
     if not blockGold:
@@ -101,23 +123,23 @@ def goldFeatures(df, gold, sampleTime):
       else:
         teamBGold += totalGold
 
-    for thousands in range(1, 100):
-      if thousands * 1000 < teamAGold:
-        df.set_value(0, 'g_a_{}k'.format(thousands), 1.0)
+   # for thousands in range(1, 100):
+   #   if thousands * 1000 < teamAGold:
+   #     df.set_value(0, 'g_a_{}k'.format(thousands), 1.0)
 
-      if thousands * 1000 < teamBGold:
-        df.set_value(0, 'g_b_{}k'.format(thousands), 1.0)
+   #   if thousands * 1000 < teamBGold:
+   #     df.set_value(0, 'g_b_{}k'.format(thousands), 1.0)
 
-    deltaSign = teamAGold > teamBGold
-    delta = abs(teamAGold - teamBGold)
-    bucketsOfGold = delta // GOLD_DELTA_BUCKET_SIZE
-    for bucket in range(bucketsOfGold):
-      feature = 'g_d_{}_{}_{}'.format(
-          blockNum,
-          'p' if deltaSign else 'n', 
-          bucket * GOLD_DELTA_BUCKET_SIZE)
-      df.set_value(0, feature, 1.0)
-
+   # deltaSign = teamAGold > teamBGold
+   # delta = abs(teamAGold - teamBGold)
+   # bucketsOfGold = delta // GOLD_DELTA_BUCKET_SIZE
+   # for bucket in range(bucketsOfGold):
+   #   feature = 'g_d_{}_{}_{}'.format(
+   #       blockNum,
+   #       'p' if deltaSign else 'n', 
+   #       bucket * GOLD_DELTA_BUCKET_SIZE)
+   #   df.set_value(0, feature, 1.0)
+  '''
 
 def parseGameToPD(index, parsed, time=None):
   if time == None:
@@ -132,7 +154,7 @@ def parseGameToPD(index, parsed, time=None):
   # Objectives
   #barons = gameFeatures['barons']
   #dragons = gameFeatures['dragons']
-  towers = gameFeatures['towers']
+  #towers = gameFeatures['towers']
   inhibs = gameFeatures['inhibs']
 
   # Champions
@@ -146,7 +168,7 @@ def parseGameToPD(index, parsed, time=None):
   goldFeatures(df, gold, time)
 
   #features.update(towerFeatures(towers, time))
-  countedFeature(df, 'inhibs', inhibs, time)
+  #countedFeature(df, 'inhibs', inhibs, time)
 
   #features.update(countedFeature('barons', barons, time))
   #features.update(countedFeature('dragons', dragons, time))
@@ -156,17 +178,16 @@ def parseGameToPD(index, parsed, time=None):
   df.index = [index]
   return df
 
-def loadOutputFile(fileName):
+def loadOutputFile(fileName, numGames):
   games = []
   goals = []
 
   outputData = loadJsonFile(fileName)
   for dataI, data in enumerate(outputData):
-    goal = data['goal']
-    
-    #if dataI > 1000:
-    #  break
+    if dataI == numGames:
+      break
 
+    goal = data['goal']
     assert goal in (True, False)
 
     games.append(data)
@@ -174,9 +195,9 @@ def loadOutputFile(fileName):
   return games, goals
 
 
-def getRawGameData(fileName):
+def getRawGameData(fileName, numGames):
   # Consider passing in a variable to limit number loaded
-  games, goals = loadOutputFile(fileName)
+  games, goals = loadOutputFile(fileName, numGames)
   print ("Loaded {} games".format(len(goals)))
   return games, goals
 
