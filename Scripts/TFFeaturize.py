@@ -1,7 +1,5 @@
 import json
 import re
-import pandas
-
 
 from collections import Counter
 
@@ -32,11 +30,11 @@ def countedFeature(df, name, events, sampleTime, verus=True):
 
     counts[isTeamOne] += 1
     feature = '{}_{}_{}'.format(name, 'A' if isTeamOne else 'B', counts[isTeamOne])
-    df.set_value(0, feature, 1.0)
+    df[feature] = 1.0
 
   if verus:
     feature = '{}_{}_to_{}'.format(name, counts[0], counts[1])
-    df.set_value(0, feature, 1.0)
+    df[feature] = 1.0
 
 
 # Create features from champs
@@ -129,16 +127,16 @@ def goldFeatures(df, gold, sampleTime):
 
     # Each team gets ~3k more gold every 2 minutes, makes vars ~ (0, 1.5]
     normalizeFactor = 3000 * (blockNum + 1)
-    df.set_value(0, 'gold_a_block_{}'.format(blockNum), teamAGold / normalizeFactor)
-    df.set_value(0, 'gold_b_block_{}'.format(blockNum), teamBGold / normalizeFactor)
+    df['gold_a_block_{}'.format(blockNum)] = teamAGold / normalizeFactor
+    df['gold_b_block_{}'.format(blockNum)] = teamBGold / normalizeFactor
     
     # A huge win is +15k gold at 40 minutes so maybe ~1k every 2 minutes, to get [-2, +2]
     deltaGold = teamAGold - teamBGold
     normalizeFactor = 1000 * (blockNum + 1)
-    df.set_value(0, 'gold_a_adv_block_{}'.format(blockNum), deltaGold / normalizeFactor) 
+    df['gold_a_adv_block_{}'.format(blockNum)] = deltaGold / normalizeFactor
   
 
-def parseGameToPD(index, parsed, time=None):
+def parseGame(index, parsed, time=None):
   if time == None:
     duration = parsed['debug']['duration']
     time = duration
@@ -159,22 +157,19 @@ def parseGameToPD(index, parsed, time=None):
 
   # Other
 
-  df = pandas.DataFrame()# columns = columnGuess)
-  #print (columnGuess, df)
+  data = {}
 
+  goldFeatures(data, gold, time)
 
-  goldFeatures(df, gold, time)
-
-  towerFeatures(df, towers, time)
-  countedFeature(df, 'inhibs', inhibs, time)
+  towerFeatures(data, towers, time)
+  countedFeature(data, 'inhibs', inhibs, time)
 
   #features.update(countedFeature('barons', barons, time))
   #features.update(countedFeature('dragons', dragons, time))
 
   #features.update(champFeature(champs, time))
 
-  df.index = [index]
-  return df
+  return data
 
 def loadOutputFile(fileName, numGames):
   games = []

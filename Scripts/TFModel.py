@@ -1,7 +1,6 @@
 import argparse
 import functools
 import matplotlib.pyplot as pyplot
-import pandas
 import random
 import sklearn.metrics
 import tensorflow as tf
@@ -62,7 +61,7 @@ def filterMaxBlock(blockNum, games, goals):
 featurizerTime = 0
 pandasTime = 0
 trainTime = 0
-def gameToPDF(args, games, *, columnsToExport = None, blockNum = 0, training = False):
+def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = False):
   global featurizerTime, pandasTime, trainTime
 
   if training and args.verbose >= 2:
@@ -73,33 +72,26 @@ def gameToPDF(args, games, *, columnsToExport = None, blockNum = 0, training = F
 
   frames = []
   for index, game in enumerate(games):
-    if training:
-      gameTime = game['debug']['duration']
-    else:
-      gameTime = blockNum * SECONDS_PER_BLOCK
+    #if training:
+    #  gameTime = game['debug']['duration']
+    #else:
+    gameTime = blockNum * SECONDS_PER_BLOCK
 
-    gameFrame = TFFeaturize.parseGameToPD(index, game, gameTime)
-    frames.append(gameFrame)
+    gameData = TFFeaturize.parseGame(index, game, gameTime)
+    frames.append(gameData)
 
   T1 = time.time()
 
   if training and args.verbose >= 2:
     print ("\tjoining {} games".format(len(games)))
 
-  test = pandas.concat(frames).fillna(0)
 
   T2 = time.time()
 
   if training:
-    allColumns = list(test.columns.values)
-    #print ("saving {} feature columns".format(len(allColumns)))
-    #print (test.describe())
-    
-  else:
-    curCols = set(test.columns.values)
-    for col in columnsToExport:
-      if col not in curCols:
-        test[col] = 0
+    allColumns = set()
+    for frame in frames:
+      allColumns.update(frame.keys())
 
   T3 = time.time()
   featurizerTime += T1 - T0
@@ -109,12 +101,19 @@ def gameToPDF(args, games, *, columnsToExport = None, blockNum = 0, training = F
         T1 - T0, T2 - T1, T3 - T2))
 
   if training:
-    return test, allColumns
-  return test
+    return frames, allColumns
+  return frames
 
 
-def inputFn(columnsUsed, df, goals = None):
-  featureCols = {k: tf.constant(df[k].values, shape=[df[k].size, 1], dtype='int32') for k in columnsUsed}
+def inputFn(featuresUsed, data, goals = None):
+  featureCols = {
+    k: tf.constant(
+          [d.get(k, 0) for d in data],
+          shape = [len(data), 1],
+          dtype = 'float32'
+    )
+        for k in featuresUsed
+  }
   #print ("input:", df.shape, len(columnsUsed))
   if goals == None:
     return  featureCols
@@ -126,16 +125,16 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals):
   global featurizerTime, pandasTime, trainTime
 
   params = {
-    'dropout': 0.7,
-    'learningRate': 0.0001,
-    'steps': 5000
+    'dropout': 0.5,
+    'learningRate': 0.001,
+    'hiddenUnits': [20, 10],
+    'steps': 1000
   }
 
   classifiers = []
-  columnUses = []
+  featuresUses = []
   
   for blockNum in range(numBlocks):
-    blockTime = blockNum * SECONDS_PER_BLOCK
     usableIndexes, usableGames, usableGoals = filterMaxBlock(blockNum, trainGames, trainGoals)
 
     if (args.verbose >= 1):
@@ -144,10 +143,13 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals):
     if len(usableGames) == 0:
       break
   
-    trainDF, columnsUsed = gameToPDF(args, usableGames, blockNum = blockNum, training = True)
+    trainDF, featuresUsed = gameToPDF(args, usableGames, blockNum = blockNum, training = True)
+
+    if (args.verbose >= 1):
+      print ("\t{} features".format(len(featuresUsed)))
 
     featureColumns = [
-        tf.contrib.layers.real_valued_column(k) for k in columnsUsed
+        tf.contrib.layers.real_valued_column(k) for k in featuresUsed
     ]
 # tf.contrib.layers.embedding_column(tf.contrib.layers.sparse_column_with_integerized_feature(k, 100), dimension = 20)
 
@@ -156,35 +158,33 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals):
     optimizer = tf.train.AdamOptimizer(learning_rate = params['learningRate'])
     classifier = tf.contrib.learn.DNNClassifier(
         feature_columns = featureColumns,
-        hidden_units = [20, 10],
+        hidden_units = params['hiddenUnits'],
         n_classes = 2,
         dropout = params['dropout'],
         optimizer = optimizer,
     )
 
     classifier.fit(
-        input_fn = functools.partial(inputFn, columnsUsed, trainDF, usableGoals),
+        input_fn = functools.partial(inputFn, featuresUsed, trainDF, usableGoals),
         steps = params['steps'])
 
     T1 = time.time()
     trainTime += T1 - T0
 
-    print ("\t", blockNum, len(columnsUsed), classifier != None)
-
     classifiers.append(classifier)
-    columnUses.append(columnsUsed)
+    featuresUses.append(featuresUsed)
 
-  return classifiers, columnUses
+  return classifiers, featuresUses
 
 
-def getPrediction(args, classifiers, columnUses, testGames, blockNum, testGoals):
+def getPrediction(args, classifiers, featuresUses, testGames, blockNum, testGoals):
   blockIndex = min(blockNum, len(classifiers) - 1)
   classifier = classifiers[blockIndex]
-  columnsUsed = columnUses[blockIndex]
+  featuresUsed = featuresUses[blockIndex]
   
-  df = gameToPDF(args, testGames, blockNum = blockNum, columnsToExport = columnsUsed)
+  df = gameToPDF(args, testGames, blockNum = blockNum, featuresToExport = featuresUsed)
   modelGuess = classifier.predict_proba(
-      input_fn = functools.partial(inputFn, columnsUsed, df, testGoals))
+      input_fn = functools.partial(inputFn, featuresUsed, df, testGoals))
 
   for testGoal in testGoals:
     probs = next(modelGuess)
@@ -200,9 +200,9 @@ def main(args):
 
   if args.verbose == 0:
     tf.logging.set_verbosity(tf.logging.ERROR)
-  elif args.verbose >= 1:
+  elif args.verbose == 1:
     tf.logging.set_verbosity(tf.logging.ERROR)
-  elif (args.verbose >= 2):
+  elif args.verbose >= 2:
     tf.logging.set_verbosity(tf.logging.INFO)
 
   
@@ -232,7 +232,7 @@ def main(args):
   T2 = time.time()
   splitTime = T2 - T1
 
-  classifiers, columnUses = \
+  classifiers, featuresUses = \
       buildClassifier(args, MAX_BLOCKS, trainingGames, trainingGoals)
 
   T3 = time.time()
@@ -249,13 +249,11 @@ def main(args):
   testWinProbs = [[] for a in range(len(testingGames))]
 
   for blockNum in range(MAX_BLOCKS):
-    blockTime = blockNum * SECONDS_PER_BLOCK
-
     gameIs, testingBlockGames, testingBlockGoals = \
         filterMaxBlock(blockNum, testingGames, testingGoals)
 
     # Do all predictions at the sametime (needed because of how predict reloads the model each time).
-    preditions = getPrediction(args, classifiers, columnUses, testingBlockGames, blockNum, testingBlockGoals)
+    preditions = getPrediction(args, classifiers, featuresUses, testingBlockGames, blockNum, testingBlockGoals)
 
     for gameI, predition in zip(gameIs, preditions):
       correct, gamePredictions = predition
