@@ -125,10 +125,10 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals):
   global featurizerTime, pandasTime, trainTime
 
   params = {
-    'dropout': 0.5,
+    'dropout': 0.3,
     'learningRate': 0.001,
     'hiddenUnits': [20, 10],
-    'steps': 1000
+    'steps': 2000
   }
 
   classifiers = []

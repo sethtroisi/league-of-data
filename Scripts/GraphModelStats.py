@@ -67,7 +67,7 @@ def plotGame(times, results, winPredictions):
 
   # Note: I didn't have luck with subplots(3, 1) and resizing so I used this.
   sliderAxis = pyplot.axes(
-      [0.125, 0.44, 0.75, 0.05],
+      [0.125, 0.48, 0.775, 0.03],
       axisbg='lightgoldenrodyellow')
 
   resultColors = {True:'g', False:'r'}
@@ -76,14 +76,17 @@ def plotGame(times, results, winPredictions):
   for result, gamePredictions in zip(results, winPredictions):
     blocks = len(gamePredictions)
     color = resultColors[result]
-    axis1.plot(times[:blocks], [gP[1] for gP in gamePredictions], color, alpha = 0.1)
+    # TODO Set alpha depentant on number of games
+    axis1.plot(times[:blocks], [gP[1] for gP in gamePredictions], color, alpha = 0.05)
 
   axis1.set_title('Predictions of win rate across the game')
   axis1.set_xlabel('time (m)')
   axis1.set_ylabel('prediction confidence')
 
   # At X minutes print confidences.
-  sliderTime = Slider(sliderAxis, 'Time', 0, 60, valinit=20)
+  sliderTime = Slider(sliderAxis, 'Time', 0, 60, valinit=20, valfmt='%d')
+  sliderTime.valtext.set_visible(False)
+  # TODO show value, # of games, % of games at this point in a text box somewhere
 
   percentBuckets = 100
   percents = [p / percentBuckets for p in range(percentBuckets + 1)]
@@ -109,7 +112,7 @@ def plotGame(times, results, winPredictions):
         else:
           cdfFalse[pi] += 1
 
-      bucket = int(percentBuckets * prediction)
+      bucket = int(round(percentBuckets * prediction))
       if gameResult:
         pdfTrue[bucket] += 1
       else:
@@ -131,10 +134,22 @@ def plotGame(times, results, winPredictions):
 
     axis2.set_xlim([0, 1]);
     axis2_2.set_xlim([0, 1]);
+    
+    
+    # TODO Are the largest and smallest buckets being cut off?
+    # Vertical axis suggests yes?
+    # axis2.set_ylim([0, max(cdfTrue[0], cdfFalse[0]) + 1])
+    # axis2_2.set_ylim([0, max(max(pdfTrue), max(pdfFalse)) + 1]])
 
-#    axis2.set_ylim([0, max(cdfTrue[0], cdfFalse[0]) + 1])
-#    axis2_2.set_ylim([0, max(max(pdfTrue), max(pdfFalse)) + 1]])
 
+    # draw the vertical line on the upper time graph
+    for line in axis1.lines:
+      if line.get_gid() == 'vline':
+        line.remove()
+    # TODO line kinda dissapears if in first or last index :(
+    axis1.axvline(x = times[ti], linewidth = 4, color = 'r', gid = 'vline')
+    
+    
     fig.canvas.draw_idle()
 
   plotConfidentAtTime(20)
@@ -145,7 +160,7 @@ def plotGame(times, results, winPredictions):
 
 def stats(times, samples, corrects, ratios, logLosses):
   startBlock = timeToBlock(10 * 60)
-  endBlock = timeToBlock(40 * 60)
+  endBlock = timeToBlock(30 * 60)
 
   sumLosses = sum(logLosses[startBlock:endBlock+1])
   totalSamples = sum(samples[startBlock:endBlock+1])
@@ -154,7 +169,7 @@ def stats(times, samples, corrects, ratios, logLosses):
   mediumRatio = np.median(ratios[startBlock:endBlock+1])
 
   print ()
-  print ("Global Stats 10 to 40 minutes")
+  print ("Global Stats 10 to 30 minutes")
   print ()
   print ("Sum LogLoss: {:.3f}".format(sumLosses))
   print ("Correct Predictions:", totalCorrect)

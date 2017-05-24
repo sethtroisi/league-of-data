@@ -147,8 +147,8 @@ def parseGame(index, parsed, time=None):
   gold = gameFeatures['gold']
 
   # Objectives
-  #barons = gameFeatures['barons']
-  #dragons = gameFeatures['dragons']
+  barons = gameFeatures['barons']
+  dragons = gameFeatures['dragons']
   towers = gameFeatures['towers']
   inhibs = gameFeatures['inhibs']
 
@@ -163,9 +163,8 @@ def parseGame(index, parsed, time=None):
 
   towerFeatures(data, towers, time)
   countedFeature(data, 'inhibs', inhibs, time)
-
-  #features.update(countedFeature('barons', barons, time))
-  #features.update(countedFeature('dragons', dragons, time))
+  countedFeature(data, 'barons', barons, time)
+  countedFeature(data, 'dragons', dragons, time)
 
   #features.update(champFeature(champs, time))
 
