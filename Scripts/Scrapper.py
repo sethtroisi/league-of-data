@@ -41,7 +41,7 @@ def buildUrl(apiPath, params = []):
 keyUsed = dict((key, 0) for key in API_KEYS)
 def getParsedResponse(url):
   lastUsed, apiKey = min((u, k) for k, u in keyUsed.items())
-  
+
   timeToWait = (lastUsed + SLEEP_TIME) - time.time()
   if timeToWait > 0.01:
     time.sleep(timeToWait)
@@ -124,6 +124,9 @@ def getSummonerMatches(summonerId):
       print ("bad season:", season)
       continue
 
+    if matchId <= 2500000000:
+      print ("old game (pre 2017/04):", matchId)
+      continue
 
     print ('\tFetching match (id: {})'.format(matchId))
     fullMatch = getMatch(matchId)
@@ -189,7 +192,7 @@ def main():
     except Exception as e:
       print ("FAIL: '{}'".format(e))
       fails += 1
-      if fails > len(matchIds):
+      if 100 * (fails - 1) > len(matchIds):
         print ("breaking from {} fails".format(fails))
         return
 

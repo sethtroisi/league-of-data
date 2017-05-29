@@ -20,6 +20,12 @@ from BoolFeaturize import *
 
 def getArgParse():
   parser = argparse.ArgumentParser(description='Parses Games and produces features.')
+  
+  parser.add_argument(
+      '-c', '--count',
+      type=int,
+      default=-1,
+      help='Number of games to output (and read in)')
 
   parser.add_argument(
       '-f', '--full-examples',
@@ -55,18 +61,26 @@ def getArgParse():
 def parseGameRough(match, timeline):
   teamInfo = match['participants']
 
-  # for now we return champtionId, firstDragon team, firstDragon time
-  championIds = [p['championId'] for p in teamInfo]
-  participantIds = [p['participantId'] for p in teamInfo]
-  teamOne = participantIds[:5]
-  teamTwo = participantIds[5:]
-  assert teamOne == [1, 2, 3, 4, 5]
-  assert teamTwo == [6, 7, 8, 9, 10]
+  teamOne = []
+  champs = []
+  for champI, participant in enumerate(teamInfo, 1):
+    pId = int(participant['participantId'])
+    isTeamOne = participant['teamId'] == 100
+    assert pId == champI, "{} != {}".format(pId, champI)    
+    assert (1 <= pId <= 5) == isTeamOne, "{} != {}".format(pId, isTeamOne)
 
-  champNames = list(map(championIdToName, championIds))
-  champs = [champNames[:5], champNames[5:]]
-#  print ("Champions: {}".format(championIds))
-#  print ("Names: {}".format(champNames))
+    teamOne.append(pId)
+
+    champ = {}
+    champs.append(champ)
+    
+    champId = participant['championId']
+    champ['championId'] = champId
+    champ['champion'] = championIdToName(champId)
+    champ['spell1'] = participant['spell1Id']
+    champ['spell2'] = participant['spell2Id']
+    champ['approxRank'] = participant['highestAchievedSeasonTier']
+      
 
   dragons = []
   barons = []
@@ -96,7 +110,11 @@ def parseGameRough(match, timeline):
         killer = event['killerId']
         isTeamOne = killer in teamOne
         if monsterType == 'DRAGON':
-          dragons.append((time, isTeamOne))
+          subType = event['monsterSubType']
+          assert '_DRAGON' in subType
+          commonName = subType.replace('_DRAGON', '')
+
+          dragons.append((time, commonName, isTeamOne))
         elif monsterType == 'BARON_NASHOR':
           barons.append((time, isTeamOne))
         #Red/blue buffs aren't recorded here as specified in API
@@ -176,16 +194,23 @@ def main(args):
   for t in inFile:
     assert type(t) == list
     assert len(t) == 2
+    
+    # If you had an error on this line re-run Coalesce.py
     match = loadJsonFile('matches/' + t[0])
-    timeline = loadJsonFile('matches/' + t[1]) 
+    timeline = loadJsonFile('matches/' + t[1])
 
     parsed = parseGameRough(match, timeline)
     outputData.append(parsed)
     gameNum += 1
-
+    
     if gameNum % printEvery == 0:
       print ("parsed {} of {} ({:0.0f}%) ({:.2f}s)".format(
           gameNum, items, 100 * gameNum / items, time.time() - T0))
+
+    if gameNum == args.count:
+      print ("Stopping after {} games (like you asked with -c)".format(args.count))
+      break
+
 
   # Remove any ordering effect from game number
   random.shuffle(outputData)
@@ -196,9 +221,6 @@ def main(args):
   print ("~{} chars ~{:.1f}MB, ~{:.1f}KB/game".format(
       chars, chars / 10 ** 6, chars /(10 ** 3 * gameNum)))
   print ()
-
-  if not args.dry_run:
-    writeJsonFile(args.output_file, outputData)
 
   exampleLines = random.sample(range(gameNum), args.examples)
   for exampleLine in sorted(exampleLines):
@@ -213,6 +235,11 @@ def main(args):
 
   if args.examples > 0:
     writeJsonFile('example-feature.json', outputData[exampleLines[0]])
+
+  if not args.dry_run:
+    writeJsonFile(args.output_file, outputData)
+
+
 
 # START CODE HERE
 args = getArgParse().parse_args()
