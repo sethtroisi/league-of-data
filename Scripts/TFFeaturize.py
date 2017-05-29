@@ -84,32 +84,43 @@ def towerFeatures(df, towers, sampleTime):
   return features
 
 
+def dragonFeatures(df, dragons, sampleTime):
+  features = set()
+
+  dragonsA = []
+  dragonsB = []
+
+  for dragon in dragons:
+    dragonTime, name, isTeamOne = dragon
+    if dragonTime > sampleTime:
+      break
+
+    if isTeamOne:
+      dragonsA.append(name)
+    else:
+      dragonsB.append(name)
+    
+    timeBlock = timeToBlock(dragonTime)
+    newDragonFeature = "dragon_taken_{}_{}".format(
+      'A' if isTeamOne else 'B',
+      timeBlock)
+    df[newDragonFeature] = 1.0
+    
+  df["dragon_taken_A"] = len(dragonsA)
+  df["dragon_taken_B"] = len(dragonsB)            
+
+  for dType in set(dragonsA + dragonsB):
+    name = dType.lower()
+    df["dragon_A_" + name] = dragonsA.count(dType)
+    df["dragon_B_" + name] = dragonsB.count(dType)
+
+  return features
+
 # Creates features from gold values (delta)
 def goldFeatures(df, gold, sampleTime):
   lastBlock = timeToBlock(sampleTime)
   lastBlockNum = max(b for b in map(int, gold.keys()) if b <= lastBlock)
 
-  '''
-  blockGold = gold.get(str(lastBlockNum), None)
-  assert blockGold, gold.keys()
-
-  teamAGold = 0
-  teamBGold = 0
-  for pId, totalGold in blockGold.items():
-    pId = int(pId)
-
-    assert 1 <= pId <= 10
-    if 1 <= pId <= 5:
-      teamAGold += totalGold
-    else:
-      teamBGold += totalGold
-
-  df.set_value(0, 'gold_a', teamAGold // 1000)
-  df.set_value(0, 'gold_b', teamBGold // 1000)
-  df.set_value(0, 'gold_a_adv', max(0, teamAGold - teamBGold) // 1000) 
-  df.set_value(0, 'gold_b_adv', max(0, teamBGold - teamAGold) // 1000) 
-
-  '''
   for blockNum in range(lastBlock+1):
     teamAGold = 0
     teamBGold = 0
@@ -134,7 +145,27 @@ def goldFeatures(df, gold, sampleTime):
     deltaGold = teamAGold - teamBGold
     normalizeFactor = 1000 * (blockNum + 1)
     df['gold_a_adv_block_{}'.format(blockNum)] = deltaGold / normalizeFactor
-  
+
+
+# Create a feature that counts how many events of the type have happened.
+def countedFeature(df, name, events, sampleTime, verus=True):
+  counts = [0, 0]
+  for event in events:
+    eventTime, isTeamOne = event[:2]
+    assert 0 <= eventTime <= 10000
+    assert isTeamOne in (True, False)
+
+    if eventTime > sampleTime:
+      break
+
+    counts[isTeamOne] += 1
+    feature = '{}_{}_{}'.format(name, 'A' if isTeamOne else 'B', counts[isTeamOne])
+    df[feature] = 1.0
+
+  if verus:
+    feature = '{}_{}_to_{}'.format(name, counts[0], counts[1])
+    df[feature] = 1.0
+
 
 def parseGame(index, parsed, time=None):
   if time == None:
@@ -160,11 +191,11 @@ def parseGame(index, parsed, time=None):
   data = {}
 
   goldFeatures(data, gold, time)
-
   towerFeatures(data, towers, time)
+  dragonFeatures(data, dragons, time)
+
   countedFeature(data, 'inhibs', inhibs, time)
   countedFeature(data, 'barons', barons, time)
-  countedFeature(data, 'dragons', dragons, time)
 
   #features.update(champFeature(champs, time))
 

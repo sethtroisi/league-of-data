@@ -2,6 +2,7 @@ import argparse
 import functools
 import matplotlib.pyplot as pyplot
 import random
+import re
 import sklearn.metrics
 import tensorflow as tf
 import time
@@ -82,23 +83,15 @@ def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = 
 
   T1 = time.time()
 
-  if training and args.verbose >= 2:
-    print ("\tjoining {} games".format(len(games)))
-
-
-  T2 = time.time()
+  if training and args.verbose >= 1:
+    print ("\t\tFeaturize Timing: {:.1f}".format(
+        T1 - T0))
 
   if training:
     allColumns = set()
     for frame in frames:
       allColumns.update(frame.keys())
 
-  T3 = time.time()
-  featurizerTime += T1 - T0
-  pandasTime += T3 - T1
-  if training and args.verbose >= 1:
-    print ("\t\tFeaturize Timing: {:.2f} build, {:.2f} concat, {:2f} fill".format(
-        T1 - T0, T2 - T1, T3 - T2))
 
   if training:
     return frames, allColumns
@@ -127,7 +120,7 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals):
   params = {
     'dropout': 0.3,
     'learningRate': 0.001,
-    'hiddenUnits': [20, 10],
+    'hiddenUnits': [20, 5],
     'steps': 2000
   }
 
@@ -137,7 +130,7 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals):
   for blockNum in range(numBlocks):
     usableIndexes, usableGames, usableGoals = filterMaxBlock(blockNum, trainGames, trainGoals)
 
-    if (args.verbose >= 1):
+    if args.verbose >= 1:
       print ("\ttraining block {} on {} games".format(blockNum, len(usableGames)))
         
     if len(usableGames) == 0:
@@ -145,8 +138,27 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals):
   
     trainDF, featuresUsed = gameToPDF(args, usableGames, blockNum = blockNum, training = True)
 
-    if (args.verbose >= 1):
-      print ("\t{} features".format(len(featuresUsed)))
+    if args.verbose >= 1:
+      regex = re.compile('_([ABb0-9]{1,2})(?=$|_)', re.I)
+      def replacement(m):
+        text = m.group(1)
+        if text in 'abAB':
+          return '_<team>'
+        elif text.isnumeric():
+          return '_<X>'
+        else:
+          print ("Bad sub:", text, m.groups())
+          return m.group()
+
+      compressedList = set([
+        regex.sub(replacement, feature) for feature in featuresUsed
+      ])
+      compressedFeatures = ""
+      if len(compressedList) < 12 or args.verbose >= 2:
+        compressedFeatures = ", ".join(sorted(compressedList))
+
+      print ("\t{} features: {}".format(
+          len(featuresUsed), compressedFeatures))
 
     featureColumns = [
         tf.contrib.layers.real_valued_column(k) for k in featuresUsed
