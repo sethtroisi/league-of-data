@@ -99,13 +99,14 @@ def plotGame(times, results, winPredictions):
     pdfTrue = [0] * len(percents)
     pdfFalse = [0] * len(percents)
 
+    # TODO are end buckets being filled?
     for gameResult, gamePredictions in zip(results, winPredictions):
       if len(gamePredictions) <= ti:
         continue
 
       prediction = gamePredictions[ti][1]
       for pi, percent in enumerate(percents):
-        if percent > prediction:
+        if percent >= prediction:
           break
         if gameResult:
           cdfTrue[pi] += 1
@@ -132,22 +133,21 @@ def plotGame(times, results, winPredictions):
     axis2.set_ylabel('count of games (cdf)')
     axis2_2.set_ylabel('count of games (pdf)')
 
-    axis2.set_xlim([0, 1]);
-    axis2_2.set_xlim([0, 1]);
+    # 1.01 need to avoid cutting off largest bucket.
+    axis2.set_xlim([0, 1.01]);
+    axis2_2.set_xlim([0, 1.01]);
     
-    
-    # TODO Are the largest and smallest buckets being cut off?
-    # Vertical axis suggests yes?
     # axis2.set_ylim([0, max(cdfTrue[0], cdfFalse[0]) + 1])
     # axis2_2.set_ylim([0, max(max(pdfTrue), max(pdfFalse)) + 1]])
 
 
     # draw the vertical line on the upper time graph
+    print ("debug", len(axis1.lines))
     for line in axis1.lines:
       if line.get_gid() == 'vline':
         line.remove()
     # TODO line kinda dissapears if in first or last index :(
-    axis1.axvline(x = times[ti], linewidth = 4, color = 'r', gid = 'vline')
+    axis1.axvline(x = times[ti], linewidth = 4, color = 'b', gid = 'vline')
     
     
     fig.canvas.draw_idle()
@@ -162,6 +162,7 @@ def stats(times, samples, corrects, ratios, logLosses):
   startBlock = timeToBlock(10 * 60)
   endBlock = timeToBlock(30 * 60)
 
+  # TODO: Should this be weighted by number of games?
   sumLosses = sum(logLosses[startBlock:endBlock+1])
   totalSamples = sum(samples[startBlock:endBlock+1])
   totalCorrect = sum(corrects[startBlock:endBlock+1])
