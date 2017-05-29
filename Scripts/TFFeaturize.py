@@ -21,15 +21,15 @@ def timeToBlock(time):
 def countedFeature(df, name, events, sampleTime, verus=True):
   counts = [0, 0]
   for event in events:
-    eventTime, isTeamOne = event[:2]
+    eventTime, isTeamA = event[:2]
     assert 0 <= eventTime <= 10000
-    assert isTeamOne in (True, False)
+    assert isTeamA in (True, False)
 
     if eventTime > sampleTime:
       break
 
-    counts[isTeamOne] += 1
-    feature = '{}_{}_{}'.format(name, 'A' if isTeamOne else 'B', counts[isTeamOne])
+    counts[isTeamA] += 1
+    feature = '{}_{}_{}'.format(name, 'A' if isTeamA else 'B', counts[isTeamA])
     df[feature] = 1.0
 
   if verus:
@@ -59,8 +59,6 @@ def champFeature(champs, sampleTime):
 
 # Create features from towers (team, position)
 def towerFeatures(df, towers, sampleTime):
-  features = set()
-
 #  for tower in range(0, 24):
 #    df.set_value(0, 'tower_{}_destroyed_at',     
 
@@ -70,18 +68,23 @@ def towerFeatures(df, towers, sampleTime):
     if towerTime > sampleTime:
       break
 
-    if teamATowerKill(towerNum):
+    if isTeamA:
       towersA += 1
+      if towersA == 1:
+        df['first_tower_A'] = towerTime / 1800
+      df['last_tower_A'] = towerTime / 1800
     else:
       towersB += 1
+      if towersB == 1:
+        df['first_tower_B'] = towerTime / 1800
+      df['last_tower_B'] = towerTime / 1800
 
-    timeBlock = timeToBlock(towerTime)
-    features.add('t_d_{}'.format(towerNum))
-    features.add('t_d_at_{}_{}'.format(timeBlock, towerNum))
+    # TODO figure out how to default other values to infinite or something
+    df['tower_{}_destroyed'.format(towerNum)] = 1
+    df['tower_{}_destroyed_at'.format(towerNum)] = towerTime / 1800
 
-  features.add('t_d_{}_{}'.format(towersA, towersB))
-
-  return features
+  df['towers_destroyed_A'] = towersA
+  df['towers_destroyed_B'] = towersB
 
 
 def dragonFeatures(df, dragons, sampleTime):
@@ -90,21 +93,22 @@ def dragonFeatures(df, dragons, sampleTime):
   dragonsA = []
   dragonsB = []
 
-  for dragon in dragons:
-    dragonTime, name, isTeamOne = dragon
+  for dragonI, dragon in enumerate(dragons, 1):
+    dragonTime, name, isTeamA = dragon
     if dragonTime > sampleTime:
       break
 
-    if isTeamOne:
+    if isTeamA:
+      df['last_dragon_A'] = dragonTime / 1800
       dragonsA.append(name)
     else:
+      df['last_dragon_B'] = dragonTime / 1800
       dragonsB.append(name)
     
-    timeBlock = timeToBlock(dragonTime)
-    newDragonFeature = "dragon_taken_{}_{}".format(
-      'A' if isTeamOne else 'B',
-      timeBlock)
-    df[newDragonFeature] = 1.0
+    df['dragon_{}_taken_at'.format(dragonI)] = dragonTime / 1800
+    df['dragon_{}_taken_by'.format(dragonI)] = 1 if isTeamA else -1
+
+    # TODO last dragon_a
     
   df["dragon_taken_A"] = len(dragonsA)
   df["dragon_taken_B"] = len(dragonsB)            
@@ -151,15 +155,15 @@ def goldFeatures(df, gold, sampleTime):
 def countedFeature(df, name, events, sampleTime, verus=True):
   counts = [0, 0]
   for event in events:
-    eventTime, isTeamOne = event[:2]
+    eventTime, isTeamA = event[:2]
     assert 0 <= eventTime <= 10000
-    assert isTeamOne in (True, False)
+    assert isTeamA in (True, False)
 
     if eventTime > sampleTime:
       break
 
-    counts[isTeamOne] += 1
-    feature = '{}_{}_{}'.format(name, 'A' if isTeamOne else 'B', counts[isTeamOne])
+    counts[isTeamA] += 1
+    feature = '{}_{}_{}'.format(name, 'A' if isTeamA else 'B', counts[isTeamA])
     df[feature] = 1.0
 
   if verus:
@@ -167,10 +171,9 @@ def countedFeature(df, name, events, sampleTime, verus=True):
     df[feature] = 1.0
 
 
-def parseGame(index, parsed, time=None):
+def parseGame(index, parsed, time):
   if time == None:
-    duration = parsed['debug']['duration']
-    time = duration
+    assert False
 
   gameFeatures = parsed['features']
 
@@ -186,9 +189,11 @@ def parseGame(index, parsed, time=None):
   # Champions
   #champs = gameFeatures['champs']
 
-  # Other
+
+  # Data that ML will see
 
   data = {}
+  data['current_time'] = time / 3600
 
   goldFeatures(data, gold, time)
   towerFeatures(data, towers, time)

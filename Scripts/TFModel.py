@@ -121,7 +121,8 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals):
     'dropout': 0.3,
     'learningRate': 0.001,
     'hiddenUnits': [20, 5],
-    'steps': 2000
+    'steps': 1000,
+    'extraStepsPerBlock': 400
   }
 
   classifiers = []
@@ -178,7 +179,7 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals):
 
     classifier.fit(
         input_fn = functools.partial(inputFn, featuresUsed, trainDF, usableGoals),
-        steps = params['steps'])
+        steps = params['steps'] + blockNum * params['extraStepsPerBlock'])
 
     T1 = time.time()
     trainTime += T1 - T0
