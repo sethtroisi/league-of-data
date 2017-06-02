@@ -192,7 +192,7 @@ def main():
     except Exception as e:
       print ("FAIL: '{}'".format(e))
       fails += 1
-      if 75 * (fails - 1) > len(matchIds):
+      if 50 * (fails - 1) > len(matchIds):
         print ("breaking from {} fails".format(fails))
         return
 

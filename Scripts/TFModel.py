@@ -1,5 +1,6 @@
 import argparse
 import functools
+import itertools
 import matplotlib.pyplot as pyplot
 import random
 import re
@@ -120,9 +121,10 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
   params = {
     'dropout': 0.3,
     'learningRate': 0.001,
-    'hiddenUnits': [10, 2],
-    'steps': 100,
-    'extraStepsPerBlock': 50
+    'hiddenUnits': [100, 20],
+    'earlyStoppingRounds': 300,
+    'steps': 1000,
+    'extraStepsPerBlock': 300,
   }
 
   classifiers = []
@@ -176,7 +178,7 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
         dropout = params['dropout'],
         optimizer = optimizer,
         config = tf.contrib.learn.RunConfig(
-          save_checkpoints_steps = 50,
+          save_checkpoints_steps = 99,
           save_checkpoints_secs = None
         ),
     )
@@ -186,12 +188,15 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
     testRes = inputFn(featuresUsed, testDF, useableGoalsTest)
 
     validationMonitor = tf.contrib.learn.monitors.ValidationMonitor(
-      input_fn = functools.partial(inputFn, featuresUsed, testDF, useableGoalsTest),
-      eval_steps = 1,
-      every_n_steps = 60)
-      
-      
-    # ^ no check point so it doesn't reevaluate
+        input_fn = functools.partial(inputFn, featuresUsed, testDF, useableGoalsTest),
+        eval_steps = 1,
+        every_n_steps = 100,
+        early_stopping_rounds = params['earlyStoppingRounds']
+    )
+
+    if args.verbose >= 2:
+        print ()
+        print ()
 
     classifier.fit(
         input_fn = functools.partial(inputFn, featuresUsed, trainDF, usableGoals),
@@ -201,14 +206,13 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
 
     classifier.evaluate(
         input_fn = functools.partial(inputFn, featuresUsed, testDF, useableGoalsTest),
-#        input_fn = lambda : testRes,
-        steps = 1
+        steps = 1,
     )
 
-    if args.verbose > 0:
-      print ()
-      print ()
-      print ()
+    if args.verbose >= 1:
+      for v in range(args.verbose):
+        print ()
+        print ()
 
     T1 = time.time()
     trainTime += T1 - T0
@@ -272,7 +276,6 @@ def main(args):
 
 
   T2 = time.time()
-  splitTime = T2 - T1
 
   classifiers, featuresUses = buildClassifier(
       args,
@@ -281,7 +284,7 @@ def main(args):
       trainingGoals,
       testingGames,
       testingGoals
-      )
+  )
 
   T3 = time.time()
   innerTrainTime = T3 - T2
@@ -338,7 +341,6 @@ def main(args):
   
   print ("Timings:")
   print ("\tloadTime: {:.3f}".format(loadTime))
-  print ("\tsplitTime: {:.3f}".format(splitTime))
   print ("\ttrainTime: {:.3f}".format(innerTrainTime))
   print ("\tstatsTime: {:.3f}".format(statsTime))
   print ("\tviewTime: {:.3f}".format(viewTime))
