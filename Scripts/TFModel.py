@@ -4,15 +4,16 @@ import matplotlib.pyplot as pyplot
 import random
 import re
 import sklearn.metrics
-import tensorflow as tf
 import time
 
 from matplotlib.widgets import Slider
 from sklearn.model_selection import train_test_split
-from BoolFeaturize import *
 from Util import *
 import GraphModelStats
 import TFFeaturize
+
+import tensorflow as tf
+
 
 def getArgParse():
   parser = argparse.ArgumentParser(description='Takes features and models outcomes.')
@@ -45,7 +46,7 @@ def getArgParse():
   
   
 def filterMaxBlock(blockNum, games, goals):
-  blockStart = blockNum * SECONDS_PER_BLOCK
+  blockStart = blockNum * TFFeaturize.SECONDS_PER_BLOCK
 
   inds, gas, gos = [], [], []
   for i, (ga, go) in enumerate(zip(games, goals)):
@@ -60,14 +61,12 @@ def filterMaxBlock(blockNum, games, goals):
 
 
 featurizerTime = 0
-pandasTime = 0
 trainTime = 0
 def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = False):
-  global featurizerTime, pandasTime, trainTime
+  global featurizerTime, trainTime
 
   if training and args.verbose >= 2:
     print ("\tfeaturizing {} games".format(len(games)))
-
 
   T0 = time.time()
 
@@ -76,12 +75,13 @@ def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = 
     #if training:
     #  gameTime = game['debug']['duration']
     #else:
-    gameTime = blockNum * SECONDS_PER_BLOCK
+    gameTime = blockNum * TFFeaturize.SECONDS_PER_BLOCK
 
     gameData = TFFeaturize.parseGame(index, game, gameTime)
     frames.append(gameData)
 
   T1 = time.time()
+  featurizerTime += T1 - T0
 
   if training and args.verbose >= 1:
     print ("\t\tFeaturize Timing: {:.1f}".format(
@@ -114,15 +114,15 @@ def inputFn(featuresUsed, data, goals = None):
   return featureCols, labels
 
 
-def buildClassifier(args, numBlocks, trainGames, trainGoals):
-  global featurizerTime, pandasTime, trainTime
+def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoals):
+  global featurizerTime, trainTime
 
   params = {
     'dropout': 0.3,
     'learningRate': 0.001,
-    'hiddenUnits': [20, 5],
-    'steps': 1000,
-    'extraStepsPerBlock': 400
+    'hiddenUnits': [10, 2],
+    'steps': 100,
+    'extraStepsPerBlock': 50
   }
 
   classifiers = []
@@ -175,11 +175,40 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals):
         n_classes = 2,
         dropout = params['dropout'],
         optimizer = optimizer,
+        config = tf.contrib.learn.RunConfig(
+          save_checkpoints_steps = 50,
+          save_checkpoints_secs = None
+        ),
     )
+
+    usabelIndexesTest, usableGamesTest, useableGoalsTest = filterMaxBlock(blockNum, testGames, testGoals)
+    testDF = gameToPDF(args, usableGamesTest, blockNum = blockNum, training = False)
+    testRes = inputFn(featuresUsed, testDF, useableGoalsTest)
+
+    validationMonitor = tf.contrib.learn.monitors.ValidationMonitor(
+      input_fn = functools.partial(inputFn, featuresUsed, testDF, useableGoalsTest),
+      eval_steps = 1,
+      every_n_steps = 60)
+      
+      
+    # ^ no check point so it doesn't reevaluate
 
     classifier.fit(
         input_fn = functools.partial(inputFn, featuresUsed, trainDF, usableGoals),
-        steps = params['steps'] + blockNum * params['extraStepsPerBlock'])
+        monitors = [validationMonitor],
+        steps = params['steps'] + (15 - abs(blockNum - 15)) * params['extraStepsPerBlock'],
+    )
+
+    classifier.evaluate(
+        input_fn = functools.partial(inputFn, featuresUsed, testDF, useableGoalsTest),
+#        input_fn = lambda : testRes,
+        steps = 1
+    )
+
+    if args.verbose > 0:
+      print ()
+      print ()
+      print ()
 
     T1 = time.time()
     trainTime += T1 - T0
@@ -209,7 +238,7 @@ def getPrediction(args, classifiers, featuresUses, testGames, blockNum, testGoal
 
 
 def main(args):
-  global featurizerTime, pandasTime, trainTime
+  global featurizerTime, trainTime
 
   if args.verbose == 0:
     tf.logging.set_verbosity(tf.logging.ERROR)
@@ -221,7 +250,7 @@ def main(args):
   
   T0 = time.time()
 
-  MAX_BLOCKS = int(3600 // SECONDS_PER_BLOCK) + 1
+  MAX_BLOCKS = int(3600 // TFFeaturize.SECONDS_PER_BLOCK) + 1
 
   games, goals = TFFeaturize.getRawGameData(args.input_file, args.num_games)
 
@@ -245,14 +274,20 @@ def main(args):
   T2 = time.time()
   splitTime = T2 - T1
 
-  classifiers, featuresUses = \
-      buildClassifier(args, MAX_BLOCKS, trainingGames, trainingGoals)
+  classifiers, featuresUses = buildClassifier(
+      args,
+      MAX_BLOCKS,
+      trainingGames,
+      trainingGoals,
+      testingGames,
+      testingGoals
+      )
 
   T3 = time.time()
   innerTrainTime = T3 - T2
 
   # Variables about testGames.
-  times = [(b * SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
+  times = [(b * TFFeaturize.SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
   samples = [0 for b in range(MAX_BLOCKS)]
   corrects = [0 for b in range(MAX_BLOCKS)]
   # Averages over data (calculated after all data).
@@ -310,7 +345,6 @@ def main(args):
   print ()
   print ("\tfeaturizerTime: {:.3f}".format(featurizerTime))
   print ("\ttrainTime: {:.3f}".format(trainTime))
-  print ("\tpandasTime: {:.3f}".format(pandasTime))
 
 
 if __name__ == '__main__':

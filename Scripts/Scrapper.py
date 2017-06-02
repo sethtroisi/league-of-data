@@ -28,7 +28,7 @@ API_KEYS = [
 BASE_URL = 'https://na1.api.riotgames.com/lol/'
 KEY_PARAM = 'api_key={apiKey}'
 
-SLEEP_TIME = 1.0
+SLEEP_TIME = 1.2
 GAMES_PER_SUMMONER = 3
 
 socket.setdefaulttimeout(2.0)
@@ -192,7 +192,7 @@ def main():
     except Exception as e:
       print ("FAIL: '{}'".format(e))
       fails += 1
-      if 100 * (fails - 1) > len(matchIds):
+      if 75 * (fails - 1) > len(matchIds):
         print ("breaking from {} fails".format(fails))
         return
 
