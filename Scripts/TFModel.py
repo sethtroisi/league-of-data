@@ -30,6 +30,12 @@ def getArgParse():
       type=int,
       default=-1,
       help='Numbers of games to load (default -1 = all)')
+      
+  parser.add_argument(
+      '-r', '--rank',
+      type=str,
+      default='GOLD',
+      help='Filter out all games from ranks below this')
 
   parser.add_argument(
       '-p', '--holdback',
@@ -120,11 +126,11 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
 
   params = {
     'dropout': 0.3,
-    'learningRate': 0.001,
+    'learningRate': 0.1,
     'hiddenUnits': [100, 20],
     'earlyStoppingRounds': 300,
-    'steps': 1000,
-    'extraStepsPerBlock': 300,
+    'steps': 4000,
+    'extraStepsPerBlock': 500,
   }
 
   classifiers = []
@@ -170,7 +176,13 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
 
     T0 = time.time()
 
-    optimizer = tf.train.AdamOptimizer(learning_rate = params['learningRate'])
+    #optimizer = tf.train.AdamOptimizer(learning_rate = params['learningRate'])
+    optimizer = tf.train.ProximalAdagradOptimizer(
+        learning_rate = params['learningRate'],
+        l1_regularization_strength = 0.0015,
+        l2_regularization_strength = 0.0015,
+    )
+    
     classifier = tf.contrib.learn.DNNClassifier(
         feature_columns = featureColumns,
         hidden_units = params['hiddenUnits'],
@@ -256,7 +268,7 @@ def main(args):
 
   MAX_BLOCKS = int(3600 // TFFeaturize.SECONDS_PER_BLOCK) + 1
 
-  games, goals = TFFeaturize.getRawGameData(args.input_file, args.num_games)
+  games, goals = TFFeaturize.getRawGameData(args)
 
   T1 = time.time()
   loadTime = T1 - T0

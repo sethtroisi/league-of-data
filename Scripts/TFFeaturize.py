@@ -206,9 +206,33 @@ def parseGame(index, parsed, time):
 
   return data
 
-def loadOutputFile(fileName, numGames):
+
+def rankOrdering(rank):
+  order = {
+    'BRONZE': 0,
+    'SILVER': 1,
+    'UNRANKED': 1,
+    'GOLD': 2,
+    'PLATINUM': 3,
+    'DIAMOND': 4,
+    'CHALLENGER': 5,
+    'MASTER': 6
+  }
+  assert rank in order, "Unknown Rank: '{}'".format(rank)
+  return order[rank]
+
+
+def getRawGameData(args):
+  fileName = args.input_file
+  numGames = args.num_games
+  rank = args.rank
+
   games = []
   goals = []
+
+  filtered = 0
+
+  requiredRank = rankOrdering(rank) 
 
   outputData = loadJsonFile(fileName)
   for dataI, data in enumerate(outputData):
@@ -216,20 +240,24 @@ def loadOutputFile(fileName, numGames):
       # Filtering remakes and stuff
       continue
   
-    if len(games) == numGames:
-      break
+    # TODO consider removing surrender games
+  
+    # Filter out low rank games
+    lowerRanked = len([1 for c in data['features']['champs'] if rankOrdering(c['approxRank']) < requiredRank])
+    if lowerRanked >= 2:
+      filtered += 1
+      continue
 
     goal = data['goal']
     assert goal in (True, False)
 
     games.append(data)
     goals.append(goal)
-  return games, goals
 
+    if len(games) == numGames:
+      break
 
-def getRawGameData(fileName, numGames):
-  # Consider passing in a variable to limit number loaded
-  games, goals = loadOutputFile(fileName, numGames)
-  print ("Loaded {} games".format(len(goals)))
+  print ("Loaded {} games (filtereed {})".format(
+      len(goals), filtered))
   return games, goals
 

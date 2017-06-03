@@ -28,7 +28,7 @@ API_KEYS = [
 BASE_URL = 'https://na1.api.riotgames.com/lol/'
 KEY_PARAM = 'api_key={apiKey}'
 
-SLEEP_TIME = 1.2
+SLEEP_TIME = 2
 GAMES_PER_SUMMONER = 3
 
 socket.setdefaulttimeout(2.0)
