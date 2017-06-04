@@ -38,9 +38,7 @@ def countedFeature(df, name, events, sampleTime, verus=True):
 
 
 # Create features from champs
-def champFeature(champs, sampleTime):
-  features = set()
-
+def champFeature(data, champs, sampleTime):
   teamAChamps, teamBChamps = champs
 
   #lastBlock = timeToBlock(sampleTime)
@@ -54,7 +52,6 @@ def champFeature(champs, sampleTime):
       # TODO remove the strip after GameParser finishs.
       features.add('c_{}_{}'.format(team, filter(str.isalnum, champ)))
 
-  return features
 
 
 # Create features from towers (team, position)
@@ -195,14 +192,14 @@ def parseGame(index, parsed, time):
   data = {}
   data['current_time'] = time / 3600
 
+  champFeature(data, champs, time)
+
   goldFeatures(data, gold, time)
   towerFeatures(data, towers, time)
   dragonFeatures(data, dragons, time)
 
   countedFeature(data, 'inhibs', inhibs, time)
   countedFeature(data, 'barons', barons, time)
-
-  #features.update(champFeature(champs, time))
 
   return data
 

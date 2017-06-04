@@ -80,7 +80,7 @@ def parseGameRough(match, timeline):
     champ['spell1'] = participant['spell1Id']
     champ['spell2'] = participant['spell2Id']
     champ['approxRank'] = participant['highestAchievedSeasonTier']
-      
+
 
   dragons = []
   barons = []
