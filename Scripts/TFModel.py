@@ -163,7 +163,7 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
         regex.sub(replacement, feature) for feature in featuresUsed
       ])
       compressedFeatures = ""
-      if len(compressedList) < 12 or args.verbose >= 2:
+      if len(compressedList) < 40 or args.verbose >= 2:
         compressedFeatures = ", ".join(sorted(compressedList))
 
       print ("\t{} features: {}".format(

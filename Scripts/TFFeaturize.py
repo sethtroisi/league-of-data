@@ -1,7 +1,7 @@
 import json
 import re
 
-from collections import Counter
+from collections import Counter, defaultdict
 
 from Util import *
 
@@ -39,19 +39,31 @@ def countedFeature(df, name, events, sampleTime, verus=True):
 
 # Create features from champs
 def champFeature(data, champs, sampleTime):
-  teamAChamps, teamBChamps = champs
 
-  #lastBlock = timeToBlock(sampleTime)
-  #for block in range(0, lastBlock + 1):
-  #  for team, teamChamps in (('A', teamAChamps), ('B', teamBChamps)):
-  #    for champ in teamChamps:
-  #      features.add('champ_{}_{}_{}'.format(team, champ, block))
+  ranks = defaultdict(int)
+  summoners = defaultdict(int)
+  for champI, champ in enumerate(champs):
+    champId = champ['championId']
+    champion = champ['champion']
 
-  for team, teamChamps in (('A', teamAChamps), ('B', teamBChamps)):
-    for champ in teamChamps:
-      # TODO remove the strip after GameParser finishs.
-      features.add('c_{}_{}'.format(team, filter(str.isalnum, champ)))
+    isTeamA = champI < 5 # TODO use champ['isTeamOne']
 
+    spell1 = champ['spell1']
+    spell2 = champ['spell2']
+    
+    summoners[(isTeamA, spell1)] += 1
+    summoners[(isTeamA, spell2)] += 1
+
+    rank = champ['approxRank']
+
+    ranks[(isTeamA, rank)] += 1  
+
+
+  for (isTeamA, spell), count in summoners.items():
+    data['team_{}_{}s'.format('A' if isTeamA else 'B', spell)] = count
+    
+  for (isTeamA, rank), count in ranks.items():
+    data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = count
 
 
 # Create features from towers (team, position)
@@ -184,8 +196,7 @@ def parseGame(index, parsed, time):
   inhibs = gameFeatures['inhibs']
 
   # Champions
-  #champs = gameFeatures['champs']
-
+  champs = gameFeatures['champs']
 
   # Data that ML will see
 

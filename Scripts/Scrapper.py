@@ -21,9 +21,9 @@ from Util import *
 # https://developer.riotgames.com/api/methods#!/929/3214
 
 API_KEYS = [
-    '38940d99-0f69-4dfd-a2ea-5e9de11552a3',
+#    '38940d99-0f69-4dfd-a2ea-5e9de11552a3',
     'RGAPI-81e88d9f-2847-48af-966c-fbf02102ccd3',
-    'RGAPI-aedb5983-6170-4b41-9dd6-05336d24b345',
+#    'RGAPI-aedb5983-6170-4b41-9dd6-05336d24b345',
 ]
 BASE_URL = 'https://na1.api.riotgames.com/lol/'
 KEY_PARAM = 'api_key={apiKey}'
@@ -192,7 +192,7 @@ def main():
     except Exception as e:
       print ("FAIL: '{}'".format(e))
       fails += 1
-      if 50 * (fails - 1) > len(matchIds):
+      if 30 * (fails - 1) > len(matchIds):
         print ("breaking from {} fails".format(fails))
         return
 

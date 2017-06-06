@@ -75,6 +75,7 @@ def parseGameRough(match, timeline):
     champs.append(champ)
     
     champId = participant['championId']
+    champ['isTeamOne'] = isTeamOne
     champ['championId'] = champId
     champ['champion'] = championIdToName(champId)
     champ['spell1'] = participant['spell1Id']
