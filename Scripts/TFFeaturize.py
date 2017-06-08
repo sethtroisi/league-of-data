@@ -50,18 +50,18 @@ def champFeature(data, champs, sampleTime):
 
     spell1 = champ['spell1']
     spell2 = champ['spell2']
-    
+
     summoners[(isTeamA, spell1)] += 1
     summoners[(isTeamA, spell2)] += 1
 
     rank = champ['approxRank']
 
-    ranks[(isTeamA, rank)] += 1  
+    ranks[(isTeamA, rank)] += 1
 
 
   for (isTeamA, spell), count in summoners.items():
     data['team_{}_{}s'.format('A' if isTeamA else 'B', spell)] = count
-    
+
   for (isTeamA, rank), count in ranks.items():
     data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = count
 
@@ -69,7 +69,7 @@ def champFeature(data, champs, sampleTime):
 # Create features from towers (team, position)
 def towerFeatures(df, towers, sampleTime):
 #  for tower in range(0, 24):
-#    df.set_value(0, 'tower_{}_destroyed_at',     
+#    df.set_value(0, 'tower_{}_destroyed_at',
 
   towersA, towersB = 0, 0
   for towerData in towers:
@@ -113,14 +113,14 @@ def dragonFeatures(df, dragons, sampleTime):
     else:
       df['last_dragon_B'] = dragonTime / 1800
       dragonsB.append(name)
-    
+
     df['dragon_{}_taken_at'.format(dragonI)] = dragonTime / 1800
     df['dragon_{}_taken_by'.format(dragonI)] = 1 if isTeamA else -1
 
     # TODO last dragon_a
-    
+
   df["dragon_taken_A"] = len(dragonsA)
-  df["dragon_taken_B"] = len(dragonsB)            
+  df["dragon_taken_B"] = len(dragonsB)
 
   for dType in set(dragonsA + dragonsB):
     name = dType.lower()
@@ -153,7 +153,7 @@ def goldFeatures(df, gold, sampleTime):
     normalizeFactor = 3000 * (blockNum + 1)
     df['gold_a_block_{}'.format(blockNum)] = teamAGold / normalizeFactor
     df['gold_b_block_{}'.format(blockNum)] = teamBGold / normalizeFactor
-    
+
     # A huge win is +15k gold at 40 minutes so maybe ~1k every 2 minutes, to get [-2, +2]
     deltaGold = teamAGold - teamBGold
     normalizeFactor = 1000 * (blockNum + 1)
@@ -240,16 +240,16 @@ def getRawGameData(args):
 
   filtered = 0
 
-  requiredRank = rankOrdering(rank) 
+  requiredRank = rankOrdering(rank)
 
   outputData = loadJsonFile(fileName)
   for dataI, data in enumerate(outputData):
     if data['debug']['duration'] < 600:
       # Filtering remakes and stuff
       continue
-  
+
     # TODO consider removing surrender games
-  
+
     # Filter out low rank games
     lowerRanked = len([1 for c in data['features']['champs'] if rankOrdering(c['approxRank']) < requiredRank])
     if lowerRanked >= 2:
