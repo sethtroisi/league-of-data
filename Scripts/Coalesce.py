@@ -1,11 +1,11 @@
 import argparse
-import json
 import re
 
 from os import listdir
 from os.path import isfile, join
 
 from Util import *
+
 
 def getArgParse():
     parser = argparse.ArgumentParser(
@@ -51,12 +51,10 @@ def main(args):
         # TODO(sethtroisi): add filters based on dates and stuff here
         #match = loadJsonFile(fileName)
 
-
     files = []
     for matchId in matches.keys():
         if matchId in timelines:
             files.append((matches[matchId], timelines[matchId]))
-
 
     print ('coalescing {} matches, {} timelines into {} pairs'.format(
         len(matches), len(timelines), len(files), args.output_file))

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import json
 import random
 import time
 import urllib.request
@@ -196,6 +195,7 @@ def main():
             if 30 * (fails - 1) > len(matchIds):
                 print ("breaking from {} fails".format(fails))
                 return
+            continue
 
         # TODO(sethtroisi): make this unique games/summoners
         print ('\tAdded {} games, {} summoners'.format(

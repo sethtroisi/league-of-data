@@ -47,7 +47,7 @@ decompressed = zlib.decompress(msg)
 print ()
 print (decompressed)
 '''
-
+'''
 import struct
 import json
 import copy
@@ -371,4 +371,4 @@ if __name__ == '__main__':
 unpack_rofl_to_directory(rofl_file, output_dir)
 
 
-# '''
+'''

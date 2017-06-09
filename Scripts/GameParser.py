@@ -1,9 +1,7 @@
 import argparse
-import json
 import random
 import time
-from Util import *
-from BoolFeaturize import *
+import Util
 
 # API REFERENCE
 # https://developer.riotgames.com/api/methods
@@ -77,11 +75,10 @@ def parseGameRough(match, timeline):
         champId = participant['championId']
         champ['isTeamOne'] = isTeamOne
         champ['championId'] = champId
-        champ['champion'] = championIdToName(champId)
+        champ['champion'] = Util.championIdToName(champId)
         champ['spell1'] = participant['spell1Id']
         champ['spell2'] = participant['spell2Id']
         champ['approxRank'] = participant['highestAchievedSeasonTier']
-
 
     dragons = []
     barons = []
@@ -91,7 +88,7 @@ def parseGameRough(match, timeline):
     frames = timeline['frames']
     for frame in frames:
         frameTime = frame['timestamp'] // 1000
-        blockNum = timeToBlock(frameTime)
+        blockNum = Util.timeToBlock(frameTime)
 
         frameGold = {}
         # NOTE: frames appear to be 60 seconds
@@ -131,8 +128,8 @@ def parseGameRough(match, timeline):
                     # NOTE: Azir turrets are coded as turrets.
                     continue
 
-                towerNum = getTowerNumber(isTeamOneTower, laneType, towerType)
-                assert isTeamOneTower == teamATowerKill(towerNum)
+                towerNum = Util.getTowerNumber(isTeamOneTower, laneType, towerType)
+                assert isTeamOneTower == Util.teamATowerKill(towerNum)
 
                 #print ("killer {}({}) @{:.0f}s: ({} x {} x {}) = {}".format(
                 #  champNames[killer - 1], killer, time,
@@ -146,7 +143,7 @@ def parseGameRough(match, timeline):
                 killer = event['killerId']
                 laneType = event['laneType']
                 isTeamOneInhib = event['teamId'] == 100
-                inhibNum = getInhibNumber(isTeamOneInhib, laneType)
+                inhibNum = Util.getInhibNumber(isTeamOneInhib, laneType)
                 inhibs.append((time, isTeamOneInhib, inhibNum))
 
             wardEvent = event.get('eventType', None)
@@ -187,7 +184,7 @@ def main(args):
     gameNum = 0
     outputData = []
 
-    inFile = loadJsonFile(args.input_file)
+    inFile = Util.loadJsonFile(args.input_file)
     items = len(inFile)
     print ("{} has {} items".format(args.input_file, items))
     printEvery = items // 15
@@ -197,8 +194,8 @@ def main(args):
         assert len(t) == 2
 
         # If you had an error on this line re-run Coalesce.py
-        match = loadJsonFile('matches/' + t[0])
-        timeline = loadJsonFile('matches/' + t[1])
+        match = Util.loadJsonFile('matches/' + t[0])
+        timeline = Util.loadJsonFile('matches/' + t[1])
 
         parsed = parseGameRough(match, timeline)
         outputData.append(parsed)
@@ -212,7 +209,6 @@ def main(args):
             print ("Stopping after {} games (like you asked with -c)".format(args.count))
             break
 
-
     # Remove any ordering effect from game number
     random.shuffle(outputData)
 
@@ -220,7 +216,7 @@ def main(args):
 
     print ("parsed {} games".format(gameNum))
     print ("~{} chars ~{:.1f}MB, ~{:.1f}KB/game".format(
-            chars, chars / 10 ** 6, chars /(10 ** 3 * gameNum)))
+        chars, chars / 10 ** 6, chars / (10 ** 3 * gameNum)))
     print ()
 
     exampleLines = random.sample(range(gameNum), args.examples)
@@ -235,12 +231,10 @@ def main(args):
         print ("line {}: {}".format(exampleLine, example))
 
     if args.examples > 0:
-        writeJsonFile('example-feature.json', outputData[exampleLines[0]])
+        Util.writeJsonFile('example-feature.json', outputData[exampleLines[0]])
 
     if not args.dry_run:
-        writeJsonFile(args.output_file, outputData)
-
-
+        Util.writeJsonFile(args.output_file, outputData)
 
 # START CODE HERE
 args = getArgParse().parse_args()

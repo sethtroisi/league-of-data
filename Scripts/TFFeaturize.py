@@ -1,20 +1,8 @@
-import json
-import re
+import Util
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 
-from Util import *
-
-
-SECONDS_PER_BLOCK = 2 * 60
 GOLD_DELTA_BUCKET_SIZE = 2000
-
-
-def timeToBlock(time):
-    # I think it's more correct to return the block it's happening in.
-    # IE event (T = 0) = 0, (0 < T <= 5) = 1
-    # This for sure will be a source of off by one errors be wary.
-    return (time - 1) // SECONDS_PER_BLOCK + 1
 
 
 # Create a feature that counts how many events of the type have happened.
@@ -131,7 +119,7 @@ def dragonFeatures(df, dragons, sampleTime):
 
 # Creates features from gold values (delta)
 def goldFeatures(df, gold, sampleTime):
-    lastBlock = timeToBlock(sampleTime)
+    lastBlock = Util.timeToBlock(sampleTime)
     lastBlockNum = max(b for b in map(int, gold.keys()) if b <= lastBlock)
 
     for blockNum in range(lastBlock+1):
@@ -158,26 +146,6 @@ def goldFeatures(df, gold, sampleTime):
         deltaGold = teamAGold - teamBGold
         normalizeFactor = 1000 * (blockNum + 1)
         df['gold_a_adv_block_{}'.format(blockNum)] = deltaGold / normalizeFactor
-
-
-# Create a feature that counts how many events of the type have happened.
-def countedFeature(df, name, events, sampleTime, verus=True):
-    counts = [0, 0]
-    for event in events:
-        eventTime, isTeamA = event[:2]
-        assert 0 <= eventTime <= 10000
-        assert isTeamA in (True, False)
-
-        if eventTime > sampleTime:
-            break
-
-        counts[isTeamA] += 1
-        feature = '{}_{}_{}'.format(name, 'A' if isTeamA else 'B', counts[isTeamA])
-        df[feature] = 1.0
-
-    if verus:
-        feature = '{}_{}_to_{}'.format(name, counts[0], counts[1])
-        df[feature] = 1.0
 
 
 def parseGame(index, parsed, time):
@@ -242,7 +210,7 @@ def getRawGameData(args):
 
     requiredRank = rankOrdering(rank)
 
-    outputData = loadJsonFile(fileName)
+    outputData = Util.loadJsonFile(fileName)
     for dataI, data in enumerate(outputData):
         if data['debug']['duration'] < 600:
             # Filtering remakes and stuff

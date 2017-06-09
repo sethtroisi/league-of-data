@@ -1,16 +1,13 @@
 import argparse
 import functools
-import itertools
-import random
 import re
 import sklearn.metrics
 import time
 
-from matplotlib.widgets import Slider
 from sklearn.model_selection import train_test_split
-from Util import *
 import GraphModelStats
 import TFFeaturize
+import Util
 
 import tensorflow as tf
 
@@ -52,7 +49,7 @@ def getArgParse():
 
 
 def filterMaxBlock(blockNum, games, goals):
-    blockStart = blockNum * TFFeaturize.SECONDS_PER_BLOCK
+    blockStart = blockNum * Util.SECONDS_PER_BLOCK
 
     inds, gas, gos = [], [], []
     for i, (ga, go) in enumerate(zip(games, goals)):
@@ -81,7 +78,7 @@ def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = 
         #if training:
         #  gameTime = game['debug']['duration']
         #else:
-        gameTime = blockNum * TFFeaturize.SECONDS_PER_BLOCK
+        gameTime = blockNum * Util.SECONDS_PER_BLOCK
 
         gameData = TFFeaturize.parseGame(index, game, gameTime)
         frames.append(gameData)
@@ -96,10 +93,8 @@ def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = 
         allColumns = set()
         for frame in frames:
             allColumns.update(frame.keys())
-
-
-    if training:
         return frames, allColumns
+
     return frames
 
 
@@ -263,7 +258,7 @@ def main(args):
 
     T0 = time.time()
 
-    MAX_BLOCKS = int(3600 // TFFeaturize.SECONDS_PER_BLOCK) + 1
+    MAX_BLOCKS = int(3600 // Util.SECONDS_PER_BLOCK) + 1
 
     games, goals = TFFeaturize.getRawGameData(args)
 
@@ -299,12 +294,14 @@ def main(args):
     innerTrainTime = T3 - T2
 
     # Variables about testGames.
-    times = [(b * TFFeaturize.SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
+    times = [(b * Util.SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
     samples = [0 for b in range(MAX_BLOCKS)]
     corrects = [0 for b in range(MAX_BLOCKS)]
+
     # Averages over data (calculated after all data).
     ratios = [0 for b in range(MAX_BLOCKS)]
     logLosses = [0 for b in range(MAX_BLOCKS)]
+
     # Per Game stats.
     testWinProbs = [[] for a in range(len(testingGames))]
 

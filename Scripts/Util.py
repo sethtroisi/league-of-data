@@ -13,6 +13,15 @@ import os.path
 # Match API (this is what we want most)
 # https://developer.riotgames.com/api/methods#!/929/3214
 
+SECONDS_PER_BLOCK = 2 * 60
+
+
+def timeToBlock(time):
+    # I think it's more correct to return the block it's happening in.
+    # IE event (T = 0) = 0, (0 < T <= 5) = 1
+    # This for sure will be a source of off by one errors be wary.
+    return (time - 1) // SECONDS_PER_BLOCK + 1
+
 
 def getDataDirFileName(name):
     if name.startswith('../'):

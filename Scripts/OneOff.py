@@ -60,7 +60,6 @@ def filterMaxBlock(blockNum, games, goals):
 
     return inds, gas, gos
 
-
 featurizerTime = 0
 trainTime = 0
 def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = False):
@@ -73,9 +72,7 @@ def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = 
 
     frames = []
     for index, game in enumerate(games):
-        #if training:
-        #  gameTime = game['debug']['duration']
-        #else:
+        # NOTE for some models it might make sense to use gameTime = game['debug']['duration'] or 7200
         gameTime = blockNum * TFFeaturize.SECONDS_PER_BLOCK
 
         gameData = TFFeaturize.parseGame(index, game, gameTime)
@@ -92,11 +89,9 @@ def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = 
         for frame in frames:
             allColumns.update(frame.keys())
 
-
     if training:
         return frames, allColumns
     return frames
-
 
 def getPrediction(args, classifiers, featuresUses, testGames, blockNum, testGoals):
     blockIndex = min(blockNum, len(classifiers) - 1)
@@ -125,7 +120,6 @@ def main(args):
         tf.logging.set_verbosity(tf.logging.ERROR)
     elif args.verbose >= 2:
         tf.logging.set_verbosity(tf.logging.INFO)
-
 
     T0 = time.time()
 

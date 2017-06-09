@@ -1,8 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as pyplot
 from matplotlib.widgets import Slider
-
-from BoolFeaturize import timeToBlock
+import Util
 
 # Plot general data about accuracy, logloss, number of samples.
 def plotData(times, samples, corrects, ratios, logLosses):
@@ -49,8 +48,8 @@ def plotData(times, samples, corrects, ratios, logLosses):
     incorrects = [s - c for s, c in zip(samples, corrects)]
 
     axis3.plot(times, samples, 'b',
-                         times, corrects, 'g',
-                         times, incorrects, 'r')
+        times, corrects, 'g',
+        times, incorrects, 'r')
     axis3.set_title('Number of samples')
     axis3.set_xlabel('time (m)')
     axis3.set_ylabel('samples')
@@ -70,7 +69,10 @@ def plotGame(times, results, winPredictions):
         [0.125, 0.48, 0.775, 0.03],
         axisbg='lightgoldenrodyellow')
 
-    resultColors = {True:'g', False:'r'}
+    resultColors = {
+        True: 'g',
+        False: 'r'
+    }
 
     # For every game print prediction through out the game.
     for result, gamePredictions in zip(results, winPredictions):
@@ -92,7 +94,7 @@ def plotGame(times, results, winPredictions):
     percents = [p / percentBuckets for p in range(percentBuckets + 1)]
 
     def plotConfidentAtTime(requestedTime):
-        ti = min([(abs(requestedTime - t), i) for i,t in enumerate(times)])[1]
+        ti = min([(abs(requestedTime - t), i) for i, t in enumerate(times)])[1]
 
         cdfTrue = [0] * len(percents)
         cdfFalse = [0] * len(percents)
@@ -120,8 +122,8 @@ def plotGame(times, results, winPredictions):
                 # ~ is a fun trick to get the negative index (0 => -1, 1 => -2, ...) of an item
                 pdfFalse[~bucket] += 1
 
-        axis2.cla();
-        axis2_2.cla();
+        axis2.cla()
+        axis2_2.cla()
 
         axis2.plot(percents, cdfTrue, color = resultColors[True], alpha = 0.9)
         axis2.plot(percents, cdfFalse, color = resultColors[False], alpha = 0.9)
@@ -134,12 +136,11 @@ def plotGame(times, results, winPredictions):
         axis2_2.set_ylabel('count of games (pdf)')
 
         # 1.01 need to avoid cutting off largest bucket.
-        axis2.set_xlim([0, 1.01]);
-        axis2_2.set_xlim([0, 1.01]);
+        axis2.set_xlim([0, 1.01])
+        axis2_2.set_xlim([0, 1.01])
 
         # axis2.set_ylim([0, max(cdfTrue[0], cdfFalse[0]) + 1])
         # axis2_2.set_ylim([0, max(max(pdfTrue), max(pdfFalse)) + 1]])
-
 
         # draw the vertical line on the upper time graph
         print ("debug", len(axis1.lines))
@@ -158,8 +159,8 @@ def plotGame(times, results, winPredictions):
 
 
 def stats(times, samples, corrects, ratios, logLosses):
-    startBlock = timeToBlock(10 * 60)
-    endBlock = timeToBlock(30 * 60)
+    startBlock = Util.timeToBlock(10 * 60)
+    endBlock = Util.timeToBlock(30 * 60)
 
     # TODO: Should this be weighted by number of games?
     sumLosses = sum(logLosses[startBlock:endBlock+1])

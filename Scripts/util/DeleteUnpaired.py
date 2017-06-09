@@ -20,7 +20,7 @@ for fileName in allFiles:
     if not match:
         print ("no match:", fileName)
 
-    #fileType = match.group(1)
+    fileType = match.group(1)
     mId = match.group(2)
 
     items[mId].append(fileName)
