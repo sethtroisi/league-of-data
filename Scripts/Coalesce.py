@@ -8,60 +8,60 @@ from os.path import isfile, join
 from Util import *
 
 def getArgParse():
-  parser = argparse.ArgumentParser(
-      description='Coalesces downloaded json matches to training and test data')
+    parser = argparse.ArgumentParser(
+        description='Coalesces downloaded json matches to training and test data')
 
-  parser.add_argument(
-      '-d', '--directory',
-      type=str,
-      default='../Data/matches/',
-      help='Diretory of match json files')
+    parser.add_argument(
+        '-d', '--directory',
+        type=str,
+        default='../Data/matches/',
+        help='Diretory of match json files')
 
-  parser.add_argument(
-      '--output-file',
-      type=str,
-      default='../Data/matchesAll.json',
-      help='File to store concatinated matches')
+    parser.add_argument(
+        '--output-file',
+        type=str,
+        default='../Data/matchesAll.json',
+        help='File to store concatinated matches')
 
-  return parser
+    return parser
 
 
 def main(args):
-  baseDir = args.directory
-  
-  timelines = {}
-  matches = {}
-  
-  for f in listdir(baseDir):
-    fileName = join(baseDir, f)
+    baseDir = args.directory
 
-    if not isfile(fileName):
-      continue
+    timelines = {}
+    matches = {}
 
-    isMatch = re.match('^getMatch-[0-9]{10}$', f)
-    isTimeline = re.match('^getTimeline-[0-9]{10}$', f)
-    matchId = f[-10:]
-    assert isMatch or isTimeline, f
-    
-    if isMatch:
-      matches[matchId] = f
-    else:
-      timelines[matchId] = f
+    for f in listdir(baseDir):
+        fileName = join(baseDir, f)
 
-    # TODO(sethtroisi): add filters based on dates and stuff here
-    #match = loadJsonFile(fileName)
+        if not isfile(fileName):
+            continue
 
+        isMatch = re.match('^getMatch-[0-9]{10}$', f)
+        isTimeline = re.match('^getTimeline-[0-9]{10}$', f)
+        matchId = f[-10:]
+        assert isMatch or isTimeline, f
 
-  files = []
-  for matchId in matches.keys():
-    if matchId in timelines:
-      files.append((matches[matchId], timelines[matchId]))
+        if isMatch:
+            matches[matchId] = f
+        else:
+            timelines[matchId] = f
+
+        # TODO(sethtroisi): add filters based on dates and stuff here
+        #match = loadJsonFile(fileName)
 
 
-  print ('coalescing {} matches, {} timelines into {} pairs'.format(
-      len(matches), len(timelines), len(files), args.output_file))
+    files = []
+    for matchId in matches.keys():
+        if matchId in timelines:
+            files.append((matches[matchId], timelines[matchId]))
 
-  writeJsonFile(args.output_file, files)
+
+    print ('coalescing {} matches, {} timelines into {} pairs'.format(
+        len(matches), len(timelines), len(files), args.output_file))
+
+    writeJsonFile(args.output_file, files)
 
 
 # START CODE HERE
