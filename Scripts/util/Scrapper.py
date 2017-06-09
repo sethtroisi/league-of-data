@@ -163,10 +163,6 @@ def main():
 
     matchIds = set()
 
-    # MatchId -> Match.
-    matches = {}
-    timelines = {}
-
     seedNames = ['inkaruga', 'kingvash', 'siren swag']
     seedIds = {}
     for name in seedNames:
@@ -202,8 +198,6 @@ def main():
             len(newMatches), len(fellowSummoners)))
 
         matchIds.update(newMatchIds)
-        #matches.update(newMatches)
-        #timelines.update(newTimelines)
         for fName, fId in fellowSummoners.items():
             if fId not in summoners:
                 summoners[fId] = fName

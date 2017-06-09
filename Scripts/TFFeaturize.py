@@ -26,7 +26,7 @@ def countedFeature(df, name, events, sampleTime, verus=True):
 
 
 # Create features from champs
-def champFeature(data, champs, sampleTime):
+def champFeature(data, champs):
 
     ranks = defaultdict(int)
     summoners = defaultdict(int)
@@ -148,7 +148,7 @@ def goldFeatures(df, gold, sampleTime):
         df['gold_a_adv_block_{}'.format(blockNum)] = deltaGold / normalizeFactor
 
 
-def parseGame(index, parsed, time):
+def parseGame(parsed, time):
     if time is None:
         assert False
 
@@ -171,7 +171,7 @@ def parseGame(index, parsed, time):
     data = dict()
     data['current_time'] = time / 3600
 
-    champFeature(data, champs, time)
+    champFeature(data, champs)
 
     goldFeatures(data, gold, time)
     towerFeatures(data, towers, time)

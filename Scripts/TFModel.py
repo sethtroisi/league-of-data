@@ -80,7 +80,7 @@ def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = 
         #else:
         gameTime = blockNum * Util.SECONDS_PER_BLOCK
 
-        gameData = TFFeaturize.parseGame(index, game, gameTime)
+        gameData = TFFeaturize.parseGame(game, gameTime)
         frames.append(gameData)
 
     T1 = time.time()
