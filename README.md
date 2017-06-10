@@ -1,6 +1,12 @@
 # league-of-data
 League of data now with Tensorflow!
 
+Best command right now:
+
+```
+$ time python3 TFModel.py -n 5000 --rank PLATINUM -b 5-15 -v 2
+```
+
 Graph of predictions vs time
 ![screenshot](https://github.com/sethtroisi/league-of-data/blob/master/Extra/tensorflow-not-messedup-training.png)
 

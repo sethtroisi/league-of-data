@@ -28,6 +28,12 @@ def getArgParse():
         help='Numbers of games to load (default -1 = all)')
 
     parser.add_argument(
+        '-b', '--blocks',
+        type=str,
+        default="all",
+        help='blocks to test (all, 5, 13, 2-10)')
+
+    parser.add_argument(
         '-r', '--rank',
         type=str,
         default='GOLD',
@@ -46,6 +52,22 @@ def getArgParse():
         help='how much data to print (0 = little, 1 = most, 3 = everything)')
 
     return parser
+
+
+def processBlocks(args):
+    lowBlock = 0
+    highBlock = int(3600 // Util.SECONDS_PER_BLOCK)
+
+    rawBlock = args.blocks
+    if rawBlock == "all":
+        pass
+    elif '-' in rawBlock:
+        lowBlock, highBlock = list(map(int, rawBlock.split("-")))
+    else:
+        assert rawBlock.isdigit(), "block not digits [{}]".format(rawBlock)
+        lowBlock = highBlock = int(rawBlock)
+
+    return list(range(lowBlock, highBlock + 1))
 
 
 def filterMaxBlock(blockNum, games, goals):
@@ -72,9 +94,6 @@ def gameToFeatures(args, games, goals, blockNum, *, training = False):
 
     # Filter out games that ended already
     indexes, games, goals = filterMaxBlock(blockNum, games, goals)
-
-    if training and args.verbose >= 2:
-        print ("\tfeaturizing {} games".format(len(games)))
 
     T0 = time.time()
 
@@ -119,22 +138,22 @@ def inputFn(featuresUsed, data, goals = None):
     return featureCols, labels
 
 
-def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoals):
+def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     global featurizerTime, trainTime
 
     params = {
-        'dropout': 0.3,
+        'dropout': 0.1,
         'learningRate': 0.1,
-        'hiddenUnits': [20, 20],
+        'hiddenUnits': [100, 20],
         'earlyStoppingRounds': 300,
         'steps': 4000,
         'extraStepsPerBlock': 500,
     }
 
-    classifiers = []
-    featuresUses = []
+    classifiers = {}
+    featuresUses = {}
 
-    for blockNum in range(numBlocks):
+    for blockNum in blocks:
         blockTrainFeatureSets, blockTrainGoals, featuresUsed = gameToFeatures(
             args, trainGames, trainGoals, blockNum, training = True)
 
@@ -230,15 +249,15 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
         T1 = time.time()
         trainTime += T1 - T0
 
-        classifiers.append(classifier)
-        featuresUses.append(featuresUsed)
+        classifiers[blockNum] = classifier
+        featuresUses[blockNum] = featuresUsed
     return classifiers, featuresUses
 
 
 def getPrediction(args, classifiers, featuresUses, testGames, testGoals, blockNum):
-    blockIndex = min(blockNum, len(classifiers) - 1)
-    classifier = classifiers[blockIndex]
-    featuresUsed = featuresUses[blockIndex]
+    assert blockNum in classifiers and blockNum in featuresUses
+    classifier = classifiers[blockNum]
+    featuresUsed = featuresUses[blockNum]
 
     predictFeatureSets, predictGoalsEmpty = gameToFeatures(
         args, testGames, testGoals, blockNum)
@@ -267,8 +286,7 @@ def main(args):
 
     T0 = time.time()
 
-    MAX_BLOCKS = int(3600 // Util.SECONDS_PER_BLOCK) + 1
-
+    blocks = processBlocks(args)
     games, goals = TFFeaturize.getRawGameData(args)
 
     T1 = time.time()
@@ -292,7 +310,7 @@ def main(args):
 
     classifiers, featuresUses = buildClassifier(
         args,
-        MAX_BLOCKS,
+        blocks,
         trainingGames,
         trainingGoals,
         testingGames,
@@ -302,37 +320,42 @@ def main(args):
     T3 = time.time()
     innerTrainTime = T3 - T2
 
+    maxBlock = max(blocks)
+
     # Variables about testGames.
-    times = [(b * Util.SECONDS_PER_BLOCK) / 60 for b in range(MAX_BLOCKS)]
-    samples = [0 for b in range(MAX_BLOCKS)]
-    corrects = [0 for b in range(MAX_BLOCKS)]
+    times = [(b * Util.SECONDS_PER_BLOCK) / 60 for b in range(maxBlock + 1)]
+    samples = [0 for b in range(maxBlock + 1)]
+    corrects = [0 for b in range(maxBlock + 1)]
 
     # Averages over data (calculated after all data).
-    ratios = [0 for b in range(MAX_BLOCKS)]
-    logLosses = [0 for b in range(MAX_BLOCKS)]
+    ratios = [0 for b in range(maxBlock + 1)]
+    logLosses = [0 for b in range(maxBlock + 1)]
 
     # Per Game stats.
-    testWinProbs = [[] for a in range(len(testingGames))]
+    testWinProbs = [
+        [[0.5, 0.5] for block in range(min(maxBlock, Util.timeToBlock(game['debug']['duration'])) + 1)]
+        for game in testingGames
+    ]
 
-    for blockNum in range(MAX_BLOCKS):
+    # TODO try setting samples for all blocks (if I can)
+
+    for blockNum in blocks:
         gameIs, testingBlockGames, testingBlockGoals = filterMaxBlock(
             blockNum, testingGames, testingGoals)
 
-        # Do all predictions at the sametime (needed because of how predict reloads the model each time).
-        print (len(gameIs), len(testingBlockGames), len(testingBlockGoals))
-
+        # Do all predictions at the same time (needed because of how predict reloads the model each time).
         predictions = getPrediction(args, classifiers, featuresUses, testingBlockGames, testingBlockGoals, blockNum)
 
         for gameI, prediction in zip(gameIs, predictions):
-            correct, gamePredictions = prediction
+            correct, gamePrediction = prediction
 
             # store data to graph
             samples[blockNum] += 1
             corrects[blockNum] += 1 if correct else 0
-            testWinProbs[gameI].append(gamePredictions)
+            testWinProbs[gameI][blockNum] = gamePrediction
 
-    for blockNum in range(MAX_BLOCKS):
-        if samples[blockNum] > 0:
+    for blockNum in blocks:
+        if samples[blockNum] > 20:
             ratios[blockNum] = corrects[blockNum] / samples[blockNum]
 
             goals = []
@@ -349,9 +372,9 @@ def main(args):
 
     # If data was tabulated on the testingData print stats about it.
     if len(times) > 0:
-        GraphModelStats.stats(times, samples, corrects, ratios, logLosses)
-        GraphModelStats.plotData(times, samples, corrects, ratios, logLosses)
-        GraphModelStats.plotGame(times, testingGoals, testWinProbs)
+        GraphModelStats.stats(blocks, times, samples, corrects, ratios, logLosses)
+        GraphModelStats.plotData(blocks, times, samples, corrects, ratios, logLosses)
+        GraphModelStats.plotGame(max(blocks), times, testingGoals, testWinProbs)
 
     T5 = time.time()
     viewTime = T5 - T4
@@ -364,7 +387,6 @@ def main(args):
     print ()
     print ("\tfeaturizerTime: {:.3f}".format(featurizerTime))
     print ("\ttrainTime: {:.3f}".format(trainTime))
-
 
 if __name__ == '__main__':
     args = getArgParse().parse_args()

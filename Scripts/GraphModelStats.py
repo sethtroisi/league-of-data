@@ -4,7 +4,7 @@ from matplotlib.widgets import Slider
 import Util
 
 # Plot general data about accuracy, logloss, number of samples.
-def plotData(times, samples, corrects, ratios, logLosses):
+def plotData(blocks, times, samples, corrects, ratios, logLosses):
     fig, (axis1, axis2, axis3) = pyplot.subplots(3, 1)
     fig.subplots_adjust(hspace = 0.6)
 
@@ -17,7 +17,16 @@ def plotData(times, samples, corrects, ratios, logLosses):
     axis1.set_xlabel('time (m)')
     axis1.set_ylabel('correctness')
 
-    bestAccuracy = max(ratios[:len(ratios) * 2 // 3])
+    maxSamples = max(samples)
+    minBlock = min(blocks)
+    maxBlock = min(blocks)
+    for block in sorted(blocks):
+        numGames = samples[block]
+        if numGames > 50 and numGames * 4 > maxSamples:
+            maxBlock = block
+
+
+    bestAccuracy = max(ratios[minBlock:maxBlock + 1])
     time = times[ratios.index(bestAccuracy)]
     accuracyText = '{:.3f} (@{:2.0f}m)'.format(bestAccuracy, time)
     axis3.text(
@@ -35,7 +44,7 @@ def plotData(times, samples, corrects, ratios, logLosses):
     axis2.set_ylabel('loss (log)')
     axis2.set_ylim([0, maxLogLoss])
 
-    minLogLoss = min(logLosses[:len(logLosses) * 2 // 3])
+    minLogLoss = min(logLosses[minBlock:maxBlock + 1])
     time = times[logLosses.index(minLogLoss)]
     logLossText = '{:.3f} (@{:2.0f}m)'.format(minLogLoss, time)
     axis2.text(
@@ -58,7 +67,7 @@ def plotData(times, samples, corrects, ratios, logLosses):
 
 
 # Plot game predictions vs time.
-def plotGame(times, results, winPredictions):
+def plotGame(maxBlock, times, results, winPredictions):
     fig, (axis1, axis2) = pyplot.subplots(2, 1)
     axis2_2 = axis2.twinx()
 
@@ -76,10 +85,9 @@ def plotGame(times, results, winPredictions):
 
     # For every game print prediction through out the game.
     for result, gamePredictions in zip(results, winPredictions):
-        blocks = len(gamePredictions)
+        # TODO Set alpha dependant on number of games
         color = resultColors[result]
-        # TODO Set alpha depentant on number of games
-        axis1.plot(times[:blocks], [gP[1] for gP in gamePredictions], color, alpha = 0.05)
+        axis1.plot(times[:len(gamePredictions)], [gP[1] for gP in gamePredictions], color, alpha = 0.05)
 
     axis1.set_title('Predictions of win rate across the game')
     axis1.set_xlabel('time (m)')
@@ -158,9 +166,12 @@ def plotGame(times, results, winPredictions):
     pyplot.show()
 
 
-def stats(times, samples, corrects, ratios, logLosses):
+def stats(blocks, times, samples, corrects, ratios, logLosses):
     startBlock = Util.timeToBlock(10 * 60)
     endBlock = Util.timeToBlock(30 * 60)
+
+    startBlock = max(startBlock, min(blocks))
+    endBlock = min(endBlock, max(blocks))
 
     # TODO: Should this be weighted by number of games?
     sumLosses = sum(logLosses[startBlock:endBlock+1])
