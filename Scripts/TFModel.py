@@ -51,29 +51,34 @@ def getArgParse():
 def filterMaxBlock(blockNum, games, goals):
     blockStart = blockNum * Util.SECONDS_PER_BLOCK
 
-    inds, gas, gos = [], [], []
-    for i, (ga, go) in enumerate(zip(games, goals)):
-        if blockStart > ga['debug']['duration']:
+    indexes = []
+    useableGames = []
+    useableGoals = []
+    for i, (game, goal) in enumerate(zip(games, goals)):
+        if blockStart > game['debug']['duration']:
             continue
 
-        inds.append(i)
-        gas.append(ga)
-        gos.append(go)
+        indexes.append(i)
+        useableGames.append(game)
+        useableGoals.append(goal)
 
-    return inds, gas, gos
+    return indexes, useableGames, useableGoals
 
 
 featurizerTime = 0
 trainTime = 0
-def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = False):
+def gameToFeatures(args, games, goals, blockNum, *, training = False):
     global featurizerTime, trainTime
+
+    # Filter out games that ended already
+    indexes, games, goals = filterMaxBlock(blockNum, games, goals)
 
     if training and args.verbose >= 2:
         print ("\tfeaturizing {} games".format(len(games)))
 
     T0 = time.time()
 
-    frames = []
+    gameFeatureSets = []
     for index, game in enumerate(games):
         #if training:
         #  gameTime = game['debug']['duration']
@@ -81,7 +86,7 @@ def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = 
         gameTime = blockNum * Util.SECONDS_PER_BLOCK
 
         gameData = TFFeaturize.parseGame(game, gameTime)
-        frames.append(gameData)
+        gameFeatureSets.append(gameData)
 
     T1 = time.time()
     featurizerTime += T1 - T0
@@ -91,11 +96,11 @@ def gameToPDF(args, games, *, featuresToExport = None, blockNum = 0, training = 
 
     if training:
         allColumns = set()
-        for frame in frames:
-            allColumns.update(frame.keys())
-        return frames, allColumns
+        for featureSet in gameFeatureSets:
+            allColumns.update(featureSet.keys())
+        return gameFeatureSets, goals, allColumns
 
-    return frames
+    return gameFeatureSets, goals
 
 
 def inputFn(featuresUsed, data, goals = None):
@@ -109,7 +114,7 @@ def inputFn(featuresUsed, data, goals = None):
     }
 
     if goals is None:
-        return  featureCols
+        return featureCols
     labels = tf.constant(goals, shape=[len(goals), 1], dtype='int32')
     return featureCols, labels
 
@@ -120,7 +125,7 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
     params = {
         'dropout': 0.3,
         'learningRate': 0.1,
-        'hiddenUnits': [100, 20],
+        'hiddenUnits': [20, 20],
         'earlyStoppingRounds': 300,
         'steps': 4000,
         'extraStepsPerBlock': 500,
@@ -130,15 +135,19 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
     featuresUses = []
 
     for blockNum in range(numBlocks):
-        usableIndexes, usableGames, usableGoals = filterMaxBlock(blockNum, trainGames, trainGoals)
+        blockTrainFeatureSets, blockTrainGoals, featuresUsed = gameToFeatures(
+            args, trainGames, trainGoals, blockNum, training = True)
 
-        if args.verbose >= 1:
-            print ("\ttraining block {} on {} games".format(blockNum, len(usableGames)))
+        blockTestFeatureSets, blockTestGoals = gameToFeatures(
+            args, testGames, testGoals, blockNum, training = False)
 
-        if len(usableGames) == 0:
+
+        if len(blockTrainFeatureSets) == 0:
             break
 
-        trainDF, featuresUsed = gameToPDF(args, usableGames, blockNum = blockNum, training = True)
+        if args.verbose >= 1:
+            print ("\ttraining block {} on {} games".format(blockNum, len(blockTrainFeatureSets)))
+
 
         if args.verbose >= 1:
             regex = re.compile('_([ABb0-9]{1,2})(?=$|_)', re.I)
@@ -188,12 +197,9 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
             ),
         )
 
-        usabelIndexesTest, usableGamesTest, useableGoalsTest = filterMaxBlock(blockNum, testGames, testGoals)
-        testDF = gameToPDF(args, usableGamesTest, blockNum = blockNum, training = False)
-        testRes = inputFn(featuresUsed, testDF, useableGoalsTest)
-
         validationMonitor = tf.contrib.learn.monitors.ValidationMonitor(
-            input_fn = functools.partial(inputFn, featuresUsed, testDF, useableGoalsTest),
+            input_fn = functools.partial(
+                inputFn, featuresUsed, blockTestFeatureSets, blockTestGoals),
             eval_steps = 1,
             every_n_steps = 100,
             early_stopping_rounds = params['earlyStoppingRounds']
@@ -204,13 +210,15 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
             print ()
 
         classifier.fit(
-            input_fn = functools.partial(inputFn, featuresUsed, trainDF, usableGoals),
+            input_fn = functools.partial(
+                inputFn, featuresUsed, blockTrainFeatureSets, blockTrainGoals),
             monitors = [validationMonitor],
             steps = params['steps'] + (15 - abs(blockNum - 15)) * params['extraStepsPerBlock'],
         )
 
         classifier.evaluate(
-            input_fn = functools.partial(inputFn, featuresUsed, testDF, useableGoalsTest),
+            input_fn = functools.partial(
+                inputFn, featuresUsed, blockTestFeatureSets, blockTestGoals),
             steps = 1,
         )
 
@@ -227,17 +235,18 @@ def buildClassifier(args, numBlocks, trainGames, trainGoals, testGames, testGoal
     return classifiers, featuresUses
 
 
-def getPrediction(args, classifiers, featuresUses, testGames, blockNum, testGoals):
+def getPrediction(args, classifiers, featuresUses, testGames, testGoals, blockNum):
     blockIndex = min(blockNum, len(classifiers) - 1)
     classifier = classifiers[blockIndex]
     featuresUsed = featuresUses[blockIndex]
 
-    df = gameToPDF(args, testGames, blockNum = blockNum, featuresToExport = featuresUsed)
-    modelGuess = classifier.predict_proba(
-        input_fn = functools.partial(inputFn, featuresUsed, df, testGoals))
+    predictFeatureSets, predictGoalsEmpty = gameToFeatures(
+        args, testGames, testGoals, blockNum)
 
-    for testGoal in testGoals:
-        probs = next(modelGuess)
+    modelGuess = classifier.predict_proba(
+        input_fn = functools.partial(inputFn, featuresUsed, predictFeatureSets))
+
+    for probs, testGoal in zip(modelGuess, testGoals):
 
         # This is due to the sorting of [False, True].
         BProb, AProb = probs
@@ -306,14 +315,16 @@ def main(args):
     testWinProbs = [[] for a in range(len(testingGames))]
 
     for blockNum in range(MAX_BLOCKS):
-        gameIs, testingBlockGames, testingBlockGoals = \
-                filterMaxBlock(blockNum, testingGames, testingGoals)
+        gameIs, testingBlockGames, testingBlockGoals = filterMaxBlock(
+            blockNum, testingGames, testingGoals)
 
         # Do all predictions at the sametime (needed because of how predict reloads the model each time).
-        preditions = getPrediction(args, classifiers, featuresUses, testingBlockGames, blockNum, testingBlockGoals)
+        print (len(gameIs), len(testingBlockGames), len(testingBlockGoals))
 
-        for gameI, predition in zip(gameIs, preditions):
-            correct, gamePredictions = predition
+        predictions = getPrediction(args, classifiers, featuresUses, testingBlockGames, testingBlockGoals, blockNum)
+
+        for gameI, prediction in zip(gameIs, predictions):
+            correct, gamePredictions = prediction
 
             # store data to graph
             samples[blockNum] += 1

@@ -46,11 +46,14 @@ def champFeature(data, champs):
 
         ranks[(isTeamA, rank)] += 1
 
+        #data['champion_{}_team_{}'.format(champion, 'A' if isTeamA else 'B')] = 1.0
+
 
     for (isTeamA, spell), count in summoners.items():
         data['team_{}_{}s'.format('A' if isTeamA else 'B', spell)] = count
 
     for (isTeamA, rank), count in ranks.items():
+        # TODO add spellToName to util
         data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = count
 
 
