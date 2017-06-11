@@ -151,7 +151,6 @@ def plotGame(maxBlock, times, results, winPredictions):
         # axis2_2.set_ylim([0, max(max(pdfTrue), max(pdfFalse)) + 1]])
 
         # draw the vertical line on the upper time graph
-        print ("debug", len(axis1.lines))
         for line in axis1.lines:
             if line.get_gid() == 'vline':
                 line.remove()
@@ -181,7 +180,7 @@ def stats(blocks, times, samples, corrects, ratios, logLosses):
     mediumRatio = np.median(ratios[startBlock:endBlock+1])
 
     print ()
-    print ("Global Stats 10 to 30 minutes")
+    print ("Global Stats 10 to 30 minutes ({} Games)".format(max(samples)))
     print ()
     print ("Sum LogLoss: {:.3f}".format(sumLosses))
     print ("Correct Predictions:", totalCorrect)
