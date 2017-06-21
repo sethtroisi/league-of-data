@@ -87,6 +87,21 @@ def filterMaxBlock(blockNum, games, goals):
     return indexes, useableGames, useableGoals
 
 
+def featuresToColumns(features):
+    columns = []
+    for feature in features:
+        if not feature.startswith("embedding_"):
+            column = tf.contrib.layers.real_valued_column(feature)
+        else:
+            column = tf.contrib.layers.embedding_column(
+                tf.contrib.layers.sparse_column_with_integerized_feature(
+                    feature,
+                    bucket_size = 150),
+                dimension = 5, # 4 * 10 = 40 extra features
+                combiner = "sqrtn")
+        columns.append(column)
+    return columns
+
 featurizerTime = 0
 trainTime = 0
 def gameToFeatures(args, games, goals, blockNum, *, training = False):
@@ -121,20 +136,25 @@ def gameToFeatures(args, games, goals, blockNum, *, training = False):
 
     return gameFeatureSets, goals
 
+def featureNameToType(feature):
+    if feature.startswith("embedding_"):
+        return tf.int32
+    return tf.float16
+
 
 def inputFn(featuresUsed, data, goals = None):
     featureCols = {
-        k: tf.constant(
-            [d.get(k, 0) for d in data],
+        feature: tf.constant(
+            [d.get(feature, 0) for d in data],
             shape = [len(data), 1],
-            dtype = 'float32'
+            dtype = featureNameToType(feature),
         )
-        for k in featuresUsed
+        for feature in featuresUsed
     }
 
     if goals is None:
         return featureCols
-    labels = tf.constant(goals, shape=[len(goals), 1], dtype='int32')
+    labels = tf.constant(goals, shape=[len(goals), 1], dtype='float16')
     return featureCols, labels
 
 
@@ -142,10 +162,10 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     global featurizerTime, trainTime
 
     params = {
-        'dropout': 0.1,
-        'learningRate': 0.1,
-        'hiddenUnits': [100, 20],
-        'earlyStoppingRounds': 300,
+        'dropout': 0.03,
+        'learningRate': 0.2,
+        'hiddenUnits': [50, 20, 10],
+        'earlyStoppingRounds': 400,
         'steps': 4000,
         'extraStepsPerBlock': 500,
     }
@@ -190,18 +210,15 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
             print ("\t{} features: {}".format(
                 len(featuresUsed), compressedFeatures))
 
-        featureColumns = [
-            tf.contrib.layers.real_valued_column(k) for k in featuresUsed
-        ]
-        # tf.contrib.layers.embedding_column(tf.contrib.layers.sparse_column_with_integerized_feature(k, 100), dimension = 20)
+        featureColumns = featuresToColumns(featuresUsed)
 
         T0 = time.time()
 
         #optimizer = tf.train.AdamOptimizer(learning_rate = params['learningRate'])
         optimizer = tf.train.ProximalAdagradOptimizer(
             learning_rate = params['learningRate'],
-            l1_regularization_strength = 0.0015,
-            l2_regularization_strength = 0.0015,
+            l1_regularization_strength = 0.0002,
+            l2_regularization_strength = 0.0002,
         )
 
         classifier = tf.contrib.learn.DNNClassifier(

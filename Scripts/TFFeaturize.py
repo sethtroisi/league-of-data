@@ -30,11 +30,11 @@ def champFeature(data, champs):
 
     ranks = defaultdict(int)
     summoners = defaultdict(int)
-    for champI, champ in enumerate(champs):
+    for playerI, champ in enumerate(champs):
         champId = champ['championId']
-        champion = champ['champion']
+        champion = Util.championIdToName(champId)
 
-        isTeamA = champI < 5 # TODO use champ['isTeamOne']
+        isTeamA = champ['isTeamOne']
 
         spell1 = champ['spell1']
         spell2 = champ['spell2']
@@ -46,8 +46,8 @@ def champFeature(data, champs):
 
         ranks[(isTeamA, rank)] += 1
 
-        #data['champion_{}_team_{}'.format(champion, 'A' if isTeamA else 'B')] = 1.0
-
+        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] =\
+            Util.minimizedChampId(champId)
 
     for (isTeamA, spell), count in summoners.items():
         data['team_{}_{}s'.format('A' if isTeamA else 'B', spell)] = count

@@ -74,8 +74,21 @@ def parseGameRough(match, timeline):
 
         champId = participant['championId']
         champ['isTeamOne'] = isTeamOne
+
+        role = participant['timeline']['role']
+        lane = participant['timeline']['lane']
+        possibleRoles = ['NONE', 'SOLO', 'DUO', 'DUO_CARRY', 'DUO_SUPPORT']
+        possibleLanes = ['BOTTOM', 'JUNGLE', 'MIDDLE', 'TOP']
+        assert role in possibleRoles, role
+        assert lane in possibleLanes, lane
+
+        position = 10 * possibleLanes.index(lane) + possibleRoles.index(role)
+        champ['role'] = role
+        champ['lane'] = lane
+        champ['positionIndex'] = position
+
         champ['championId'] = champId
-        champ['champion'] = Util.championIdToName(champId)
+#        champ['champion'] = Util.championIdToName(champId)
         champ['spell1'] = participant['spell1Id']
         champ['spell2'] = participant['spell2Id']
         champ['approxRank'] = participant['highestAchievedSeasonTier']
