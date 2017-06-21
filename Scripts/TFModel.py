@@ -3,6 +3,7 @@ import functools
 import re
 import sklearn.metrics
 import time
+import tempfile
 
 from sklearn.model_selection import train_test_split
 import GraphModelStats
@@ -157,15 +158,35 @@ def inputFn(featuresUsed, data, goals = None):
     labels = tf.constant(goals, shape=[len(goals), 1], dtype='float16')
     return featureCols, labels
 
+def learningRateFn(params):
+    learningRate = tf.train.exponential_decay(
+        learning_rate = params['learningRate'],
+        global_step = tf.contrib.framework.get_or_create_global_step(),
+        decay_steps = 100,
+        decay_rate = .92,
+        staircase = True)
+
+    tf.summary.scalar("learning_rate/learning_rate", learningRate)
+
+    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
+
+#    optimizer = tf.train.ProximalAdagradOptimizer(
+#        learning_rate = learningRate,
+#        l1_regularization_strength = params['regularization'],
+#        l2_regularization_strength = params['regularization'],
+#    )
+    return optimizer
+
 
 def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     global featurizerTime, trainTime
 
     params = {
-        'dropout': 0.03,
+        'dropout': 0.1,
+        'regularization': 0.0003,
         'learningRate': 0.2,
-        'hiddenUnits': [50, 20, 10],
-        'earlyStoppingRounds': 400,
+        'hiddenUnits': [100, 20, 10],
+        'earlyStoppingRounds': 600,
         'steps': 4000,
         'extraStepsPerBlock': 500,
     }
@@ -214,19 +235,15 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
         T0 = time.time()
 
-        #optimizer = tf.train.AdamOptimizer(learning_rate = params['learningRate'])
-        optimizer = tf.train.ProximalAdagradOptimizer(
-            learning_rate = params['learningRate'],
-            l1_regularization_strength = 0.0002,
-            l2_regularization_strength = 0.0002,
-        )
+        tempdir = tempfile.mkdtemp(prefix = "tmp-tf-lol")
 
         classifier = tf.contrib.learn.DNNClassifier(
-            feature_columns = featureColumns,
             hidden_units = params['hiddenUnits'],
+            feature_columns = featureColumns,
+            model_dir = tempdir,
             n_classes = 2,
             dropout = params['dropout'],
-            optimizer = optimizer,
+            optimizer = functools.partial(learningRateFn, params),
             config = tf.contrib.learn.RunConfig(
                 save_checkpoints_steps = 99,
                 save_checkpoints_secs = None
