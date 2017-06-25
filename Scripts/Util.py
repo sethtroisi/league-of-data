@@ -50,6 +50,29 @@ def writeJsonFile(name, data):
         json.dump(data, f, indent=1)
 
 
+def rankOrdering(rank):
+    order = {
+        'BRONZE': 0,
+        'SILVER': 1,
+        'UNRANKED': 1,
+        'GOLD': 2,
+        'PLATINUM': 3,
+        'DIAMOND': 4,
+        'CHALLENGER': 5,
+        'MASTER': 6
+    }
+    assert rank in order, "Unknown Rank: '{}'".format(rank)
+    return order[rank]
+
+
+def spellIdToName(spellId):
+    summonerSpell = {
+        1: "Cleanse", 3: "Exhaust", 4: "Flash", 6: "Ghost", 7: "Heal", 11: "Smite",
+        12: "Teleport", 13: "Clarity", 14: "Ignite", 21: "Barrier"
+    }
+    return summonerSpell.get(spellId).lower() #, 'unknown-spell-{}'.format(spellId))
+
+
 champIdToName = {
     1: "Annie", 2: "Olaf", 3: "Galio", 4: "Twisted Fate", 5: "Xin Zhao", 6: "Urgot", 7: "LeBlanc", 8: "Vladimir",
     9: "Fiddlesticks", 10: "Kayle", 11: "Master Yi", 12: "Alistar", 13: "Ryze", 14: "Sion", 15: "Sivir", 16: "Soraka",

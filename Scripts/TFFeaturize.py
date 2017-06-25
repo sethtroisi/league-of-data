@@ -27,6 +27,7 @@ def countedFeature(df, name, events, sampleTime, verus=True):
 
 # Create features from champs
 def champFeature(data, champs):
+    assert False, "None of these seemed to decrease log loss :("
 
     ranks = defaultdict(int)
     summoners = defaultdict(int)
@@ -46,15 +47,18 @@ def champFeature(data, champs):
 
         ranks[(isTeamA, rank)] += 1
 
-        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] =\
-            Util.minimizedChampId(champId)
+#        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] =\
+#            Util.minimizedChampId(champId)
 
-    for (isTeamA, spell), count in summoners.items():
-        data['team_{}_{}s'.format('A' if isTeamA else 'B', spell)] = count
+#    for (isTeamA, spellId), count in summoners.items():
+#        spellName = Util.spellIdToName(spellId)
+#        data['team_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
 
-    for (isTeamA, rank), count in ranks.items():
-        # TODO add spellToName to util
-        data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = count
+#    sumRank = 0
+#    for (isTeamA, rank), count in ranks.items():
+#        sumRank += (1 if isTeamA else -1) * count * Util.rankOrdering(rank)
+#        data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
+#    data['rank_sum_diff'] = sumRank
 
 
 # Create features from towers (team, position)
@@ -176,29 +180,17 @@ def parseGame(parsed, time):
 
     champFeature(data, champs)
 
-    goldFeatures(data, gold, time)
-    towerFeatures(data, towers, time)
-    dragonFeatures(data, dragons, time)
+    print (data)
 
-    countedFeature(data, 'inhibs', inhibs, time)
-    countedFeature(data, 'barons', barons, time)
+    #goldFeatures(data, gold, time)
+    #towerFeatures(data, towers, time)
+    #dragonFeatures(data, dragons, time)
+
+    #countedFeature(data, 'inhibs', inhibs, time)
+    #countedFeature(data, 'barons', barons, time)
 
     return data
 
-
-def rankOrdering(rank):
-    order = {
-        'BRONZE': 0,
-        'SILVER': 1,
-        'UNRANKED': 1,
-        'GOLD': 2,
-        'PLATINUM': 3,
-        'DIAMOND': 4,
-        'CHALLENGER': 5,
-        'MASTER': 6
-    }
-    assert rank in order, "Unknown Rank: '{}'".format(rank)
-    return order[rank]
 
 
 def getRawGameData(args):
@@ -211,7 +203,7 @@ def getRawGameData(args):
 
     filtered = 0
 
-    requiredRank = rankOrdering(rank)
+    requiredRank = Util.rankOrdering(rank)
 
     outputData = Util.loadJsonFile(fileName)
     for dataI, data in enumerate(outputData):
@@ -222,7 +214,7 @@ def getRawGameData(args):
         # TODO consider removing surrender games
 
         # Filter out low rank games
-        lowerRanked = len([1 for c in data['features']['champs'] if rankOrdering(c['approxRank']) < requiredRank])
+        lowerRanked = len([1 for c in data['features']['champs'] if Util.rankOrdering(c['approxRank']) < requiredRank])
         if lowerRanked >= 2:
             filtered += 1
             continue
