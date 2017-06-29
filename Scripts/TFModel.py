@@ -9,6 +9,8 @@ from sklearn.model_selection import train_test_split
 import GraphModelStats
 import TFFeaturize
 import Util
+import DnnClassifier
+
 
 import tensorflow as tf
 
@@ -98,7 +100,7 @@ def featuresToColumns(features):
                 tf.contrib.layers.sparse_column_with_integerized_feature(
                     feature,
                     bucket_size = 150),
-                dimension = 2, # * 10 for every champion
+                dimension = 4, # * 10 for every champion
                 combiner = "mean")
         columns.append(column)
     return columns
@@ -162,19 +164,19 @@ def learningRateFn(params):
     learningRate = tf.train.exponential_decay(
         learning_rate = params['learningRate'],
         global_step = tf.contrib.framework.get_or_create_global_step(),
-        decay_steps = 200,
-        decay_rate = .96,
+        decay_steps = 1000,
+        decay_rate = .95,
         staircase = True)
 
     tf.summary.scalar("learning_rate/learning_rate", learningRate)
 
-#    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
+    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
 
-    optimizer = tf.train.ProximalAdagradOptimizer(
-        learning_rate = learningRate,
+#    optimizer = tf.train.ProximalAdagradOptimizer(
+#        learning_rate = learningRate,
 #        l1_regularization_strength = params['regularization'],
-        l2_regularization_strength = params['regularization'],
-    )
+#        l2_regularization_strength = params['regularization'],
+#    )
     return optimizer
 
 
@@ -183,12 +185,12 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
     params = {
         'modelName': 'exploring',
-        'dropout': 0.2,
-        'regularization': 0.00003,
-        'learningRate': 1.0,
-        'hiddenUnits': [5, 5],
-        'earlyStoppingRounds': 1000,
-        'steps': 5000,
+        'dropout': 0.9,
+        'regularization': 0.0003,
+        'learningRate': 0.001,
+        'hiddenUnits': [150, 100, 5],
+        'earlyStoppingRounds': 5000,
+        'steps': 30000,
     }
 
     classifiers = {}
@@ -239,7 +241,8 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         modelDir = "/tmp/tmp-tf-lol/exploring/{}-{}/model".format(runName, blockNum)
         print ("Saving in", modelDir)
 
-        classifier = tf.contrib.learn.DNNClassifier(
+#        classifier = tf.contrib.learn.DNNClassifier(
+        classifier = DnnClassifier.DNNClassifier(
             hidden_units = params['hiddenUnits'],
             feature_columns = featureColumns,
             model_dir = modelDir,

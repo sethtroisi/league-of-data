@@ -27,14 +27,13 @@ def countedFeature(df, name, events, sampleTime, verus=True):
 
 # Create features from champs
 def champFeature(data, champs):
-    assert False, "None of these seemed to decrease log loss :("
+    #assert False, "None of these seemed to decrease log loss :("
 
     ranks = defaultdict(int)
     summoners = defaultdict(int)
     for playerI, champ in enumerate(champs):
         champId = champ['championId']
         champion = Util.championIdToName(champId)
-
         isTeamA = champ['isTeamOne']
 
         spell1 = champ['spell1']
@@ -44,21 +43,20 @@ def champFeature(data, champs):
         summoners[(isTeamA, spell2)] += 1
 
         rank = champ['approxRank']
-
         ranks[(isTeamA, rank)] += 1
 
-#        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] =\
-#            Util.minimizedChampId(champId)
+        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] =\
+            Util.minimizedChampId(champId)
 
-#    for (isTeamA, spellId), count in summoners.items():
-#        spellName = Util.spellIdToName(spellId)
-#        data['team_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
+    for (isTeamA, spellId), count in summoners.items():
+        spellName = Util.spellIdToName(spellId)
+        data['team_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
 
-#    sumRank = 0
-#    for (isTeamA, rank), count in ranks.items():
-#        sumRank += (1 if isTeamA else -1) * count * Util.rankOrdering(rank)
-#        data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
-#    data['rank_sum_diff'] = sumRank
+    #sumRank = 0
+    #for (isTeamA, rank), count in ranks.items():
+    #    sumRank += (1 if isTeamA else -1) * count * Util.rankOrdering(rank)
+    #    data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
+    #data['rank_sum_diff'] = sumRank
 
 
 # Create features from towers (team, position)
@@ -180,14 +178,15 @@ def parseGame(parsed, time):
 
     champFeature(data, champs)
 
-    print (data)
+    goldFeatures(data, gold, time)
+    towerFeatures(data, towers, time)
+    dragonFeatures(data, dragons, time)
 
-    #goldFeatures(data, gold, time)
-    #towerFeatures(data, towers, time)
-    #dragonFeatures(data, dragons, time)
+    countedFeature(data, 'inhibs', inhibs, time)
+    countedFeature(data, 'barons', barons, time)
 
-    #countedFeature(data, 'inhibs', inhibs, time)
-    #countedFeature(data, 'barons', barons, time)
+    # TODO MORE VERIFICATION.
+#    print (data)
 
     return data
 
