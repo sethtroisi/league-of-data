@@ -45,18 +45,18 @@ def champFeature(data, champs):
         rank = champ['approxRank']
         ranks[(isTeamA, rank)] += 1
 
-        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] =\
-            Util.minimizedChampId(champId)
+#        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] =\
+#            Util.minimizedChampId(champId)
 
     for (isTeamA, spellId), count in summoners.items():
         spellName = Util.spellIdToName(spellId)
         data['team_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
 
-    #sumRank = 0
-    #for (isTeamA, rank), count in ranks.items():
-    #    sumRank += (1 if isTeamA else -1) * count * Util.rankOrdering(rank)
-    #    data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
-    #data['rank_sum_diff'] = sumRank
+    sumRank = 0
+    for (isTeamA, rank), count in ranks.items():
+        sumRank += (1 if isTeamA else -1) * count * Util.rankOrdering(rank)
+        data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
+    data['rank_sum_diff'] = sumRank
 
 
 # Create features from towers (team, position)
@@ -142,12 +142,12 @@ def goldFeatures(df, gold, sampleTime):
                 else:
                     teamBGold += totalGold
 
-        # Each team gets ~3k more gold every 2 minutes, makes vars ~ (0, 1.5]
-        normalizeFactor = 3000 * (blockNum + 1)
+        # Each team gets ~3k more gold every 2 minutes, makes vars ~ (0, 4.5]
+        normalizeFactor = 1000 * (blockNum + 1)
         df['gold_a_block_{}'.format(blockNum)] = teamAGold / normalizeFactor
         df['gold_b_block_{}'.format(blockNum)] = teamBGold / normalizeFactor
 
-        # A huge win is +15k gold at 40 minutes so maybe ~1k every 2 minutes, to get [-2, +2]
+        # A huge win is +15k gold at 40 minutes so maybe ~1k every 2 minutes, to get [-6, +6]
         deltaGold = teamAGold - teamBGold
         normalizeFactor = 1000 * (blockNum + 1)
         df['gold_a_adv_block_{}'.format(blockNum)] = deltaGold / normalizeFactor

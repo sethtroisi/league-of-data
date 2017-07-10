@@ -96,6 +96,7 @@ def featuresToColumns(features):
         if not feature.startswith("embedding_"):
             column = tf.contrib.layers.real_valued_column(feature)
         else:
+            assert False, "use a shared embedding column"
             column = tf.contrib.layers.embedding_column(
                 tf.contrib.layers.sparse_column_with_integerized_feature(
                     feature,
@@ -161,22 +162,25 @@ def inputFn(featuresUsed, data, goals = None):
     return featureCols, labels
 
 def learningRateFn(params):
-    learningRate = tf.train.exponential_decay(
-        learning_rate = params['learningRate'],
-        global_step = tf.contrib.framework.get_or_create_global_step(),
-        decay_steps = 1000,
-        decay_rate = .95,
-        staircase = True)
+#    learningRate = tf.train.exponential_decay(
+#        learning_rate = params['learningRate'],
+#        global_step = tf.contrib.framework.get_or_create_global_step(),
+#        decay_steps = 1000,
+#        decay_rate = .95,
+#        staircase = True)
+    learningRate = params['learningRate']
 
-    tf.summary.scalar("learning_rate/learning_rate", learningRate)
+#    tf.summary.scalar("learning_rate/learning_rate", learningRate)
 
-    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
+#    assert 0.000001 <= learningRate <= .001, "stuff .0001 seems fairly reasonable"
+#    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
 
-#    optimizer = tf.train.ProximalAdagradOptimizer(
-#        learning_rate = learningRate,
-#        l1_regularization_strength = params['regularization'],
-#        l2_regularization_strength = params['regularization'],
-#    )
+#    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
+    optimizer = tf.train.ProximalAdagradOptimizer(
+        learning_rate = learningRate,
+        l1_regularization_strength = params['regularization'],
+        l2_regularization_strength = params['regularization'],
+    )
     return optimizer
 
 
@@ -185,12 +189,12 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
     params = {
         'modelName': 'exploring',
-        'dropout': 0.9,
-        'regularization': 0.0003,
-        'learningRate': 0.001,
-        'hiddenUnits': [150, 100, 5],
-        'earlyStoppingRounds': 5000,
-        'steps': 30000,
+        'dropout': 0.2,
+        'regularization': 0.0013,
+        'learningRate': 0.01,
+        'hiddenUnits': [100, 20, 5],
+#        'earlyStoppingRounds': 5000,
+        'steps': 10000,
     }
 
     classifiers = {}
@@ -238,17 +242,17 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         T0 = time.time()
 
         runName = datetime.datetime.now().strftime("%m_%d_%H_%M")
-        modelDir = "/tmp/tmp-tf-lol/exploring/{}-{}/model".format(runName, blockNum)
+        modelName = params['modelName']
+        modelDir = "/tmp/tmp-tf-lol/exploring/{}/b{}/model_{}".format(runName, blockNum, modelName)
         print ("Saving in", modelDir)
 
-#        classifier = tf.contrib.learn.DNNClassifier(
-        classifier = DnnClassifier.DNNClassifier(
+        classifier = tf.contrib.learn.DNNClassifier(
+#        classifier = DnnClassifier.DNNClassifier(
             hidden_units = params['hiddenUnits'],
             feature_columns = featureColumns,
             model_dir = modelDir,
             n_classes = 2,
             dropout = params['dropout'],
-            gradient_clip_norm = 0.5,
             optimizer = functools.partial(learningRateFn, params),
             config = tf.contrib.learn.RunConfig(
                 save_checkpoints_steps = 99,
@@ -266,9 +270,9 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
             eval_steps = 1,
             every_n_steps = 100,
 #            metrics = validationMetrics,
-            early_stopping_metric = "loss",
-            early_stopping_rounds = params['earlyStoppingRounds'],
-            name = "validation_monitor",
+#            early_stopping_metric = "loss",
+#            early_stopping_rounds = params['earlyStoppingRounds'],
+            name = "validation_mn",
         )
 
         if args.verbose >= 2:
@@ -282,12 +286,12 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
             steps = params['steps'],
         )
 
-        classifier.evaluate(
-            input_fn = functools.partial(
-                inputFn, featuresUsed, blockTestFeatureSets, blockTestGoals),
-            steps = 1,
-            name="eval_at_the_end_of_time",
-        )
+#        classifier.evaluate(
+#            input_fn = functools.partial(
+#                inputFn, featuresUsed, blockTestFeatureSets, blockTestGoals),
+#            steps = 1,
+#            name="eval_at_the_end_of_time",
+#        )
 
         if args.verbose >= 1:
             for v in range(args.verbose):
