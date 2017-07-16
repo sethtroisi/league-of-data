@@ -132,3 +132,34 @@ def getInhibNumber(isTeamOneInhib, lane):
     assert lane in lanes
 
     return len(lanes) * (isTeamOneInhib == False) + lanes.index(lane)
+
+
+def guessPosition(champ):
+    role = champ['role']
+    lane = champ['lane']
+
+    assert lane in ("JUNGLE", "BOTTOM", "MIDDLE", "TOP"), lane
+    assert role in ("SOLO", "CARRY", "DUO", "DUO_CARRY", "DUO_SUPPORT", "NONE"), role
+
+    if lane == "JUNGLE" and role == "NONE":
+        return "JUNGLE"
+
+    if lane == "MIDDLE" and role == "SOLO":
+        return "MID"
+
+    if lane == "TOP" and role == "SOLO":
+        # maybe try to account for lane swap?
+        return "TOP"
+
+    if lane == "BOTTOM":
+        if "SUPPORT" in role:
+            return "SUPPORT"
+        if "CARRY" in role:
+            return "ADC"
+
+        if role == "DUO":
+            # suppressing some of the error below, not sure what position this is
+            return "OTHER"
+
+    print ("ERROR unknown position:", lane, role)
+    return "OTHER"
