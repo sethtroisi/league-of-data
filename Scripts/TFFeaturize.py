@@ -33,8 +33,12 @@ def champFeature(data, champs):
     summoners = defaultdict(int)
     for playerI, champ in enumerate(champs):
         champId = champ['championId']
-        champion = Util.championIdToName(champId)
         isTeamA = champ['isTeamOne']
+
+        champion = Util.championIdToName(champId)
+        minchampId = Util.minimizedChampId(champId)
+
+        position = Util.guessPosition(champ)
 
         spell1 = champ['spell1']
         spell2 = champ['spell2']
@@ -45,18 +49,22 @@ def champFeature(data, champs):
         rank = champ['approxRank']
         ranks[(isTeamA, rank)] += 1
 
-#        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] =\
-#            Util.minimizedChampId(champId)
 
-    for (isTeamA, spellId), count in summoners.items():
-        spellName = Util.spellIdToName(spellId)
-        data['team_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
+#        if position == "TOP":
+#         data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minchampId
+#         data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
 
-    sumRank = 0
-    for (isTeamA, rank), count in ranks.items():
-        sumRank += (1 if isTeamA else -1) * count * Util.rankOrdering(rank)
-        data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
-    data['rank_sum_diff'] = sumRank
+        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
+
+#    for (isTeamA, spellId), count in summoners.items():
+#        spellName = Util.spellIdToName(spellId)
+#        data['team_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
+
+#    sumRank = 0
+#    for (isTeamA, rank), count in ranks.items():
+#        sumRank += (1 if isTeamA else -1) * count * Util.rankOrdering(rank)
+#        data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
+#    data['rank_sum_diff'] = sumRank
 
 
 # Create features from towers (team, position)
@@ -174,16 +182,16 @@ def parseGame(parsed, time):
     # Data that ML will see
 
     data = dict()
-    data['current_time'] = time / 3600
+#    data['current_time'] = time / 3600
 
     champFeature(data, champs)
 
-    goldFeatures(data, gold, time)
-    towerFeatures(data, towers, time)
-    dragonFeatures(data, dragons, time)
+#    goldFeatures(data, gold, time)
+#    towerFeatures(data, towers, time)
+#    dragonFeatures(data, dragons, time)
 
-    countedFeature(data, 'inhibs', inhibs, time)
-    countedFeature(data, 'barons', barons, time)
+#    countedFeature(data, 'inhibs', inhibs, time)
+#    countedFeature(data, 'barons', barons, time)
 
     # TODO MORE VERIFICATION.
 #    print (data)

@@ -94,15 +94,28 @@ def featuresToColumns(features):
     columns = []
     for feature in features:
         if not feature.startswith("embedding_"):
+            print ("hi:", feature)
             column = tf.contrib.layers.real_valued_column(feature)
         else:
-            assert False, "use a shared embedding column"
+            assert feature.endswith("champion"), "\"{}\" requires setup for embedding".format(feature)
+
+            sparse_column = tf.contrib.layers.sparse_column_with_integerized_feature(
+                feature,
+                bucket_size = 150)
+
+            # shared_columns = tf.contrib.layers.shared_embedding_columns(
+            #     [sparse_column],
+            #     shared_embedding_name="champion_embedding",
+            #     dimension = 10,
+            #     combiner="mean")
+            # print (shared_columns)
+            #
+            # column = shared_columns[0]
             column = tf.contrib.layers.embedding_column(
-                tf.contrib.layers.sparse_column_with_integerized_feature(
-                    feature,
-                    bucket_size = 150),
-                dimension = 4, # * 10 for every champion
+                sparse_column,
+                dimension = 20,
                 combiner = "mean")
+
         columns.append(column)
     return columns
 
@@ -175,12 +188,13 @@ def learningRateFn(params):
 #    assert 0.000001 <= learningRate <= .001, "stuff .0001 seems fairly reasonable"
 #    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
 
-#    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
+    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
     optimizer = tf.train.ProximalAdagradOptimizer(
         learning_rate = learningRate,
         l1_regularization_strength = params['regularization'],
         l2_regularization_strength = params['regularization'],
     )
+
     return optimizer
 
 
@@ -247,7 +261,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         print ("Saving in", modelDir)
 
         classifier = tf.contrib.learn.DNNClassifier(
-#        classifier = DnnClassifier.DNNClassifier(
+#        classifier = DnnClassifier.DNNClassifier( DO NOT SUBMIT
             hidden_units = params['hiddenUnits'],
             feature_columns = featureColumns,
             model_dir = modelDir,
