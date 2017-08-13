@@ -19,8 +19,15 @@ from Util import *
 # Match API (this is what we want most)
 # https://developer.riotgames.com/api/methods#!/929/3214
 
+QUEUE_ID_TO_FOLDER = {
+    4: "ranked",
+    420: "ranked", # SOLO
+    440: "ranked", # RANKED_FLEX
+    65: "aram"
+}
+
 API_KEYS = [
-    '38940d99-0f69-4dfd-a2ea-5e9de11552a3',
+   'RGAPI-1f514c25-76a4-440e-b12a-8dded48436c5' # KingVash
 #    'RGAPI-81e88d9f-2847-48af-966c-fbf02102ccd3',
 #    'RGAPI-aedb5983-6170-4b41-9dd6-05336d24b345',
 ]
@@ -31,6 +38,7 @@ SLEEP_TIME = 2
 GAMES_PER_SUMMONER = 3
 
 socket.setdefaulttimeout(2.0)
+
 
 def buildUrl(apiPath, params = None):
     params = params or []
@@ -49,6 +57,7 @@ def getParsedResponse(url):
     keyUsed[apiKey] = time.time()
 
     url = url.format(apiKey = apiKey)
+
     response = urllib.request.urlopen(url)
     data = response.read()
     stringData = data.decode('utf-8')
@@ -110,17 +119,18 @@ def getSummonerMatches(summonerId):
 
         # TODO(sethtroisi): consider filtering on matchCreation time also.
 
-        # TODO(sethtroisi): count number of filtered games (by filter).
-        if queueType not in [420,440]:
+        if queueType not in QUEUE_ID_TO_FOLDER:
             print ("bad queue:", queueType)
             continue
+        folder = QUEUE_ID_TO_FOLDER[queueType]
+
 
         if region != 'NA1':
             print ("bad region:", region)
             continue
 
 
-        if season != 8:
+        if season != 9:
             print ("bad season:", season)
             continue
 
@@ -130,13 +140,13 @@ def getSummonerMatches(summonerId):
 
         print ('\tFetching match (id: {})'.format(matchId))
         fullMatch = getMatch(matchId)
-        matchSaveName = 'matches/getMatch-{}'.format(matchId)
+        matchSaveName = '{}/matches/getMatch-{}'.format(folder, matchId)
         writeJsonFile(matchSaveName, fullMatch)
         #fullMatch = loadJsonFile(matchSaveName)
 #        fullMatches[matchId] = fullMatch
 
         timeline = getTimeline(matchId)
-        matchSaveName = 'matches/getTimeline-{}'.format(matchId)
+        matchSaveName = '{}/matches/getTimeline-{}'.format(folder, matchId)
         writeJsonFile(matchSaveName, timeline)
 #        fullTimeline[matchId] = timeline
 
@@ -146,6 +156,8 @@ def getSummonerMatches(summonerId):
         #otherParticipants = match['participantIdentities']
         otherParticipants = fullMatch['participantIdentities']
         for participant in otherParticipants:
+            if "player" not in participant:
+                continue # non-ranked game
             player = participant['player']
             summonerId = player['accountId']
             summonerName = player['summonerName']
@@ -163,7 +175,7 @@ def main():
 
     matchIds = set()
 
-    seedNames = ['inkaruga', 'kingvash', 'siren swag']
+    seedNames = ['inkaruga', 'kingvash', 'siren swag', 'falco36']
     seedIds = {}
     for name in seedNames:
         seedIds[name] = getSummonerAccountId(name)
@@ -182,16 +194,16 @@ def main():
         print ('Exploring \'{}\' (id: {}) ({} of {} unexplored) ({} games)'.format(
             newName, newId, len(unvisited), len(summoners), len(matchIds)))
 
-        try:
-            newMatchIds, fellowSummoners, newMatches, newTimelines = \
-                getSummonerMatches(newId)
-        except Exception as e:
-            print ("FAIL: '{}'".format(e))
-            fails += 1
-            if 30 * (fails - 1) > len(matchIds):
-                print ("breaking from {} fails".format(fails))
-                return
-            continue
+#        try:
+        newMatchIds, fellowSummoners, newMatches, newTimelines = \
+            getSummonerMatches(newId)
+#        except Exception as e:
+#            print ("FAIL: '{}'".format(e))
+#            fails += 1
+#            if 30 * (fails - 1) > len(matchIds):
+#                print ("breaking from {} fails".format(fails))
+#                return
+#            continue
 
         # TODO(sethtroisi): make this unique games/summoners
         print ('\tAdded {} games, {} summoners'.format(
