@@ -99,7 +99,7 @@ def plotGame(maxBlock, times, results, winPredictions):
     # TODO show value, # of games, % of games at this point in a text box somewhere
 
     percentBuckets = 100
-    percents = [p / percentBuckets for p in range(percentBuckets + 1)]
+    percents = [p / percentBuckets for p in range(percentBuckets)]
 
     def plotConfidentAtTime(requestedTime):
         ti = min([(abs(requestedTime - t), i) for i, t in enumerate(times)])[1]

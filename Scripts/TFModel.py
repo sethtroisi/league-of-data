@@ -5,11 +5,12 @@ import sklearn.metrics
 import time
 import datetime
 
+from collections import defaultdict
 from sklearn.model_selection import train_test_split
+
 import GraphModelStats
 import TFFeaturize
 import Util
-import DnnClassifier
 
 
 import tensorflow as tf
@@ -188,12 +189,19 @@ def learningRateFn(params):
 #    assert 0.000001 <= learningRate <= .001, "stuff .0001 seems fairly reasonable"
 #    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
 
-    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
+#    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
     optimizer = tf.train.ProximalAdagradOptimizer(
         learning_rate = learningRate,
         l1_regularization_strength = params['regularization'],
-        l2_regularization_strength = params['regularization'],
+#        l2_regularization_strength = params['regularization'],
     )
+
+#    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
+#    optimizer = tf.train.ProximalGradientDescentOptimizer(
+#        learning_rate = learningRate,
+#        l1_regularization_strength = params['regularization'],
+#        l2_regularization_strength = params['regularization'],
+#    )
 
     return optimizer
 
@@ -204,11 +212,11 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     params = {
         'modelName': 'exploring',
         'dropout': 0.2,
-        'regularization': 0.0013,
-        'learningRate': 0.01,
-        'hiddenUnits': [100, 20, 5],
+        'regularization': 0.00013,
+        'learningRate': 0.000001,
+        'hiddenUnits': [1],
 #        'earlyStoppingRounds': 5000,
-        'steps': 10000,
+        'steps': 5000,
     }
 
     classifiers = {}
@@ -320,6 +328,8 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     return classifiers, featuresUses
 
 
+#allprobs = set()
+#featureGroups = set()
 def getPrediction(args, classifiers, featuresUses, testGames, testGoals, blockNum):
     assert blockNum in classifiers and blockNum in featuresUses
     classifier = classifiers[blockNum]
@@ -331,7 +341,16 @@ def getPrediction(args, classifiers, featuresUses, testGames, testGoals, blockNu
     modelGuess = classifier.predict_proba(
         input_fn = functools.partial(inputFn, featuresUsed, predictFeatureSets))
 
-    for probs, testGoal in zip(modelGuess, testGoals):
+    for i, (probs, testGoal) in enumerate(zip(modelGuess, testGoals)):
+    #     key = tuple(sorted(predictFeatureSets[i].keys()))
+    #     if key not in featureGroups or probs[0] not in allprobs:
+    #         tfFeatures = inputFn(featuresUsed, [predictFeatureSets[i]])
+    #
+    #         print ("\t", probs, testGoal, i, "\t", key,
+    #                "\t", predictFeatureSets[i])
+    #         featureGroups.add(key)
+    #         allprobs.add(probs[0])
+    #
 
         # This is due to the sorting of [False, True].
         BProb, AProb = probs
@@ -372,6 +391,21 @@ def main(args):
     assert len(testingGames) == len(testingGoals)
 
 
+
+    # testFeatures = ['team_A_has_champion_11', 'team_B_has_champion_11']
+    # if testFeatures:
+    #     featureRecall = defaultdict(lambda : [0,0])
+    #     for game, goal in zip(trainingGames, trainingGoals):
+    #         features = TFFeaturize.parseGame(game, 3600)
+    #         featureRecall["bias"][goal] += 1
+    #         for testFeature in testFeatures:
+    #             featureRecall[testFeature][goal] += 1
+    #
+    #
+    #     for feature, results in sorted(featureRecall.items()):
+    #         print ("\t{} - {} - {:.1f}%".format(feature, results, 100 * results[1] / sum(results)))
+    #     print ()
+
     T2 = time.time()
 
     classifiers, featuresUses = buildClassifier(
@@ -398,12 +432,7 @@ def main(args):
     logLosses = [0 for b in range(maxBlock + 1)]
 
     # Per Game stats.
-    testWinProbs = [
-        [[0.5, 0.5] for block in range(min(maxBlock, Util.timeToBlock(game['debug']['duration'])) + 1)]
-        for game in testingGames
-    ]
-
-    # TODO try setting samples for all blocks (if I can)
+    testWinProbs = [[] for game in testingGames]
 
     for blockNum in blocks:
         gameIs, testingBlockGames, testingBlockGoals = filterMaxBlock(
@@ -418,6 +447,10 @@ def main(args):
             # store data to graph
             samples[blockNum] += 1
             corrects[blockNum] += 1 if correct else 0
+
+            paddingNeeded = blockNum - len(testWinProbs[gameI]) + 1
+            if paddingNeeded > 0:
+                testWinProbs[gameI] += [[0.5, 0.5]] * paddingNeeded
             testWinProbs[gameI][blockNum] = gamePrediction
 
     for blockNum in blocks:

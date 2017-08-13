@@ -54,6 +54,7 @@ def champFeature(data, champs):
 #         data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minchampId
 #         data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
 
+#        if champId == 11:
         data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
 
 #    for (isTeamA, spellId), count in summoners.items():
@@ -208,8 +209,6 @@ def getRawGameData(args):
     games = []
     goals = []
 
-    filtered = 0
-
     requiredRank = Util.rankOrdering(rank)
 
     outputData = Util.loadJsonFile(fileName)
@@ -223,8 +222,19 @@ def getRawGameData(args):
         # Filter out low rank games
         lowerRanked = len([1 for c in data['features']['champs'] if Util.rankOrdering(c['approxRank']) < requiredRank])
         if lowerRanked >= 2:
-            filtered += 1
             continue
+
+        #t = data['features']['champs']
+        #if not any(s['championId'] == 11 for s in t):
+        #    continue
+
+        #index = min([i for i, s in enumerate(t) if s['championId'] == 11])
+        #yiWin = (index <= 4) == data['goal']
+        #import random
+        #if not (random.random() < 0.2 or yiWin):
+        #    continue
+
+
 
         goal = data['goal']
         assert goal in (True, False)
@@ -236,6 +246,6 @@ def getRawGameData(args):
             break
 
     print ("Loaded {} games (filtereed {})".format(
-        len(goals), filtered))
+        len(goals), len(outputData) - len(goals)))
     return games, goals
 
