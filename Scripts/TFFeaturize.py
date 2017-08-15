@@ -55,17 +55,17 @@ def champFeature(data, champs):
 #         data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
 
 #        if champId == 11:
-        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
+#        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
 
-#    for (isTeamA, spellId), count in summoners.items():
-#        spellName = Util.spellIdToName(spellId)
-#        data['team_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
+    for (isTeamA, spellId), count in summoners.items():
+        spellName = Util.spellIdToName(spellId)
+        data['team_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
 
-#    sumRank = 0
-#    for (isTeamA, rank), count in ranks.items():
-#        sumRank += (1 if isTeamA else -1) * count * Util.rankOrdering(rank)
-#        data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
-#    data['rank_sum_diff'] = sumRank
+    sumRank = 0
+    for (isTeamA, rank), count in ranks.items():
+        sumRank += (1 if isTeamA else -1) * count * Util.rankOrdering(rank)
+        data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
+    data['rank_sum_diff'] = sumRank
 
 
 # Create features from towers (team, position)
@@ -183,16 +183,16 @@ def parseGame(parsed, time):
     # Data that ML will see
 
     data = dict()
-#    data['current_time'] = time / 3600
+    data['current_time'] = time / 3600
 
     champFeature(data, champs)
 
-#    goldFeatures(data, gold, time)
-#    towerFeatures(data, towers, time)
-#    dragonFeatures(data, dragons, time)
+    goldFeatures(data, gold, time)
+    towerFeatures(data, towers, time)
+    dragonFeatures(data, dragons, time)
 
-#    countedFeature(data, 'inhibs', inhibs, time)
-#    countedFeature(data, 'barons', barons, time)
+    countedFeature(data, 'inhibs', inhibs, time)
+    countedFeature(data, 'barons', barons, time)
 
     # TODO MORE VERIFICATION.
 #    print (data)

@@ -176,12 +176,12 @@ def inputFn(featuresUsed, data, goals = None):
     return featureCols, labels
 
 def learningRateFn(params):
-#    learningRate = tf.train.exponential_decay(
-#        learning_rate = params['learningRate'],
-#        global_step = tf.contrib.framework.get_or_create_global_step(),
-#        decay_steps = 1000,
-#        decay_rate = .95,
-#        staircase = True)
+    learningRate = tf.train.exponential_decay(
+        learning_rate = params['learningRate'],
+        global_step = tf.contrib.framework.get_or_create_global_step(),
+        decay_steps = 1000,
+        decay_rate = .70,
+        staircase = True)
     learningRate = params['learningRate']
 
 #    tf.summary.scalar("learning_rate/learning_rate", learningRate)
@@ -211,12 +211,12 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
     params = {
         'modelName': 'exploring',
-        'dropout': 0.2,
+        'dropout': 0.1,
         'regularization': 0.00013,
-        'learningRate': 0.000001,
-        'hiddenUnits': [1],
+        'learningRate': 0.001,
+        'hiddenUnits': [100, 10, 10],
 #        'earlyStoppingRounds': 5000,
-        'steps': 5000,
+        'steps': 10000,
     }
 
     classifiers = {}
