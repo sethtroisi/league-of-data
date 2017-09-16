@@ -212,11 +212,11 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     params = {
         'modelName': 'exploring',
         'dropout': 0.1,
-        'regularization': 0.00013,
+        'regularization': 0.00004,
         'learningRate': 0.001,
-        'hiddenUnits': [100, 10, 10],
+        'hiddenUnits': [400, 200, 100, 50, 10],
 #        'earlyStoppingRounds': 5000,
-        'steps': 10000,
+        'steps': 150000,
     }
 
     classifiers = {}

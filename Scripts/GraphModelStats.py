@@ -104,10 +104,10 @@ def plotGame(maxBlock, times, results, winPredictions):
     def plotConfidentAtTime(requestedTime):
         ti = min([(abs(requestedTime - t), i) for i, t in enumerate(times)])[1]
 
-        cdfTrue = [0] * len(percents)
-        cdfFalse = [0] * len(percents)
-        pdfTrue = [0] * len(percents)
-        pdfFalse = [0] * len(percents)
+        cdfTrue = [0] * (len(percents) + 1)
+        cdfFalse = [0] * (len(percents) + 1)
+        pdfTrue = [0] * (len(percents) + 1)
+        pdfFalse = [0] * (len(percents) + 1)
 
         # TODO are end buckets being filled?
         for gameResult, gamePredictions in zip(results, winPredictions):
