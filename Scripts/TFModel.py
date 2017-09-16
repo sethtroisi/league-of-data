@@ -189,11 +189,11 @@ def learningRateFn(params):
 #    assert 0.000001 <= learningRate <= .001, "stuff .0001 seems fairly reasonable"
 #    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
 
-#    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
+    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
     optimizer = tf.train.ProximalAdagradOptimizer(
         learning_rate = learningRate,
-        l1_regularization_strength = params['regularization'],
-#        l2_regularization_strength = params['regularization'],
+#        l1_regularization_strength = params['regularization'],
+        l2_regularization_strength = params['regularization'],
     )
 
 #    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
@@ -211,12 +211,12 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
     params = {
         'modelName': 'exploring',
-        'dropout': 0.1,
+        'dropout': 0.2,
         'regularization': 0.00004,
-        'learningRate': 0.001,
+        'learningRate': 0.004,
         'hiddenUnits': [400, 200, 100, 50, 10],
 #        'earlyStoppingRounds': 5000,
-        'steps': 150000,
+        'steps': 10000,
     }
 
     classifiers = {}
@@ -277,7 +277,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
             dropout = params['dropout'],
             optimizer = functools.partial(learningRateFn, params),
             config = tf.contrib.learn.RunConfig(
-                save_checkpoints_steps = 99,
+                save_checkpoints_steps = 199,
                 save_checkpoints_secs = None
             ),
         )
@@ -290,7 +290,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
             input_fn = functools.partial(
                 inputFn, featuresUsed, blockTestFeatureSets, blockTestGoals),
             eval_steps = 1,
-            every_n_steps = 100,
+            every_n_steps = 200,
 #            metrics = validationMetrics,
 #            early_stopping_metric = "loss",
 #            early_stopping_rounds = params['earlyStoppingRounds'],

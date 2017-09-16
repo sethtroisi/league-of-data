@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as pyplot
 from matplotlib.widgets import Slider
 import Util
+import random
 
 # Plot general data about accuracy, logloss, number of samples.
 def plotData(blocks, times, samples, corrects, ratios, logLosses):
@@ -83,7 +84,11 @@ def plotGame(maxBlock, times, results, winPredictions):
         False: 'r'
     }
 
-    # For every game print prediction through out the game.
+    sample = list(zip(results, winPredictions))
+    if len(results) > 5000:
+        sample = random.sample(sample, 5000)
+
+    # For every game (if less than 5000 games) print prediction through out the game.
     for result, gamePredictions in zip(results, winPredictions):
         # TODO Set alpha dependant on number of games
         color = resultColors[result]
@@ -98,16 +103,16 @@ def plotGame(maxBlock, times, results, winPredictions):
     sliderTime.valtext.set_visible(False)
     # TODO show value, # of games, % of games at this point in a text box somewhere
 
-    percentBuckets = 100
-    percents = [p / percentBuckets for p in range(percentBuckets)]
+    percentBuckets = 101
+    percents = [p / (percentBuckets - 1) for p in range(percentBuckets)]
 
     def plotConfidentAtTime(requestedTime):
         ti = min([(abs(requestedTime - t), i) for i, t in enumerate(times)])[1]
 
-        cdfTrue = [0] * (len(percents) + 1)
-        cdfFalse = [0] * (len(percents) + 1)
-        pdfTrue = [0] * (len(percents) + 1)
-        pdfFalse = [0] * (len(percents) + 1)
+        cdfTrue = [0] * len(percents)
+        cdfFalse = [0] * len(percents)
+        pdfTrue = [0] * len(percents)
+        pdfFalse = [0] * len(percents)
 
         # TODO are end buckets being filled?
         for gameResult, gamePredictions in zip(results, winPredictions):
@@ -123,7 +128,7 @@ def plotGame(maxBlock, times, results, winPredictions):
                 else:
                     cdfFalse[pi] += 1
 
-            bucket = int(round(percentBuckets * prediction))
+            bucket = int(round((percentBuckets - 1)* prediction))
             if gameResult:
                 pdfTrue[bucket] += 1
             else:
