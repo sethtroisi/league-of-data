@@ -1,9 +1,9 @@
 import argparse
+import datetime
+import itertools
 import functools
-import re
 import sklearn.metrics
 import time
-import datetime
 
 from collections import defaultdict
 from sklearn.model_selection import train_test_split
@@ -92,12 +92,24 @@ def filterMaxBlock(blockNum, games, goals):
 
 
 def featuresToColumns(features):
+    requiredToBeFound = {"real": 10, "gold": 2, "embedding": 0,}
+    columnTypes = defaultdict(int)
+
     columns = []
     for feature in features:
-        if not feature.startswith("embedding_"):
-            print ("hi:", feature)
-            column = tf.contrib.layers.real_valued_column(feature)
-        else:
+        if feature.startswith("gold_adv_"):
+            columnTypes["gold"] += 1
+
+            realColumn = tf.contrib.layers.real_valued_column(feature)
+
+            # TODO can I assert this value is positive?
+
+            column = tf.contrib.layers.bucketized_column(
+                source_column=realColumn,
+                boundaries= [100, 200, 500, 1000, 2000, 3000, 5000, 7000, 10000, 15000])
+
+        elif feature.startswith("embedding_"):
+            columnTypes["embedding"] += 1
             assert feature.endswith("champion"), "\"{}\" requires setup for embedding".format(feature)
 
             sparse_column = tf.contrib.layers.sparse_column_with_integerized_feature(
@@ -116,8 +128,15 @@ def featuresToColumns(features):
                 sparse_column,
                 dimension = 20,
                 combiner = "mean")
+        else:
+            columnTypes["real"] += 1
+            column = tf.contrib.layers.real_valued_column(feature)
 
         columns.append(column)
+
+    for type, count in requiredToBeFound.items():
+        assert columnTypes[type] >= count, "{} had {} not >= {}".format(type, columnTypes[type], count)
+
     return columns
 
 featurizerTime = 0
@@ -189,7 +208,7 @@ def learningRateFn(params):
 #    assert 0.000001 <= learningRate <= .001, "stuff .0001 seems fairly reasonable"
 #    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
 
-    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
+    assert 0.0001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
     optimizer = tf.train.ProximalAdagradOptimizer(
         learning_rate = learningRate,
 #        l1_regularization_strength = params['regularization'],
@@ -209,119 +228,126 @@ def learningRateFn(params):
 def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     global featurizerTime, trainTime
 
-    params = {
+    constParams = {
         'modelName': 'exploring',
-        'dropout': 0.2,
-        'regularization': 0.00004,
-        'learningRate': 0.004,
+        'dropout': 0.0,
+        'regularization': 0.005,
+        'learningRate': 0.01,
         'hiddenUnits': [400, 200, 100, 50, 10],
-#        'earlyStoppingRounds': 5000,
-        'steps': 10000,
+#        'earlyStoppingRounds': 2000,
+        'steps': 20000,
     }
+    gridSearchParams = [
+#        ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
+#        ('regularization', [0.0001, 0.001, 0.01, 0.1, 1.0]),
+#        ('learningRate', [0.005, 0.007, 0.01, 0.013, 0.017]),
+    ]
 
     classifiers = {}
     featuresUses = {}
 
     for blockNum in blocks:
-        blockTrainFeatureSets, blockTrainGoals, featuresUsed = gameToFeatures(
-            args, trainGames, trainGoals, blockNum, training = True)
+        bestOfGridSearch = (1000, None, None)
 
-        blockTestFeatureSets, blockTestGoals = gameToFeatures(
-            args, testGames, testGoals, blockNum, training = False)
+        for gridSearchValues in itertools.product(*[values for name, values in gridSearchParams]):
+            gridSearchInstanceParams = dict(zip([name for name, v in gridSearchParams], gridSearchValues))
+            duplicateKeys = constParams.keys() & gridSearchInstanceParams.keys()
+            assert len(duplicateKeys) == 0, duplicateKeys
+            params = {**constParams, **gridSearchInstanceParams}
 
+            blockTrainFeatureSets, blockTrainGoals, featuresUsed = gameToFeatures(
+                args, trainGames, trainGoals, blockNum, training = True)
 
-        if len(blockTrainFeatureSets) == 0:
-            break
+            blockTestFeatureSets, blockTestGoals = gameToFeatures(
+                args, testGames, testGoals, blockNum, training = False)
 
-        if args.verbose >= 1:
-            print ("\ttraining block {} on {} games".format(blockNum, len(blockTrainFeatureSets)))
+            if len(blockTrainFeatureSets) == 0:
+                break
 
+            if args.verbose >= 1:
+                print ("\ttraining block {} on {} games".format(blockNum, len(blockTrainFeatureSets)))
 
-        if args.verbose >= 1:
-            regex = re.compile('_([ABb0-9]{1,2})(?=$|_)', re.I)
-            def replacement(m):
-                text = m.group(1)
-                if text in 'abAB':
-                    return '_<team>'
-                elif text.isnumeric():
-                    return '_<X>'
-                else:
-                    print ("Bad sub:", text, m.groups())
-                    return m.group()
+            if args.verbose >= 1:
+                numberOfCompressedFeatures, compressedPretty = \
+                    Util.compressFeatureList(featuresUsed)
+                if numberOfCompressedFeatures < 40 or args.verbose >= 2:
+                    print ("\t{} features: {}".format(
+                        numberOfCompressedFeatures, compressedPretty))
 
-            compressedList = \
-                set(map(functools.partial(regex.sub, replacement), featuresUsed))
+            featureColumns = featuresToColumns(featuresUsed)
 
-            compressedFeatures = ""
-            if len(compressedList) < 40 or args.verbose >= 2:
-                compressedFeatures = ", ".join(sorted(compressedList))
+            T0 = time.time()
 
-            print ("\t{} features: {}".format(
-                len(featuresUsed), compressedFeatures))
+            runTime = datetime.datetime.now().strftime("%m_%d_%H_%M")
+            gridSearchName = "".join("-{}={}".format(name, value) for name, value in
+                                     sorted(gridSearchInstanceParams.items()))
+            modelName = params['modelName'] + gridSearchName
+            modelDir = "/tmp/tmp-tf-lol/exploring/{}/b{}/model_{}".format(runTime, blockNum, modelName)
+            print ("Saving in", modelDir)
+            print ("\t", params.items(), "\n")
 
-        featureColumns = featuresToColumns(featuresUsed)
+            classifier = tf.contrib.learn.DNNClassifier(
+    #        classifier = DnnClassifier.DNNClassifier( DO NOT SUBMIT
+                hidden_units = params['hiddenUnits'],
+                feature_columns = featureColumns,
+                model_dir = modelDir,
+                n_classes = 2,
+                dropout = params['dropout'],
+                optimizer = functools.partial(learningRateFn, params),
+                config = tf.contrib.learn.RunConfig(
+                    save_checkpoints_steps = 199,
+                    save_checkpoints_secs = None
+                ),
+            )
 
-        T0 = time.time()
+    #        validationMetrics = {
+    #            "accurary": tf.contrib.metrics.streaming_accuracy,
+    #            "auc": tf.contrib.metrics.streaming_auc,
+    #        }
+            validationMonitor = tf.contrib.learn.monitors.ValidationMonitor(
+                input_fn = functools.partial(
+                    inputFn, featuresUsed, blockTestFeatureSets, blockTestGoals),
+                eval_steps = 1,
+                every_n_steps = 200,
+    #            metrics = validationMetrics,
+                early_stopping_metric = "loss",
+                early_stopping_rounds = params.get('earlyStoppingRounds', params['steps']),
+                name = "validation_mn",
+            )
 
-        runName = datetime.datetime.now().strftime("%m_%d_%H_%M")
-        modelName = params['modelName']
-        modelDir = "/tmp/tmp-tf-lol/exploring/{}/b{}/model_{}".format(runName, blockNum, modelName)
-        print ("Saving in", modelDir)
-
-        classifier = tf.contrib.learn.DNNClassifier(
-#        classifier = DnnClassifier.DNNClassifier( DO NOT SUBMIT
-            hidden_units = params['hiddenUnits'],
-            feature_columns = featureColumns,
-            model_dir = modelDir,
-            n_classes = 2,
-            dropout = params['dropout'],
-            optimizer = functools.partial(learningRateFn, params),
-            config = tf.contrib.learn.RunConfig(
-                save_checkpoints_steps = 199,
-                save_checkpoints_secs = None
-            ),
-        )
-
-#        validationMetrics = {
-#            "accurary": tf.contrib.metrics.streaming_accuracy,
-#            "auc": tf.contrib.metrics.streaming_auc,
-#        }
-        validationMonitor = tf.contrib.learn.monitors.ValidationMonitor(
-            input_fn = functools.partial(
-                inputFn, featuresUsed, blockTestFeatureSets, blockTestGoals),
-            eval_steps = 1,
-            every_n_steps = 200,
-#            metrics = validationMetrics,
-#            early_stopping_metric = "loss",
-#            early_stopping_rounds = params['earlyStoppingRounds'],
-            name = "validation_mn",
-        )
-
-        if args.verbose >= 2:
-            print ()
-            print ()
-
-        classifier.fit(
-            input_fn = functools.partial(
-                inputFn, featuresUsed, blockTrainFeatureSets, blockTrainGoals),
-            monitors = [validationMonitor],
-            steps = params['steps'],
-        )
-
-#        classifier.evaluate(
-#            input_fn = functools.partial(
-#                inputFn, featuresUsed, blockTestFeatureSets, blockTestGoals),
-#            steps = 1,
-#            name="eval_at_the_end_of_time",
-#        )
-
-        if args.verbose >= 1:
-            for v in range(args.verbose):
+            if args.verbose >= 2:
                 print ()
                 print ()
 
-        T1 = time.time()
-        trainTime += T1 - T0
+            classifier.fit(
+                input_fn = functools.partial(
+                    inputFn, featuresUsed, blockTrainFeatureSets, blockTrainGoals),
+                monitors = [validationMonitor],
+                steps = params['steps'],
+            )
+
+    #        classifier.evaluate(
+    #            input_fn = functools.partial(
+    #                inputFn, featuresUsed, blockTestFeatureSets, blockTestGoals),
+    #            steps = 1,
+    #            name="eval_at_the_end_of_time",
+    #        )
+
+            if args.verbose >= 1:
+                for v in range(args.verbose):
+                    print ()
+                    print ()
+
+            T1 = time.time()
+            trainTime += T1 - T0
+
+            # Determine the best of the grid search
+            loss = 10
+            if loss < bestOfGridSearch[0]:
+                bestOfGridSearch = (loss, classifier, featuresUsed)
+
+        # Best of the grid search
+        loss, classifier, featuresUsed = bestOfGridSearch
 
         classifiers[blockNum] = classifier
         featuresUses[blockNum] = featuresUsed

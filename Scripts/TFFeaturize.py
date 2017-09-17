@@ -49,7 +49,6 @@ def champFeature(data, champs):
         rank = champ['approxRank']
         ranks[(isTeamA, rank)] += 1
 
-
 #        if position == "TOP":
 #         data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minchampId
 #         data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
@@ -59,12 +58,12 @@ def champFeature(data, champs):
 
     for (isTeamA, spellId), count in summoners.items():
         spellName = Util.spellIdToName(spellId)
-        data['team_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
+        data['team_spells_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
 
     sumRank = 0
     for (isTeamA, rank), count in ranks.items():
         sumRank += (1 if isTeamA else -1) * count * Util.rankOrdering(rank)
-        data['team_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
+        data['team_ranks_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
     data['rank_sum_diff'] = sumRank
 
 
@@ -151,16 +150,15 @@ def goldFeatures(df, gold, sampleTime):
                 else:
                     teamBGold += totalGold
 
-        # Each team gets ~3k more gold every 2 minutes, makes vars ~ (0, 4.5]
-        normalizeFactor = 1000 * (blockNum + 1)
-        df['gold_a_block_{}'.format(blockNum)] = teamAGold / normalizeFactor
-        df['gold_b_block_{}'.format(blockNum)] = teamBGold / normalizeFactor
+        # Each team gets ~3k more gold every 2 minutes, makes vars ~ [0.5, 2]
+        normalizeFactor = 3000 * (blockNum + 1)
+        df['gold_block_{}_a'.format(blockNum)] = teamAGold / normalizeFactor
+        df['gold_block_{}_b'.format(blockNum)] = teamBGold / normalizeFactor
 
-        # A huge win is +15k gold at 40 minutes so maybe ~1k every 2 minutes, to get [-6, +6]
+        # Normalized in TFModel
         deltaGold = teamAGold - teamBGold
-        normalizeFactor = 1000 * (blockNum + 1)
-        df['gold_a_adv_block_{}'.format(blockNum)] = deltaGold / normalizeFactor
-
+        df['gold_adv_block_{}_a'.format(blockNum)] = max(0, deltaGold)
+        df['gold_adv_block_{}_b'.format(blockNum)] = max(0, -deltaGold)
 
 def parseGame(parsed, time):
     if time is None:

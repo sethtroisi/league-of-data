@@ -1,6 +1,8 @@
 import collections
+import functools
 import itertools
 import json
+import re
 import os.path
 
 # API REFERENCE
@@ -163,3 +165,23 @@ def guessPosition(champ):
 
 #    print ("ERROR unknown position:", lane, role)
     return "OTHER"
+
+
+def compressFeatureList(featuresUsed):
+    regex = re.compile('_([ABb0-9]{1,2})(?=$|_)', re.I)
+
+    def replacement(m):
+        text = m.group(1)
+        if text in 'abAB':
+            return '_<team>'
+        elif text.isnumeric():
+            return '_<X>'
+        else:
+            print("Bad sub:", text, m.groups())
+            return m.group()
+
+    compressedList = \
+        set(map(functools.partial(regex.sub, replacement), featuresUsed))
+    compressedFeatures = ", ".join(sorted(compressedList))
+
+    return len(compressedList), compressedFeatures
