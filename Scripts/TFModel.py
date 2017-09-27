@@ -228,14 +228,18 @@ def learningRateFn(params):
 def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     global featurizerTime, trainTime
 
+    # Over eighty briefly with
+    # ('dropout', 0.0), ('learningRate', 0.015), ('steps', 50000), ('hiddenUnits', [1000, 1000, 500, 250, 50]), ('regularization', 0.005)
+
+
     constParams = {
         'modelName': 'exploring',
         'dropout': 0.0,
-        'regularization': 0.005,
-        'learningRate': 0.01,
-        'hiddenUnits': [400, 200, 100, 50, 10],
+        'regularization': 0.010,
+        'learningRate': 0.012,
+        'hiddenUnits': [500, 800, 350, 200, 20],
 #        'earlyStoppingRounds': 2000,
-        'steps': 20000,
+        'steps': 100000,
     }
     gridSearchParams = [
 #        ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),

@@ -49,9 +49,10 @@ def champFeature(data, champs):
         rank = champ['approxRank']
         ranks[(isTeamA, rank)] += 1
 
+
 #        if position == "TOP":
-#         data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minchampId
-#         data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
+        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minchampId
+        data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
 
 #        if champId == 11:
 #        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
