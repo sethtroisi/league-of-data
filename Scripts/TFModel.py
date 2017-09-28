@@ -229,15 +229,14 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     global featurizerTime, trainTime
 
     # Over eighty briefly with
-    # ('dropout', 0.0), ('learningRate', 0.015), ('steps', 50000), ('hiddenUnits', [1000, 1000, 500, 250, 50]), ('regularization', 0.005)
-
+    # ('dropout', 0.0), ('learningRate', 0.02), ('steps', 100000), ('hiddenUnits', [600, 800, 400, 300, 20]), ('regularization', 0.01)
 
     constParams = {
         'modelName': 'exploring',
-        'dropout': 0.0,
-        'regularization': 0.010,
-        'learningRate': 0.012,
-        'hiddenUnits': [500, 800, 350, 200, 20],
+        'dropout': 0.01,
+        'regularization': 0.02,
+        'learningRate': 0.010,
+        'hiddenUnits': [400, 500, 300, 200, 20],
 #        'earlyStoppingRounds': 2000,
         'steps': 100000,
     }
@@ -299,8 +298,9 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                 dropout = params['dropout'],
                 optimizer = functools.partial(learningRateFn, params),
                 config = tf.contrib.learn.RunConfig(
-                    save_checkpoints_steps = 199,
-                    save_checkpoints_secs = None
+                    save_summary_steps = 500,
+                    log_step_count_steps = 500,
+                    save_checkpoints_steps = 500,
                 ),
             )
 
@@ -312,7 +312,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                 input_fn = functools.partial(
                     inputFn, featuresUsed, blockTestFeatureSets, blockTestGoals),
                 eval_steps = 1,
-                every_n_steps = 200,
+                every_n_steps = 1,
     #            metrics = validationMetrics,
                 early_stopping_metric = "loss",
                 early_stopping_rounds = params.get('earlyStoppingRounds', params['steps']),
