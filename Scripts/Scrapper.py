@@ -21,6 +21,8 @@ from Util import *
 # https://developer.riotgames.com/api/methods#!/929/3214
 
 START_TIME_FILTER = int(datetime.datetime(2017, 9, 15).timestamp()) * 1000
+REGIONS = ('NA', 'NA1')
+SEASON = 9
 
 QUEUE_ID_TO_FOLDER = {
     4: "ranked",
@@ -36,11 +38,19 @@ API_KEYS = [
 BASE_URL = 'https://na1.api.riotgames.com/lol/'
 KEY_PARAM = 'api_key={apiKey}'
 
-SLEEP_TIME = 1.3
 GAMES_PER_SUMMONER = 3
 
+# Used for some SSL error may be no longer needed?
 socket.setdefaulttimeout(2.0)
 
+RATE_LIMITS_RAW = "100:120,20:1"
+RATE_LIMITS = dict([map(int, l.split(":")[::-1]) for l in RATE_LIMITS_RAW.split(",")])
+
+MIN_SLEEP_TIME = max((time / count for time, count in RATE_LIMITS.items()))
+print ("SLEEP_TIME: {:.2f}".format(MIN_SLEEP_TIME))
+print ("RATE_LIMITS: {}".format(
+    ", ".join(map(lambda l: "{} per {}".format(l[1], l[0]), RATE_LIMITS.items()))))
+print ()
 
 def buildUrl(apiPath, params = None):
     params = params or []
@@ -52,20 +62,32 @@ keyUsed = dict((key, 0) for key in API_KEYS)
 def getParsedResponse(url):
     lastUsed, apiKey = min((u, k) for k, u in keyUsed.items())
 
-    timeToWait = (lastUsed + SLEEP_TIME) - time.time()
+    timeToWait = (lastUsed + MIN_SLEEP_TIME) - time.time()
     if timeToWait > 0.01:
         time.sleep(timeToWait)
 
     keyUsed[apiKey] = time.time()
 
     url = url.format(apiKey = apiKey)
-    print ("\t\t", url)
     response = urllib.request.urlopen(url)
     data = response.read()
     stringData = data.decode('utf-8')
 
-    # save  "X-App-Rate-Limit-Count": "5:120,1:1",
-    # and   "X-App-Rate-Limit": "100:120,20:1",
+    # Wait to respect rate limits passed in header
+    # "X-App-Rate-Limit":        "100:120, 20:1",
+    # "X-App-Rate-Limit-Count": "   5:120,  1:1",
+    assert RATE_LIMITS_RAW == response.getheader('X-App-Rate-Limit')
+    rawCounts = response.getheader('X-App-Rate-Limit-Count')
+    parsedRates = list(map(lambda r: list(map(int, r.split(":"))), rawCounts.split(",")))
+    for count, timeLimit in parsedRates:
+        # Aim for 75% of limits
+        limit = RATE_LIMITS[timeLimit]
+        if count > 0.75 * limit:
+            closeness = limit - count
+            timeToWait = timeLimit / max(2, closeness ** 1.4)
+            print("\t\tNearing rateLimit({} of {} per {}s) waiting {:.2f}s)".format(
+                count, limit, timeLimit, timeToWait))
+            time.sleep(timeToWait)
 
     return json.loads(stringData)
 
@@ -123,24 +145,20 @@ def getSummonerMatches(summonerId):
         timestamp = match['timestamp']
 
         if queueType not in QUEUE_ID_TO_FOLDER:
-            print ("bad queue:", queueType)
+            print ("\t\tskipping queue:", queueType)
             continue
         folder = QUEUE_ID_TO_FOLDER[queueType]
 
         if timestamp <= START_TIME_FILTER:
-            print ("old game pre START_TIME_FILTER:", timestamp)
+            print ("\t\tskipping old timestamp:", timestamp)
             continue
 
-        if matchId <= 2500000000:
-            print ("old game (pre 2017/04):", matchId)
+        if region not in REGIONS:
+            print ("\t\tskipping non NA region:", region)
             continue
 
-        if region != 'NA1':
-            print ("bad region:", region)
-            continue
-
-        if season != 9:
-            print ("bad season:", season)
+        if season != SEASON:
+            print ("\t\tskipping season:", season)
             continue
 
         print ('\tFetching match (id: {})'.format(matchId))
@@ -159,14 +177,22 @@ def getSummonerMatches(summonerId):
         otherParticipants = fullMatch['participantIdentities']
         for participant in otherParticipants:
             if "player" not in participant:
-                continue # non-ranked game
+                continue # non-ranked game???
             player = participant['player']
             platformId = player['platformId']
             accountId = player['accountId']
             summonerName = player['summonerName']
 
-            if platformId != player['currentPlatformId'] or accountId != player['currentAccountId']:
-                print ("\t\tMismatch platform or account skipping")
+            # Some players have transferred profiles EUW to NA which we ignore because accountId doesn't work
+            # and I haven't investigated if currentAccountId always works. NA1 vs NA is okay.
+            currentAccountId = player['currentAccountId']
+            if accountId != currentAccountId:
+                print("\t\tMismatch account: {} vs {}".format(accountId, currentAccountId))
+
+            currentPlatformId = player['currentPlatformId']
+            if not (currentPlatformId.startswith(platformId) or platformId.startswith(currentPlatformId)):
+                print ("\t\tSkipping mismatched platform: {} vs {}".format(
+                    platformId, currentPlatformId))
                 continue
 
             fellowSummoners[summonerName] = accountId
@@ -213,14 +239,14 @@ def main():
             recentStatus = [False] + recentStatus[:9]
 
             print ()
-            print ("FAIL({} of {}) (with id {}):\n'{}'".format(
-                fails, fails + successes, newId, e))
+            print ("FAIL({} to {}) (with id {}):\n'{}'".format(
+                fails, successes, newId, e))
 
-            if 30 * (fails - 1) > len(matchIds):
+            if 30 * (fails - 1) > successes:
                 print ("breaking from {} fails".format(fails))
                 return
 
-            if not all(recentStatus):
+            if not any(recentStatus):
                 print ("ALL RECENT STATUS FAILED", recentStatus)
                 return
 
