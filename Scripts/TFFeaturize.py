@@ -51,8 +51,8 @@ def champFeature(data, champs):
 
 
 #        if position == "TOP":
-        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minchampId
-        data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
+#        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minchampId
+#        data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
 
 #        if champId == 11:
 #        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
@@ -135,6 +135,9 @@ def dragonFeatures(df, dragons, sampleTime):
 def goldFeatures(df, gold, sampleTime):
     lastBlock = Util.timeToBlock(sampleTime)
     lastBlockNum = max(b for b in map(int, gold.keys()) if b <= lastBlock)
+
+#   Explore adding each positions' gold / adv
+#    position = Util.guessPosition(champ)
 
     for blockNum in range(lastBlock+1):
         teamAGold = 0

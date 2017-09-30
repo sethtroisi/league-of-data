@@ -231,15 +231,27 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     # Over eighty briefly with
     # ('dropout', 0.0), ('learningRate', 0.02), ('steps', 100000), ('hiddenUnits', [600, 800, 400, 300, 20]), ('regularization', 0.01)
 
+#    constParams = {
+#        'modelName': 'exploring',
+#        'dropout': 0.00,
+#        'regularization': 0.01,
+#        'learningRate': 0.01,
+#        'hiddenUnits': [400, 500, 300, 200, 20],
+#        'earlyStoppingRounds': 2000,
+#        'steps': 100000,
+#    }
+
     constParams = {
         'modelName': 'exploring',
-        'dropout': 0.01,
-        'regularization': 0.02,
-        'learningRate': 0.010,
-        'hiddenUnits': [400, 500, 300, 200, 20],
+        'dropout': 0.00,
+        'regularization': 0.01,
+        'learningRate': 0.01,
+        'hiddenUnits': [10, 10],
 #        'earlyStoppingRounds': 2000,
-        'steps': 100000,
+        'steps': 200000,
     }
+
+
     gridSearchParams = [
 #        ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
 #        ('regularization', [0.0001, 0.001, 0.01, 0.1, 1.0]),
@@ -298,8 +310,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                 dropout = params['dropout'],
                 optimizer = functools.partial(learningRateFn, params),
                 config = tf.contrib.learn.RunConfig(
-                    save_summary_steps = 500,
-                    log_step_count_steps = 500,
+                    save_summary_steps = 200,
                     save_checkpoints_steps = 500,
                 ),
             )

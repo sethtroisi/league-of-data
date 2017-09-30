@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import datetime
 import random
 import time
 import urllib.request
@@ -19,6 +20,8 @@ from Util import *
 # Match API (this is what we want most)
 # https://developer.riotgames.com/api/methods#!/929/3214
 
+START_TIME_FILTER = int(datetime.datetime(2017, 9, 15).timestamp()) * 1000
+
 QUEUE_ID_TO_FOLDER = {
     4: "ranked",
     420: "ranked", # SOLO
@@ -27,14 +30,13 @@ QUEUE_ID_TO_FOLDER = {
 }
 
 API_KEYS = [
-   'RGAPI-1f514c25-76a4-440e-b12a-8dded48436c5' # KingVash
-#    'RGAPI-81e88d9f-2847-48af-966c-fbf02102ccd3',
-#    'RGAPI-aedb5983-6170-4b41-9dd6-05336d24b345',
+   'RGAPI-ae274dc2-4ce8-4778-a46c-6c29f0f47375' # Main
 ]
+
 BASE_URL = 'https://na1.api.riotgames.com/lol/'
 KEY_PARAM = 'api_key={apiKey}'
 
-SLEEP_TIME = 2
+SLEEP_TIME = 1.3
 GAMES_PER_SUMMONER = 3
 
 socket.setdefaulttimeout(2.0)
@@ -57,10 +59,14 @@ def getParsedResponse(url):
     keyUsed[apiKey] = time.time()
 
     url = url.format(apiKey = apiKey)
-
+    print ("\t\t", url)
     response = urllib.request.urlopen(url)
     data = response.read()
     stringData = data.decode('utf-8')
+
+    # save  "X-App-Rate-Limit-Count": "5:120,1:1",
+    # and   "X-App-Rate-Limit": "100:120,20:1",
+
     return json.loads(stringData)
 
 
@@ -107,8 +113,6 @@ def getSummonerMatches(summonerId):
 
     fellowSummoners = {}
     matchIds = set()
-    fullMatches = {}
-    fullTimeline = {}
 
     # Games are stored in increasing chronological order.
     for match in matches[:GAMES_PER_SUMMONER]:
@@ -116,39 +120,37 @@ def getSummonerMatches(summonerId):
         queueType = match['queue']
         region = match['platformId']
         season = match['season']
-
-        # TODO(sethtroisi): consider filtering on matchCreation time also.
+        timestamp = match['timestamp']
 
         if queueType not in QUEUE_ID_TO_FOLDER:
             print ("bad queue:", queueType)
             continue
         folder = QUEUE_ID_TO_FOLDER[queueType]
 
-
-        if region != 'NA1':
-            print ("bad region:", region)
-            continue
-
-
-        if season != 9:
-            print ("bad season:", season)
+        if timestamp <= START_TIME_FILTER:
+            print ("old game pre START_TIME_FILTER:", timestamp)
             continue
 
         if matchId <= 2500000000:
             print ("old game (pre 2017/04):", matchId)
             continue
 
+        if region != 'NA1':
+            print ("bad region:", region)
+            continue
+
+        if season != 9:
+            print ("bad season:", season)
+            continue
+
         print ('\tFetching match (id: {})'.format(matchId))
         fullMatch = getMatch(matchId)
         matchSaveName = '{}/matches/getMatch-{}'.format(folder, matchId)
         writeJsonFile(matchSaveName, fullMatch)
-        #fullMatch = loadJsonFile(matchSaveName)
-#        fullMatches[matchId] = fullMatch
 
         timeline = getTimeline(matchId)
         matchSaveName = '{}/matches/getTimeline-{}'.format(folder, matchId)
         writeJsonFile(matchSaveName, timeline)
-#        fullTimeline[matchId] = timeline
 
         matchIds.add(matchId)
 
@@ -159,11 +161,17 @@ def getSummonerMatches(summonerId):
             if "player" not in participant:
                 continue # non-ranked game
             player = participant['player']
-            summonerId = player['accountId']
+            platformId = player['platformId']
+            accountId = player['accountId']
             summonerName = player['summonerName']
-            fellowSummoners[summonerName] = summonerId
 
-    return matchIds, fellowSummoners, fullMatches, fullTimeline
+            if platformId != player['currentPlatformId'] or accountId != player['currentAccountId']:
+                print ("\t\tMismatch platform or account skipping")
+                continue
+
+            fellowSummoners[summonerName] = accountId
+
+    return matchIds, fellowSummoners
 
 
 def main():
@@ -184,7 +192,9 @@ def main():
         summoners[sumId] = name
         unvisited[sumId] = name
 
+    successes = 0
     fails = 0
+    recentStatus = []
     while len(matchIds) < 20000:
         newId = random.choice(list(unvisited.keys()))
         newName = unvisited[newId]
@@ -194,20 +204,31 @@ def main():
         print ('Exploring \'{}\' (id: {}) ({} of {} unexplored) ({} games)'.format(
             newName, newId, len(unvisited), len(summoners), len(matchIds)))
 
-#        try:
-        newMatchIds, fellowSummoners, newMatches, newTimelines = \
-            getSummonerMatches(newId)
-#        except Exception as e:
-#            print ("FAIL: '{}'".format(e))
-#            fails += 1
-#            if 30 * (fails - 1) > len(matchIds):
-#                print ("breaking from {} fails".format(fails))
-#                return
-#            continue
+        try:
+            newMatchIds, fellowSummoners = getSummonerMatches(newId)
+            successes += 1
+            recentStatus = [True] + recentStatus[:9]
+        except Exception as e:
+            fails += 1
+            recentStatus = [False] + recentStatus[:9]
+
+            print ()
+            print ("FAIL({} of {}) (with id {}):\n'{}'".format(
+                fails, fails + successes, newId, e))
+
+            if 30 * (fails - 1) > len(matchIds):
+                print ("breaking from {} fails".format(fails))
+                return
+
+            if not all(recentStatus):
+                print ("ALL RECENT STATUS FAILED", recentStatus)
+                return
+
+            continue
 
         # TODO(sethtroisi): make this unique games/summoners
         print ('\tAdded {} games, {} summoners'.format(
-            len(newMatches), len(fellowSummoners)))
+            len(newMatchIds), len(fellowSummoners)))
 
         matchIds.update(newMatchIds)
         for fName, fId in fellowSummoners.items():
