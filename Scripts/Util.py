@@ -168,20 +168,29 @@ def guessPosition(champ):
 
 
 def compressFeatureList(featuresUsed):
-    regex = re.compile('_([ABb0-9]{1,2})(?=$|_)', re.I)
+    tokened = "(?<=_)({})(?=$|_)"
+    teamOrNumberRe = re.compile(tokened.format("[abAB0-9]{1,2}"))
+    dragons = ["air", "water", "earth", "fire"]
+    dragonRe = re.compile(tokened.format("|".join(dragons)), re.I)
+
 
     def replacement(m):
         text = m.group(1)
         if text in 'abAB':
-            return '_<team>'
+            return '<team>'
+        elif text.lower() in dragons:
+            return '<dragon>'
         elif text.isnumeric():
-            return '_<X>'
+            return '<X>'
         else:
             print("Bad sub:", text, m.groups())
             return m.group()
 
-    compressedList = \
-        set(map(functools.partial(regex.sub, replacement), featuresUsed))
-    compressedFeatures = ", ".join(sorted(compressedList))
+    compressedList = set()
+    for feature in featuresUsed:
+        feature = teamOrNumberRe.sub(replacement, feature)
+        feature = dragonRe.sub(replacement, feature)
+        compressedList.add(feature)
 
+    compressedFeatures = ", ".join(sorted(compressedList))
     return len(compressedList), compressedFeatures

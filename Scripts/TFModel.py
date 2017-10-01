@@ -111,7 +111,7 @@ def featuresToColumns(features):
 
             column = tf.contrib.layers.bucketized_column(
                 source_column=realColumn,
-                boundaries= [100, 200, 500, 1000, 2000, 3000, 5000, 7000, 10000, 15000])
+                boundaries=[100, 200, 500, 1000, 2000, 3000, 5000, 7000, 10000, 15000])
 
         elif feature.startswith("embedding_"):
             columnTypes["embedding"] += 1
@@ -146,7 +146,7 @@ def featuresToColumns(features):
 
 featurizerTime = 0
 trainTime = 0
-def gameToFeatures(args, games, goals, blockNum, *, training = False):
+def gameToFeatures(args, games, goals, blockNum, *, training):
     global featurizerTime, trainTime
 
     # Filter out games that ended already
@@ -280,10 +280,10 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
             params = {**constParams, **gridSearchInstanceParams}
 
             blockTrainFeatureSets, blockTrainGoals, featuresUsed = gameToFeatures(
-                args, trainGames, trainGoals, blockNum, training = True)
+                args, trainGames, trainGoals, blockNum, training=True)
 
             blockTestFeatureSets, blockTestGoals = gameToFeatures(
-                args, testGames, testGoals, blockNum, training = False)
+                args, testGames, testGoals, blockNum, training=False)
 
             if len(blockTrainFeatureSets) == 0:
                 break
@@ -383,7 +383,7 @@ def getPrediction(args, classifiers, featureSets, testGames, testGoals, blockNum
     featuresUsed = featureSets[blockNum]
 
     predictFeatureSets, predictGoalsEmpty = gameToFeatures(
-        args, testGames, testGoals, blockNum)
+        args, testGames, testGoals, blockNum, training=False)
 
     modelGuess = classifier.predict_proba(
         input_fn = functools.partial(inputFn, featuresUsed, predictFeatureSets))
@@ -440,7 +440,7 @@ def buildGraphData(blocks, testingGames, testingGoals, classifiers, featureSets)
                     goals.append(testGoal)
                     predictions.append(gamePredictions[blockNum])
 
-            logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions, labels = [True, False])
+            logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions, labels=[True, False])
 
     return times, samples, corrects, ratios, logLosses, testWinProbs
 
@@ -466,8 +466,8 @@ def main(args):
     trainingGames, testingGames, trainingGoals, testingGoals = train_test_split(
         games,
         goals,
-        test_size = args.holdback / 100,
-        random_state = 42)
+        test_size=args.holdback / 100,
+        random_state=42)
     del games, goals
 
     if args.verbose == 0:
@@ -479,7 +479,17 @@ def main(args):
     if args.panda_debug:
         for blockNum in blocks:
             blockTrainFeatureSets, blockTrainGoals, featuresUsed = gameToFeatures(
-                args, trainingGames, trainingGoals, blockNum, training=False)
+                args, trainingGames, trainingGoals, blockNum, training=True)
+
+            print ("Panda Debugging block", blockNum)
+            print ("\t.columns and describe() are useful")
+            import pandas as pd
+            dataframe = pd.DataFrame(blockTrainFeatureSets)
+
+            import IPython
+            IPython.embed()
+
+            return
 
     T2 = time.time()
 

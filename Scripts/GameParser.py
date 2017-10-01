@@ -129,6 +129,7 @@ def parseGameRough(match, timeline):
                     dragons.append((time, commonName, isTeamOne))
                 elif monsterType == 'BARON_NASHOR':
                     barons.append((time, isTeamOne))
+                # TODO elder dragon?
                 #Red/blue buffs aren't recorded here as specified in API
 
             buildingType = event.get('buildingType', None)

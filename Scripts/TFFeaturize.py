@@ -119,8 +119,6 @@ def dragonFeatures(df, dragons, sampleTime):
         df['dragon_{}_taken_at'.format(dragonI)] = dragonTime / 1800
         df['dragon_{}_taken_by'.format(dragonI)] = 1 if isTeamA else -1
 
-        # TODO last dragon_a
-
     df["dragon_taken_A"] = len(dragonsA)
     df["dragon_taken_B"] = len(dragonsB)
 
