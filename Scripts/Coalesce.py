@@ -14,8 +14,14 @@ def getArgParse():
     parser.add_argument(
         '-d', '--directory',
         type=str,
-        default='../Data/matches/',
+        default='../Data/',
         help='Diretory of match json files')
+
+    parser.add_argument(
+        '--queue',
+        type=str,
+        default='ranked',
+        help='Queue type "ranked" or "aram"')
 
     parser.add_argument(
         '--output-file',
@@ -27,7 +33,8 @@ def getArgParse():
 
 
 def main(args):
-    baseDir = args.directory
+    queueDir = args.queue + '/matches/'
+    baseDir = args.directory + queueDir
 
     timelines = {}
     matches = {}
@@ -44,9 +51,9 @@ def main(args):
         assert isMatch or isTimeline, f
 
         if isMatch:
-            matches[matchId] = f
+            matches[matchId] = queueDir + f
         else:
-            timelines[matchId] = f
+            timelines[matchId] = queueDir + f
 
         # TODO(sethtroisi): add filters based on dates and stuff here
         #match = loadJsonFile(fileName)

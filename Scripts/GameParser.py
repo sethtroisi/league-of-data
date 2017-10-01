@@ -178,6 +178,7 @@ def parseGameRough(match, timeline):
     # TODO(sethtroisi): plumb debug info instead of reusing features.
     debug = dict()
     debug['duration'] = match['gameDuration']
+    debug['matchId'] = match['gameId']
 
     rawResult = match['teams'][0]['win']
     assert rawResult in ('Win', 'Fail'), rawResult
@@ -207,8 +208,8 @@ def main(args):
         assert len(t) == 2
 
         # If you had an error on this line re-run Coalesce.py
-        match = Util.loadJsonFile('matches/' + t[0])
-        timeline = Util.loadJsonFile('matches/' + t[1])
+        match = Util.loadJsonFile(t[0])
+        timeline = Util.loadJsonFile(t[1])
 
         parsed = parseGameRough(match, timeline)
         outputData.append(parsed)

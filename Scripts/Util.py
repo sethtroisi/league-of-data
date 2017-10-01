@@ -72,7 +72,7 @@ def spellIdToName(spellId):
         1: "Cleanse", 3: "Exhaust", 4: "Flash", 6: "Ghost", 7: "Heal", 11: "Smite",
         12: "Teleport", 13: "Clarity", 14: "Ignite", 21: "Barrier"
     }
-    return summonerSpell.get(spellId).lower() #, 'unknown-spell-{}'.format(spellId))
+    return summonerSpell[spellId].lower() #, 'unknown-spell-{}'.format(spellId))
 
 
 champIdToName = {
@@ -90,11 +90,11 @@ champIdToName = {
     103: "Ahri", 104: "Graves", 105: "Fizz", 106: "Volibear", 107: "Rengar", 110: "Varus", 111: "Nautilus",
     112: "Viktor", 113: "Sejuani", 114: "Fiora", 115: "Ziggs", 117: "Lulu", 119: "Draven", 120: "Hecarim",
     121: "Kha'Zix", 122: "Darius", 126: "Jayce", 127: "Lissandra", 131: "Diana", 133: "Quinn",
-    134: "Syndra", 136: "Aurelion Sol", 143: "Zyra", 150: "Gnar", 154: "Zac", 157: "Yasuo",
+    134: "Syndra", 136: "Aurelion Sol", 141: "Kayn", 143: "Zyra", 150: "Gnar", 154: "Zac", 157: "Yasuo",
     161: "Vel'Koz", 163: "Taliyah", 164: "Camille", 201: "Braum", 202: "Jhin", 203: "Kindred", 222: "Jinx",
     223: "Tahm Kench", 236: "Lucian", 238: "Zed", 240: "Kled", 245: "Ekko", 254: "Vi", 266: "Aatrox", 267: "Nami",
     268: "Azir", 412: "Thresh", 420: "Illaoi", 421: "Rek'Sai", 427: "Ivern", 429: "Kalista", 432: "Bard",
-    497: "Rakan", 498: "Xayah"
+    497: "Rakan", 498: "Xayah", 516: "Ornn"
 }
 
 def championIdToName(champId):
