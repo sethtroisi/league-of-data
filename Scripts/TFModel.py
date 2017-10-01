@@ -20,6 +20,11 @@ def getArgParse():
     parser = argparse.ArgumentParser(description='Takes features and models outcomes.')
 
     parser.add_argument(
+        '--panda-debug',
+        action = "store_true",
+        help = 'drop to interactive prompt with pandas to debug data')
+
+    parser.add_argument(
         '-i', '--input-file',
         type=str,
         default='features.json',
@@ -243,14 +248,18 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
     constParams = {
         'modelName': 'exploring',
+
+        # ML hyperparams
         'dropout': 0.00,
         'regularization': 0.01,
         'learningRate': 0.01,
-        'hiddenUnits': [10, 10],
-#        'earlyStoppingRounds': 2000,
-        'steps': 200000,
-    }
+        'hiddenUnits': [50, 50, 10],
+        'steps': 10000,
 
+        # Also controls how often eval_validation data is calculated
+        'saveCheckpointSteps': 400,
+        'earlyStoppingRounds': 2000,
+    }
 
     gridSearchParams = [
 #        ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
@@ -259,7 +268,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     ]
 
     classifiers = {}
-    featuresUses = {}
+    featureSets = {}
 
     for blockNum in blocks:
         bestOfGridSearch = (1000, None, None)
@@ -302,7 +311,6 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
             print ("\t", params.items(), "\n")
 
             classifier = tf.contrib.learn.DNNClassifier(
-    #        classifier = DnnClassifier.DNNClassifier( DO NOT SUBMIT
                 hidden_units = params['hiddenUnits'],
                 feature_columns = featureColumns,
                 model_dir = modelDir,
@@ -311,7 +319,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                 optimizer = functools.partial(learningRateFn, params),
                 config = tf.contrib.learn.RunConfig(
                     save_summary_steps = 200,
-                    save_checkpoints_steps = 500,
+                    save_checkpoints_steps = params['saveCheckpointSteps'],
                 ),
             )
 
@@ -365,16 +373,14 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         loss, classifier, featuresUsed = bestOfGridSearch
 
         classifiers[blockNum] = classifier
-        featuresUses[blockNum] = featuresUsed
-    return classifiers, featuresUses
+        featureSets[blockNum] = featuresUsed
+    return classifiers, featureSets
 
 
-#allprobs = set()
-#featureGroups = set()
-def getPrediction(args, classifiers, featuresUses, testGames, testGoals, blockNum):
-    assert blockNum in classifiers and blockNum in featuresUses
+def getPrediction(args, classifiers, featureSets, testGames, testGoals, blockNum):
+    assert blockNum in classifiers and blockNum in featureSets
     classifier = classifiers[blockNum]
-    featuresUsed = featuresUses[blockNum]
+    featuresUsed = featureSets[blockNum]
 
     predictFeatureSets, predictGoalsEmpty = gameToFeatures(
         args, testGames, testGoals, blockNum)
@@ -383,21 +389,60 @@ def getPrediction(args, classifiers, featuresUses, testGames, testGoals, blockNu
         input_fn = functools.partial(inputFn, featuresUsed, predictFeatureSets))
 
     for i, (probs, testGoal) in enumerate(zip(modelGuess, testGoals)):
-    #     key = tuple(sorted(predictFeatureSets[i].keys()))
-    #     if key not in featureGroups or probs[0] not in allprobs:
-    #         tfFeatures = inputFn(featuresUsed, [predictFeatureSets[i]])
-    #
-    #         print ("\t", probs, testGoal, i, "\t", key,
-    #                "\t", predictFeatureSets[i])
-    #         featureGroups.add(key)
-    #         allprobs.add(probs[0])
-    #
-
         # This is due to the sorting of [False, True].
         BProb, AProb = probs
         correct = (AProb > 0.5) == testGoal
         yield correct, [BProb, AProb]
 
+
+def buildGraphData(blocks, testingGames, testingGoals, classifiers, featureSets):
+    maxBlock = max(blocks)
+
+    # Variables about testGames.
+    times = [(b * Util.SECONDS_PER_BLOCK) / 60 for b in range(maxBlock + 1)]
+    samples = [0 for b in range(maxBlock + 1)]
+    corrects = [0 for b in range(maxBlock + 1)]
+
+    # Averages over data (calculated after all data).
+    ratios = [0 for b in range(maxBlock + 1)]
+    logLosses = [0 for b in range(maxBlock + 1)]
+
+    # Per Game stats.
+    testWinProbs = [[] for game in testingGames]
+
+    for blockNum in blocks:
+        gameIs, testingBlockGames, testingBlockGoals = filterMaxBlock(
+            blockNum, testingGames, testingGoals)
+
+        # Do all predictions at the same time (needed because of how predict reloads the model each time).
+        predictions = getPrediction(args, classifiers, featureSets, testingBlockGames, testingBlockGoals, blockNum)
+
+        for gameI, prediction in zip(gameIs, predictions):
+            correct, gamePrediction = prediction
+
+            # store data to graph
+            samples[blockNum] += 1
+            corrects[blockNum] += 1 if correct else 0
+
+            paddingNeeded = blockNum - len(testWinProbs[gameI]) + 1
+            if paddingNeeded > 0:
+                testWinProbs[gameI] += [[0.5, 0.5]] * paddingNeeded
+            testWinProbs[gameI][blockNum] = gamePrediction
+
+    for blockNum in blocks:
+        if samples[blockNum] > 20:
+            ratios[blockNum] = corrects[blockNum] / samples[blockNum]
+
+            goals = []
+            predictions = []
+            for testGoal, gamePredictions in zip(testingGoals, testWinProbs):
+                if len(gamePredictions) > blockNum:
+                    goals.append(testGoal)
+                    predictions.append(gamePredictions[blockNum])
+
+            logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions, labels = [True, False])
+
+    return times, samples, corrects, ratios, logLosses, testWinProbs
 
 def main(args):
     global featurizerTime, trainTime
@@ -431,25 +476,14 @@ def main(args):
     assert len(trainingGames) == len(trainingGoals)
     assert len(testingGames) == len(testingGoals)
 
-
-
-    # testFeatures = ['team_A_has_champion_11', 'team_B_has_champion_11']
-    # if testFeatures:
-    #     featureRecall = defaultdict(lambda : [0,0])
-    #     for game, goal in zip(trainingGames, trainingGoals):
-    #         features = TFFeaturize.parseGame(game, 3600)
-    #         featureRecall["bias"][goal] += 1
-    #         for testFeature in testFeatures:
-    #             featureRecall[testFeature][goal] += 1
-    #
-    #
-    #     for feature, results in sorted(featureRecall.items()):
-    #         print ("\t{} - {} - {:.1f}%".format(feature, results, 100 * results[1] / sum(results)))
-    #     print ()
+    if args.panda_debug:
+        for blockNum in blocks:
+            blockTrainFeatureSets, blockTrainGoals, featuresUsed = gameToFeatures(
+                args, trainingGames, trainingGoals, blockNum, training=False)
 
     T2 = time.time()
 
-    classifiers, featuresUses = buildClassifier(
+    classifiers, featureSets = buildClassifier(
         args,
         blocks,
         trainingGames,
@@ -461,51 +495,8 @@ def main(args):
     T3 = time.time()
     innerTrainTime = T3 - T2
 
-    maxBlock = max(blocks)
-
-    # Variables about testGames.
-    times = [(b * Util.SECONDS_PER_BLOCK) / 60 for b in range(maxBlock + 1)]
-    samples = [0 for b in range(maxBlock + 1)]
-    corrects = [0 for b in range(maxBlock + 1)]
-
-    # Averages over data (calculated after all data).
-    ratios = [0 for b in range(maxBlock + 1)]
-    logLosses = [0 for b in range(maxBlock + 1)]
-
-    # Per Game stats.
-    testWinProbs = [[] for game in testingGames]
-
-    for blockNum in blocks:
-        gameIs, testingBlockGames, testingBlockGoals = filterMaxBlock(
-            blockNum, testingGames, testingGoals)
-
-        # Do all predictions at the same time (needed because of how predict reloads the model each time).
-        predictions = getPrediction(args, classifiers, featuresUses, testingBlockGames, testingBlockGoals, blockNum)
-
-        for gameI, prediction in zip(gameIs, predictions):
-            correct, gamePrediction = prediction
-
-            # store data to graph
-            samples[blockNum] += 1
-            corrects[blockNum] += 1 if correct else 0
-
-            paddingNeeded = blockNum - len(testWinProbs[gameI]) + 1
-            if paddingNeeded > 0:
-                testWinProbs[gameI] += [[0.5, 0.5]] * paddingNeeded
-            testWinProbs[gameI][blockNum] = gamePrediction
-
-    for blockNum in blocks:
-        if samples[blockNum] > 20:
-            ratios[blockNum] = corrects[blockNum] / samples[blockNum]
-
-            goals = []
-            predictions = []
-            for testGoal, gamePredictions in zip(testingGoals, testWinProbs):
-                if len(gamePredictions) > blockNum:
-                    goals.append(testGoal)
-                    predictions.append(gamePredictions[blockNum])
-
-            logLosses[blockNum] = sklearn.metrics.log_loss(goals, predictions, labels = [True, False])
+    times, samples, corrects, ratios, logLosses, testWinProbs =\
+        buildGraphData(blocks, testingGames, testingGoals, classifiers, featureSets)
 
     T4 = time.time()
     statsTime = T4 - T3
