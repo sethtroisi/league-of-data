@@ -1,9 +1,11 @@
+#!/usr/bin/env python3
+
 import os
 import re
 
 from collections import defaultdict
 
-directory = "../Data/matches"
+directory = "../Data/"
 
 allFiles = set()
 
@@ -19,6 +21,7 @@ for fileName in allFiles:
     match = regex.match(fileName)
     if not match:
         print ("no match:", fileName)
+        continue
 
     fileType = match.group(1)
     mId = match.group(2)
@@ -41,6 +44,7 @@ for matchId, types in items.items():
         else:
             timelineOnly.append(t)
 
+print ("{} considered".format(len(items)))
 print ("{} and {}".format(len(matchOnly), len(timelineOnly)))
 
 if len(matchOnly) + len(timelineOnly) > 0:
