@@ -67,7 +67,8 @@ def parseGameRough(match, timeline):
         assert pId == champI, "{} != {}".format(pId, champI)
         assert (1 <= pId <= 5) == isTeamOne, "{} != {}".format(pId, isTeamOne)
 
-        teamOne.append(pId)
+        if isTeamOne:
+            teamOne.append(pId)
 
         champ = {}
         champs.append(champ)
