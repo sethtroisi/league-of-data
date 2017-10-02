@@ -185,7 +185,8 @@ def getSummonerMatches(summonerId):
             # and I haven't investigated if currentAccountId always works. NA1 vs NA is okay.
             currentAccountId = player['currentAccountId']
             if accountId != currentAccountId:
-                print("\t\tMismatch account: {} vs {}".format(accountId, currentAccountId))
+                print("\t\tSkipping mismatch account: {} vs {}".format(accountId, currentAccountId))
+                continue
 
             currentPlatformId = player['currentPlatformId']
             if not (currentPlatformId.startswith(platformId) or platformId.startswith(currentPlatformId)):

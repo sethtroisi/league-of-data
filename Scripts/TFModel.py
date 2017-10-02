@@ -139,8 +139,9 @@ def featuresToColumns(features):
 
         columns.append(column)
 
-    for type, count in requiredToBeFound.items():
-        assert columnTypes[type] >= count, "{} had {} not >= {}".format(type, columnTypes[type], count)
+# TODO DO NOT SUBMIT
+#    for type, count in requiredToBeFound.items():
+#        assert columnTypes[type] >= count, "{} had {} not >= {}".format(type, columnTypes[type], count)
 
     return columns
 
@@ -251,14 +252,14 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
         # ML hyperparams
         'dropout': 0.00,
-        'regularization': 0.01,
-        'learningRate': 0.01,
-        'hiddenUnits': [50, 50, 10],
+        'regularization': 0.004,
+        'learningRate': 0.02,
+        'hiddenUnits': [100, 200, 10],
         'steps': 10000,
 
         # Also controls how often eval_validation data is calculated
         'saveCheckpointSteps': 400,
-        'earlyStoppingRounds': 2000,
+#        'earlyStoppingRounds': 2000,
     }
 
     gridSearchParams = [
@@ -482,7 +483,19 @@ def main(args):
                 args, trainingGames, trainingGoals, blockNum, training=True)
 
             print ("Panda Debugging block", blockNum)
-            print ("\t.columns and describe() are useful")
+            print ("\tdata loading into \"dataframe\"")
+            print ("\t.columns .describe() .fillna(0) are common")
+            print ()
+            print ()
+
+            '''
+            pd.set_option('display.max_columns', None)
+            dataframe.columns
+            dataframe.describe()
+            Counter(dataframe['team_spells_B_teleports'].fillna(0).tolist())
+            '''
+
+
             import pandas as pd
             dataframe = pd.DataFrame(blockTrainFeatureSets)
 

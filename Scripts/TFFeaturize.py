@@ -49,13 +49,11 @@ def champFeature(data, champs):
         rank = champ['approxRank']
         ranks[(isTeamA, rank)] += 1
 
-
 #        if position == "TOP":
 #        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minchampId
 #        data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
 
-#        if champId == 11:
-#        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
+        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
 
     for (isTeamA, spellId), count in summoners.items():
         spellName = Util.spellIdToName(spellId)
@@ -129,6 +127,7 @@ def dragonFeatures(df, dragons, sampleTime):
 
     return features
 
+
 # Creates features from gold values (delta)
 def goldFeatures(df, gold, sampleTime):
     lastBlock = Util.timeToBlock(sampleTime)
@@ -162,6 +161,7 @@ def goldFeatures(df, gold, sampleTime):
         df['gold_adv_block_{}_a'.format(blockNum)] = max(0, deltaGold)
         df['gold_adv_block_{}_b'.format(blockNum)] = max(0, -deltaGold)
 
+
 def parseGame(parsed, time):
     if time is None:
         assert False
@@ -187,18 +187,17 @@ def parseGame(parsed, time):
 
     champFeature(data, champs)
 
-    goldFeatures(data, gold, time)
-    towerFeatures(data, towers, time)
-    dragonFeatures(data, dragons, time)
+#    goldFeatures(data, gold, time)
+#    towerFeatures(data, towers, time)
+#    dragonFeatures(data, dragons, time)
 
-    countedFeature(data, 'inhibs', inhibs, time)
-    countedFeature(data, 'barons', barons, time)
+#    countedFeature(data, 'inhibs', inhibs, time)
+#    countedFeature(data, 'barons', barons, time)
 
     # TODO MORE VERIFICATION.
 #    print (data)
 
     return data
-
 
 
 def getRawGameData(args):
@@ -248,4 +247,3 @@ def getRawGameData(args):
     print ("Loaded {} games (filtereed {})".format(
         len(goals), len(outputData) - len(goals)))
     return games, goals
-
