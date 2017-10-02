@@ -20,6 +20,10 @@ from Util import *
 # Match API (this is what we want most)
 # https://developer.riotgames.com/api/methods#!/929/3214
 
+API_KEYS = [
+    'RGAPI-5a926470-e10e-42dd-8021-ba986dfd4626' # Main
+]
+
 START_TIME_FILTER = int(datetime.datetime(2017, 9, 15).timestamp()) * 1000
 REGIONS = ('NA', 'NA1')
 SEASON = 9
@@ -31,17 +35,12 @@ QUEUE_ID_TO_FOLDER = {
     65: "aram"
 }
 
-API_KEYS = [
-   'RGAPI-ae274dc2-4ce8-4778-a46c-6c29f0f47375' # Main
-]
+GAMES_PER_SUMMONER = 3
+
+###### CONSTANTS ######
 
 BASE_URL = 'https://na1.api.riotgames.com/lol/'
 KEY_PARAM = 'api_key={apiKey}'
-
-GAMES_PER_SUMMONER = 3
-
-# Used for some SSL error may be no longer needed?
-socket.setdefaulttimeout(2.0)
 
 RATE_LIMITS_RAW = "100:120,20:1"
 RATE_LIMITS = dict([map(int, l.split(":")[::-1]) for l in RATE_LIMITS_RAW.split(",")])
@@ -52,21 +51,23 @@ print ("RATE_LIMITS: {}".format(
     ", ".join(map(lambda l: "{} per {}".format(l[1], l[0]), RATE_LIMITS.items()))))
 print ()
 
+
 def buildUrl(apiPath, params = None):
     params = params or []
     urlParams = '&'.join([KEY_PARAM] + params)
     return BASE_URL + apiPath + '?' + urlParams
 
 
-keyUsed = dict((key, 0) for key in API_KEYS)
 def getParsedResponse(url):
-    lastUsed, apiKey = min((u, k) for k, u in keyUsed.items())
+    if not hasattr(getParsedResponse, 'keyUsed'):
+      getParsedResponse.keyUsed = dict((key, 0) for key in API_KEYS)
+    lastUsed, apiKey = min((u, k) for k, u in getParsedResponse.keyUsed.items())
 
     timeToWait = (lastUsed + MIN_SLEEP_TIME) - time.time()
     if timeToWait > 0.01:
         time.sleep(timeToWait)
 
-    keyUsed[apiKey] = time.time()
+    getParsedResponse.keyUsed[apiKey] = time.time()
 
     url = url.format(apiKey = apiKey)
     response = urllib.request.urlopen(url)
@@ -126,9 +127,6 @@ def getTimeline(matchId):
 def getSummonerMatches(summonerId):
     # TODO(sethtroisi): Use rankedQueues query param.
     history = getMatchHistory(summonerId)
-    #saveName = 'matchHistory/getMatchHistory-{}'.format(summonerId)
-    #writeJsonFile(saveName, history)
-    #history = loadJsonFile(saveName)
 
     matches = history['matches']
     assert len(matches) > 0
@@ -163,11 +161,11 @@ def getSummonerMatches(summonerId):
 
         print ('\tFetching match (id: {})'.format(matchId))
         fullMatch = getMatch(matchId)
-        matchSaveName = '{}/matches/getMatch-{}'.format(folder, matchId)
+        matchSaveName = 'matches/{}/getMatch-{}'.format(folder, matchId)
         writeJsonFile(matchSaveName, fullMatch)
 
         timeline = getTimeline(matchId)
-        matchSaveName = '{}/matches/getTimeline-{}'.format(folder, matchId)
+        matchSaveName = 'matches/{}/getTimeline-{}'.format(folder, matchId)
         writeJsonFile(matchSaveName, timeline)
 
         matchIds.add(matchId)

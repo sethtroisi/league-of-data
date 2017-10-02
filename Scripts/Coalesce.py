@@ -33,7 +33,7 @@ def getArgParse():
 
 
 def main(args):
-    queueDir = args.queue + '/matches/'
+    queueDir = 'matches/' + args.queue
     baseDir = args.directory + queueDir
 
     timelines = {}
