@@ -254,8 +254,8 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'dropout': 0.00,
 #        'regularization': 0.014,
         'learningRate': 0.02,
-        'hiddenUnits': [100, 200, 10],
-        'steps': 15000,
+        'hiddenUnits': [200, 200, 100, 20],
+        'steps': 25000,
 
         # Also controls how often eval_validation data is calculated
         'saveCheckpointSteps': 400,
@@ -264,7 +264,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
     gridSearchParams = [
 #        ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
-        ('regularization', [0.013, 0.018, 0.024, 0.03]),
+        ('regularization', [0.009, 0.013, 0.018, 0.024, 0.03]),
 #        ('learningRate', [0.005, 0.007, 0.01, 0.013, 0.017]),
     ]
 
