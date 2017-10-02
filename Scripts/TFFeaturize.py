@@ -49,10 +49,8 @@ def champFeature(data, champs):
         rank = champ['approxRank']
         ranks[(isTeamA, rank)] += 1
 
-#        if position == "TOP":
-#        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minchampId
-#        data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
-
+        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minchampId
+        data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
         data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
 
     for (isTeamA, spellId), count in summoners.items():
@@ -187,15 +185,12 @@ def parseGame(parsed, time):
 
     champFeature(data, champs)
 
-#    goldFeatures(data, gold, time)
-#    towerFeatures(data, towers, time)
-#    dragonFeatures(data, dragons, time)
+    goldFeatures(data, gold, time)
+    towerFeatures(data, towers, time)
+    dragonFeatures(data, dragons, time)
 
-#    countedFeature(data, 'inhibs', inhibs, time)
-#    countedFeature(data, 'barons', barons, time)
-
-    # TODO MORE VERIFICATION.
-#    print (data)
+    countedFeature(data, 'inhibs', inhibs, time)
+    countedFeature(data, 'barons', barons, time)
 
     return data
 

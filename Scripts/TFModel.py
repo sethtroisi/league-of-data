@@ -252,19 +252,19 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
         # ML hyperparams
         'dropout': 0.00,
-        'regularization': 0.004,
+#        'regularization': 0.014,
         'learningRate': 0.02,
         'hiddenUnits': [100, 200, 10],
-        'steps': 10000,
+        'steps': 15000,
 
         # Also controls how often eval_validation data is calculated
         'saveCheckpointSteps': 400,
-#        'earlyStoppingRounds': 2000,
+        'earlyStoppingRounds': 2500,
     }
 
     gridSearchParams = [
 #        ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
-#        ('regularization', [0.0001, 0.001, 0.01, 0.1, 1.0]),
+        ('regularization', [0.013, 0.018, 0.024, 0.03]),
 #        ('learningRate', [0.005, 0.007, 0.01, 0.013, 0.017]),
     ]
 
