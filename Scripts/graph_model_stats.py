@@ -87,7 +87,7 @@ def plotGame(times, results, winPredictions):
 
     sample = zip(results, winPredictions)
     if len(results) > 5000:
-        sample = random.sample(sample, 5000)
+        sample = random.sample(list(sample), 5000)
 
     # For every game (if less than 5000 games) print prediction through out the game.
     for result, gamePredictions in sample:

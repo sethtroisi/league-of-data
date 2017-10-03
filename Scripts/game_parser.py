@@ -55,6 +55,11 @@ def getArgParse():
         help='Don\'t write output file instead print to screen')
     return parser
 
+def getAndValidate(data, key, validValues):
+    value = data.get(key, None)
+    assert value in validValues, "{} not in ({})".format(value, validValues)
+    return value
+
 
 # takes in a match json object and returns features about it.
 def parseGameRough(match, timeline):
@@ -112,6 +117,8 @@ def parseGameRough(match, timeline):
             # TODO use item gold instead of totalGold
             frameGold[pId] = pFrame['totalGold']
 
+        # TODO other frame features (Level, XP, inventory gold, ...)
+
         events = frame.get('events', [])
         for event in events:
             monsterType = event.get('monsterType', None)
@@ -119,40 +126,42 @@ def parseGameRough(match, timeline):
             if gameTime:
                 gameTime //= 1000
 
-            isTeamOne = lambda : event.get('teamId') == 100
+            isTeamOne = lambda: 100 == getAndValidate(event, 'teamId', (100, 200))
+            killerId = lambda: getAndValidate(event, 'killerId', range(11))  # 0 means minion
 
             if monsterType:
-                killer = event['killerId']
+                killer = killerId()
                 isTeamOne = killer in teamOne
                 if monsterType == 'DRAGON':
-                    subType = event['monsterSubType']
-                    assert '_DRAGON' in subType
-                    commonName = subType.replace('_DRAGON', '')
-
+                    dragonType = event['monsterSubType']
+                    assert '_DRAGON' in dragonType
+                    commonName = dragonType.replace('_DRAGON', '')
                     dragons.append((gameTime, commonName, isTeamOne))
+
                 elif monsterType == 'BARON_NASHOR':
                     barons.append((gameTime, isTeamOne))
-                # TODO elder dragon?
-                # Red/blue buffs aren't recorded here as specified in API
+
+                # TODO 'RIFTHERALD' and 'ELDER_DRAGON' (handled by DRAGON code?)
 
             buildingType = event.get('buildingType', None)
             if buildingType == 'TOWER_BUILDING':
                 # killerId == 0 means minions
-                # killer = event['killerId']
+                # killer = killerId()
                 towerType = event['towerType']
                 laneType = event['laneType']
                 isTeamOneTower = isTeamOne()
 
-                yCord = event['position']['y']
-                assert yCord in (1807, 2270, 12612, 13084)
-                isTopNexus = yCord in (2270, 13084)
-                if isTopNexus:
-                    laneType = "TOP_LANE"
+                # Deduplicate MID_LANE + NEXUS_TURRET.
+                if towerType == 'NEXUS_TURRET':
+                    yCord = getAndValidate(event['position'], 'y', (1807, 2270, 12612, 13084))
+                    isTopNexus = yCord in (2270, 13084)
+                    if isTopNexus:
+                        laneType = "TOP_LANE"
 
                 towerNum = util.getTowerNumber(isTeamOneTower, laneType, towerType)
                 assert isTeamOneTower == util.teamATowerKill(towerNum)
 
-                assert all(tNum != towerNum for t, k, tNum in towers)
+                assert all(tNum != towerNum for t, k, tNum in towers), "{} new: {}".format(towers, event)
                 towers.append((gameTime, isTeamOneTower, towerNum))
 
             elif buildingType == 'INHIBITOR_BUILDING':
@@ -167,6 +176,9 @@ def parseGameRough(match, timeline):
                 # wardType = event['wardType']
                 # isTeamOne = event['creatorId'] <= 5
                 # TODO save and record ward events
+
+            # TODO KILLS, LEVEL UP, SKILL ORDER (?)
+
 
     features = dict()
     features['champs'] = champs
