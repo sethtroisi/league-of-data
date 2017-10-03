@@ -2,6 +2,8 @@ import argparse
 import random
 import time
 
+from collections import defaultdict
+
 import util
 
 # API REFERENCE
@@ -104,20 +106,26 @@ def parseGameRough(match, timeline):
     barons = []
     towers = []
     inhibs = []
-    gold = {}
+    frameStats = defaultdict(
+        lambda : defaultdict(lambda : [None for _ in range(10)])
+    )
+
     frames = timeline['frames']
     for frame in frames:
         frameTime = frame['timestamp'] // 1000
         blockNum = util.timeToBlock(frameTime)
 
-        frameGold = {}
         # NOTE: frames appear to be 60 seconds
-        gold[blockNum] = frameGold
         for pId, pFrame in frame['participantFrames'].items():
+            listPId = int(pId) - 1
+            assert 0 <= listPId <= 9, listPId
             # TODO use item gold instead of totalGold
-            frameGold[pId] = pFrame['totalGold']
+            frameStats['gold'][blockNum][listPId] = pFrame['totalGold']
 
-        # TODO other frame features (Level, XP, inventory gold, ...)
+            frameStats['farm'][blockNum][listPId] = pFrame['minionsKilled']
+            frameStats['jungleFarm'][blockNum][listPId] = pFrame['jungleMinionsKilled']
+
+            # TODO other frame features (Level, XP, inventory gold, ...)
 
         events = frame.get('events', [])
         for event in events:
@@ -188,7 +196,10 @@ def parseGameRough(match, timeline):
     features['inhibs'] = inhibs
     # features['wards'] = wards
 
-    features['gold'] = gold
+    # Verify key is present and convert defaultdict to dictionary.
+    features['gold'] = dict(frameStats.get('gold', None))
+    features['farm'] = dict(frameStats.get('farm', None))
+    features['jungleFarm'] = dict(frameStats.get('jungleFarm', None))
 
     debug = dict()
     debug['duration'] = match['gameDuration']

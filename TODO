@@ -1,3 +1,5 @@
+Convert to one minute blocks (to match frame size)
+
 Convert away from DnnClassifier (maybe to canned.DnnClassifier)
 
 Clean up prediction / eval code (eval_input_fn?)

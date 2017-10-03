@@ -25,7 +25,6 @@ def countedFeature(df, name, events, sampleTime, verus=True):
         df[feature] = 1.0
 
 
-# Create features from champs
 def champFeature(data, champs):
     ranks = defaultdict(int)
     summoners = defaultdict(int)
@@ -47,8 +46,8 @@ def champFeature(data, champs):
         rank = champ['approxRank']
         ranks[(isTeamA, rank)] += 1
 
-        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minChampId
-        data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minChampId
+#        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minChampId
+#        data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minChampId
 #        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
 
     for (isTeamA, spellId), count in summoners.items():
@@ -62,7 +61,6 @@ def champFeature(data, champs):
     data['rank_sum_diff'] = sumRank
 
 
-# Create features from towers (team, position)
 def towerFeatures(df, towers, sampleTime):
     # Experiment with setting to far future
     # for tower in range(0, 24):
@@ -125,7 +123,6 @@ def dragonFeatures(df, dragons, sampleTime):
     return features
 
 
-# Creates features from gold values (delta)
 def goldFeatures(df, gold, sampleTime):
     lastBlock = util.timeToBlock(sampleTime)
 
@@ -133,21 +130,11 @@ def goldFeatures(df, gold, sampleTime):
     # position = Util.guessPosition(champ)
 
     for blockNum in range(lastBlock+1):
-        blockGold = gold.get(str(blockNum), None)
-        if not blockGold:
-            continue
+        blockGold = gold.get(str(blockNum))
 
-        playersAGold = []
-        playersBGold = []
-
-        for pId, playerGold in blockGold.items():
-            pId = int(pId)
-            assert 1 <= pId <= 10
-            if 1 <= pId <= 5:
-                playersAGold.append(playerGold)
-            else:
-                playersBGold.append(playerGold)
-
+        assert len(blockGold) == 10
+        playersAGold = blockGold[:5]
+        playersBGold = blockGold[5:]
         assert len(playersAGold) == len(playersBGold) == 5
 
         # Each player gets ~500 / 2 minutes, team gets ~3k / 2 minutes. Normalize features to ~ [0.5, 2].
@@ -156,13 +143,12 @@ def goldFeatures(df, gold, sampleTime):
 
         playersAGold.sort(reverse = True)
         playersBGold.sort(reverse = True)
-        for richIndex, (playerA, playerB) in enumerate(zip(playersAGold, playersBGold), 1):
-            df['gold_{}_richest_A_block_{}'.format(richIndex, blockNum)] = playerA / playerNormalizeFactor
-            df['gold_{}_richest_B_block_{}'.format(richIndex, blockNum)] = playerB / playerNormalizeFactor
+        for richIndex, (goldA, goldB) in enumerate(zip(playersAGold, playersBGold), 1):
+            df['gold_{}_richest_A_block_{}'.format(richIndex, blockNum)] = goldA / playerNormalizeFactor
+            df['gold_{}_richest_B_block_{}'.format(richIndex, blockNum)] = goldB / playerNormalizeFactor
 
         teamAGold = sum(playersAGold)
         teamBGold = sum(playersBGold)
-
         df['gold_block_{}_A'.format(blockNum)] = teamAGold / teamNormalizeFactor
         df['gold_block_{}_B'.format(blockNum)] = teamBGold / teamNormalizeFactor
 
@@ -172,23 +158,61 @@ def goldFeatures(df, gold, sampleTime):
         df['gold_adv_block_{}_B'.format(blockNum)] = max(0, -deltaGold)
 
 
+def farmFeatures(df, farm, jungleFarm, sampleTime):
+    # TODO add jungle farm somewhere
+    lastBlock = util.timeToBlock(sampleTime)
+
+    # Explore adding some Jungle features.
+    # position = Util.guessPosition(champ)
+
+    for blockNum in range(lastBlock+1):
+        blockFarm = farm.get(str(blockNum))
+
+        assert len(blockFarm) == 10
+        playersAFarm = blockFarm[:5]
+        playersBFarm = blockFarm[5:]
+        assert len(playersAFarm) == len(playersBFarm) == 5
+
+        # Each player gets ~16 / 2 minutes, team gets ~80 / 2 minutes. Normalize features to ~ [0.5, 2].
+        playerNormalizeFactor = 16 * (blockNum + 1)
+        teamNormalizeFactor = 4 * playerNormalizeFactor
+
+        playersAFarm.sort(reverse = True)
+        playersBFarm.sort(reverse = True)
+        for farmedIndex, (farmA, farmB) in enumerate(zip(playersAFarm, playersBFarm), 1):
+            df['farmed_{}_best_A_block_{}'.format(farmedIndex, blockNum)] = farmA / playerNormalizeFactor
+            df['farmed_{}_best_B_block_{}'.format(farmedIndex, blockNum)] = farmB / playerNormalizeFactor
+
+        teamAFarm = sum(playersAFarm)
+        teamBFarm = sum(playersBFarm)
+        df['farm_block_{}_A'.format(blockNum)] = teamAFarm / teamNormalizeFactor
+        df['farm_block_{}_B'.format(blockNum)] = teamBFarm / teamNormalizeFactor
+
+        # TODO add and Normalized in TFModel
+        #deltaGold = teamAFarm - teamBFarm
+        #df['farm_adv_block_{}_A'.format(blockNum)] = max(0, deltaGold)
+        #df['farm_adv_block_{}_B'.format(blockNum)] = max(0, -deltaGold)
+
+
 def parseGame(parsed, time):
     if time is None:
         assert False
 
     gameFeatures = parsed['features']
 
-    # Gold
-    gold = gameFeatures['gold']
+    # What you are: Champions
+    champs = gameFeatures['champs']
 
-    # Objectives
+    # What you have: Gold
+    gold = gameFeatures['gold']
+    farm = gameFeatures['farm']
+    jungleFarm = gameFeatures['jungleFarm']
+
+    # What you did: Objectives
     barons = gameFeatures['barons']
     dragons = gameFeatures['dragons']
     towers = gameFeatures['towers']
     inhibs = gameFeatures['inhibs']
-
-    # Champions
-    champs = gameFeatures['champs']
 
     # Data that ML will see
     data = dict()
@@ -197,6 +221,8 @@ def parseGame(parsed, time):
     champFeature(data, champs)
 
     goldFeatures(data, gold, time)
+    farmFeatures(data, farm, jungleFarm, time)
+
     towerFeatures(data, towers, time)
     dragonFeatures(data, dragons, time)
 
