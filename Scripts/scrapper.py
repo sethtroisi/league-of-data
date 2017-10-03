@@ -22,9 +22,9 @@ import util
 # Match API (this is what we want most)
 # https://developer.riotgames.com/api/methods#!/929/3214
 
-API_KEYS = [
-    "RGAPI-5a926470-e10e-42dd-8021-ba986dfd4626"  # Main
-]
+RIOT_API_KEY_FILE = "../Data/API_KEY"
+API_KEY = open(RIOT_API_KEY_FILE).read()
+
 
 START_TIME_FILTER = int(datetime.datetime(2017, 9, 15).timestamp()) * 1000
 REGIONS = ("NA", "NA1")
@@ -90,8 +90,9 @@ def buildUrl(apiPath, params=None):
 
 
 def getParsedResponse(url):
+    global API_KEY
     if not hasattr(getParsedResponse, "keyUsed"):
-        getParsedResponse.keyUsed = dict((key, 0) for key in API_KEYS)
+        getParsedResponse.keyUsed = {API_KEY: 0}
     lastUsed, apiKey = min((u, k) for k, u in getParsedResponse.keyUsed.items())
 
     timeToWait = (lastUsed + MIN_SLEEP_TIME) - time.time()
@@ -101,9 +102,15 @@ def getParsedResponse(url):
     getParsedResponse.keyUsed[apiKey] = time.time()
 
     url = url.format(apiKey=apiKey)
-    response = urllib.request.urlopen(url)
-    data = response.read()
-    stringData = data.decode("utf-8")
+
+    try:
+        response = urllib.request.urlopen(url)
+    except urllib.request.HTTPError as e:
+        if e.code == 401:
+            print("Got 401 likely from expired API_KEY")
+            API_KEY = input("New API_KEY:")
+            open(RIOT_API_KEY_FILE, "w").write(API_KEY)
+        raise e
 
     # Wait to respect rate limits passed in header
     # "X-App-Rate-Limit":        "100:120, 20:1",
@@ -121,6 +128,10 @@ def getParsedResponse(url):
                 count, limit, timeLimit, timeToWait))
             time.sleep(timeToWait)
 
+    # Parse Data
+
+    data = response.read()
+    stringData = data.decode("utf-8")
     return json.loads(stringData)
 
 
