@@ -204,7 +204,7 @@ def learningRateFn(params):
         learning_rate=params['learningRate'],
         global_step=tf.contrib.framework.get_or_create_global_step(),
         decay_steps=1000,
-        decay_rate=.8,
+        decay_rate=.9,
         staircase=True)
     #    learningRate = params['learningRate']
 
@@ -250,12 +250,12 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'modelName': 'exploring',
 
         # ML hyperparams
-        'learningRate': 0.02,
+        'learningRate': 0.01,
         'dropout': 0.00,
-        'l1_regularization': 0.0005,
-        'l2_regularization': 0.005,
-        'hiddenUnits': [150, 150, 100, 20],
-        'steps': 10000,
+        'l1_regularization': 0.0002,
+        'l2_regularization': 0.01,
+        'hiddenUnits': [125, 200, 200, 50, 20],
+        'steps': 3000,
 
         # Also controls how often eval_validation data is calculated
         'saveCheckpointSteps': 250,
