@@ -252,8 +252,8 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         # ML hyperparams
         'learningRate': 0.02,
         'dropout': 0.00,
-        'l1_regularization': 0.0005,
-        'l2_regularization': 0.005,
+        'l1_regularization': 0.0002,
+        'l2_regularization': 0.006,
         'hiddenUnits': [150, 150, 100, 20],
         'steps': 10000,
 

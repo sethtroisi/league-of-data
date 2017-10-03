@@ -133,29 +133,43 @@ def goldFeatures(df, gold, sampleTime):
     # position = Util.guessPosition(champ)
 
     for blockNum in range(lastBlock+1):
-        teamAGold = 0
-        teamBGold = 0
-
         blockGold = gold.get(str(blockNum), None)
-        if blockGold:
-            for pId, totalGold in blockGold.items():
-                pId = int(pId)
+        if not blockGold:
+            continue
 
-                assert 1 <= pId <= 10
-                if 1 <= pId <= 5:
-                    teamAGold += totalGold
-                else:
-                    teamBGold += totalGold
+        playersAGold = []
+        playersBGold = []
 
-        # Each team gets ~3k more gold every 2 minutes, makes vars ~ [0.5, 2]
-        normalizeFactor = 3000 * (blockNum + 1)
-        df['gold_block_{}_a'.format(blockNum)] = teamAGold / normalizeFactor
-        df['gold_block_{}_b'.format(blockNum)] = teamBGold / normalizeFactor
+        for pId, playerGold in blockGold.items():
+            pId = int(pId)
+            assert 1 <= pId <= 10
+            if 1 <= pId <= 5:
+                playersAGold.append(playerGold)
+            else:
+                playersBGold.append(playerGold)
+
+        assert len(playersAGold) == len(playersBGold) == 5
+
+        # Each player gets ~500 / 2 minutes, team gets ~3k / 2 minutes. Normalize features to ~ [0.5, 2].
+        playerNormalizeFactor = 600 * (blockNum + 1)
+        teamNormalizeFactor = 5 * playerNormalizeFactor
+
+        playersAGold.sort(reverse = True)
+        playersBGold.sort(reverse = True)
+        for richIndex, (playerA, playerB) in enumerate(zip(playersAGold, playersBGold), 1):
+            df['gold_{}_richest_A_block_{}'.format(richIndex, blockNum)] = playerA / playerNormalizeFactor
+            df['gold_{}_richest_B_block_{}'.format(richIndex, blockNum)] = playerB / playerNormalizeFactor
+
+        teamAGold = sum(playersAGold)
+        teamBGold = sum(playersBGold)
+
+        df['gold_block_{}_A'.format(blockNum)] = teamAGold / teamNormalizeFactor
+        df['gold_block_{}_B'.format(blockNum)] = teamBGold / teamNormalizeFactor
 
         # Normalized in TFModel
         deltaGold = teamAGold - teamBGold
-        df['gold_adv_block_{}_a'.format(blockNum)] = max(0, deltaGold)
-        df['gold_adv_block_{}_b'.format(blockNum)] = max(0, -deltaGold)
+        df['gold_adv_block_{}_A'.format(blockNum)] = max(0, deltaGold)
+        df['gold_adv_block_{}_B'.format(blockNum)] = max(0, -deltaGold)
 
 
 def parseGame(parsed, time):
@@ -177,7 +191,6 @@ def parseGame(parsed, time):
     champs = gameFeatures['champs']
 
     # Data that ML will see
-
     data = dict()
     data['current_time'] = time / 3600
 
