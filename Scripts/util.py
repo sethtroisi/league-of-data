@@ -1,6 +1,3 @@
-import collections
-import functools
-import itertools
 import json
 import re
 import os.path
@@ -48,7 +45,7 @@ def getJsonString(data):
 
 def writeJsonFile(name, data):
     fileName = getDataDirFileName(name)
-    with open(fileName, mode = 'w') as f:
+    with open(fileName, mode='w') as f:
         json.dump(data, f, indent=1)
 
 
@@ -67,14 +64,16 @@ def rankOrdering(rank):
     return order[rank]
 
 
+# noinspection SpellCheckingInspection
 def spellIdToName(spellId):
     summonerSpell = {
         1: "Cleanse", 3: "Exhaust", 4: "Flash", 6: "Ghost", 7: "Heal", 11: "Smite",
         12: "Teleport", 13: "Clarity", 14: "Ignite", 21: "Barrier"
     }
-    return summonerSpell[spellId].lower() #, 'unknown-spell-{}'.format(spellId))
+    return summonerSpell[spellId].lower()
 
 
+# noinspection SpellCheckingInspection
 champIdToName = {
     1: "Annie", 2: "Olaf", 3: "Galio", 4: "Twisted Fate", 5: "Xin Zhao", 6: "Urgot", 7: "LeBlanc", 8: "Vladimir",
     9: "Fiddlesticks", 10: "Kayle", 11: "Master Yi", 12: "Alistar", 13: "Ryze", 14: "Sion", 15: "Sivir", 16: "Soraka",
@@ -97,35 +96,37 @@ champIdToName = {
     497: "Rakan", 498: "Xayah", 516: "Ornn"
 }
 
+
 def championIdToName(champId):
-    return champIdToName.get(champId) #, 'unknown-champion-{}'.format(champId))
+    return champIdToName.get(champId)  # , 'unknown-champion-{}'.format(champId))
 
 
-idtoMinimized = { champId : sorted(champIdToName.keys()).index(champId) for champId in champIdToName.keys() }
+idToMinimized = {champId: sorted(champIdToName.keys()).index(champId) for champId in champIdToName.keys()}
 
 
 def minimizedChampId(champId):
-    return idtoMinimized[champId]
+    return idToMinimized[champId]
 
 
 def getTowerNumber(isTeamOneTower, lane, tower):
     lanes = ('BOT_LANE', 'MID_LANE', 'TOP_LANE')
     towers = ('OUTER_TURRET', 'INNER_TURRET', 'BASE_TURRET', 'NEXUS_TURRET')
 
-    # TODO(sethtroisi): figure out how to deal with both NEXUS_TOWER being in MID_LANE
+    # TODO: figure out how to deal with both NEXUS_TOWER being in MID_LANE
 
     assert isTeamOneTower in (False, True)
     assert lane in lanes
     assert tower in towers
 
-    return len(towers) * len(lanes) * (isTeamOneTower == False) + \
-        lanes.index(lane) * len(towers) + \
-        towers.index(tower)
+    return len(towers) * len(lanes) * (isTeamOneTower is False) + \
+        lanes.index(lane) * len(towers) + towers.index(tower)
+
 
 def teamATowerKill(towerNum):
     lanes = 3
     towers = 4
     return towerNum < (lanes * towers)
+
 
 def getInhibNumber(isTeamOneInhib, lane):
     lanes = ('BOT_LANE', 'MID_LANE', 'TOP_LANE')
@@ -133,7 +134,7 @@ def getInhibNumber(isTeamOneInhib, lane):
     assert isTeamOneInhib in (False, True)
     assert lane in lanes
 
-    return len(lanes) * (isTeamOneInhib == False) + lanes.index(lane)
+    return len(lanes) * (isTeamOneInhib is False) + lanes.index(lane)
 
 
 def guessPosition(champ):
@@ -163,16 +164,15 @@ def guessPosition(champ):
             # suppressing some of the error below, not sure what position this is
             return "OTHER"
 
-#    print ("ERROR unknown position:", lane, role)
+        #    print ("ERROR unknown position:", lane, role)
     return "OTHER"
 
 
 def compressFeatureList(featuresUsed):
-    tokened = "(?<=_)({})(?=$|_)"
-    teamOrNumberRe = re.compile(tokened.format("[abAB0-9]{1,2}"))
+    savedToken = "(?<=_)({})(?=$|_)"
+    teamOrNumberRe = re.compile(savedToken.format("[abAB0-9]{1,2}"))
     dragons = ["air", "water", "earth", "fire"]
-    dragonRe = re.compile(tokened.format("|".join(dragons)), re.I)
-
+    dragonRe = re.compile(savedToken.format("|".join(dragons)), re.I)
 
     def replacement(m):
         text = m.group(1)

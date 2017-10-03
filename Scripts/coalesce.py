@@ -15,7 +15,7 @@ def getArgParse():
         '-d', '--directory',
         type=str,
         default='../Data/',
-        help='Diretory of match json files')
+        help='Directory of match json files')
 
     parser.add_argument(
         '--queue',
@@ -27,7 +27,7 @@ def getArgParse():
         '--output-file',
         type=str,
         default='../Data/matchesAll.json',
-        help='File to store concatinated matches')
+        help='File to store concatenated matches')
 
     return parser
 
@@ -55,9 +55,6 @@ def main(args):
         else:
             timelines[matchId] = queueDir + f
 
-        # TODO(sethtroisi): add filters based on dates and stuff here
-        #match = loadJsonFile(fileName)
-
     files = []
     for matchId in matches.keys():
         if matchId in timelines:
@@ -69,6 +66,6 @@ def main(args):
     util.writeJsonFile(args.output_file, files)
 
 
-# START CODE HERE
-args = getArgParse().parse_args()
-main(args)
+if __name__ == "__main__":
+    parsedArgs = getArgParse().parse_args()
+    main(parsedArgs)

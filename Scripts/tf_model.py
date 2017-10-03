@@ -19,8 +19,8 @@ def getArgParse():
 
     parser.add_argument(
         '--panda-debug',
-        action = "store_true",
-        help = 'drop to interactive prompt with pandas to debug data')
+        action="store_true",
+        help='drop to interactive prompt with pandas to debug data')
 
     parser.add_argument(
         '-i', '--input-file',
@@ -81,21 +81,21 @@ def filterMaxBlock(blockNum, games, goals):
     blockStart = blockNum * util.SECONDS_PER_BLOCK
 
     indexes = []
-    useableGames = []
-    useableGoals = []
+    usableGames = []
+    usableGoals = []
     for i, (game, goal) in enumerate(zip(games, goals)):
         if blockStart > game['debug']['duration']:
             continue
 
         indexes.append(i)
-        useableGames.append(game)
-        useableGoals.append(goal)
+        usableGames.append(game)
+        usableGoals.append(goal)
 
-    return indexes, useableGames, useableGoals
+    return indexes, usableGames, usableGoals
 
 
 def featuresToColumns(features):
-    requiredToBeFound = {"real": 10, "gold": 2, "embedding": 0,}
+    requiredToBeFound = {"real": 10, "gold": 2, "embedding": 0, }
     columnTypes = defaultdict(int)
 
     columns = []
@@ -117,7 +117,7 @@ def featuresToColumns(features):
 
             sparse_column = tf.contrib.layers.sparse_column_with_integerized_feature(
                 feature,
-                bucket_size = 150)
+                bucket_size=150)
 
             # shared_columns = tf.contrib.layers.shared_embedding_columns(
             #     [sparse_column],
@@ -129,23 +129,26 @@ def featuresToColumns(features):
             # column = shared_columns[0]
             column = tf.contrib.layers.embedding_column(
                 sparse_column,
-                dimension = 10,
-                combiner = "mean")
+                dimension=10,
+                combiner="mean")
         else:
             columnTypes["real"] += 1
             column = tf.contrib.layers.real_valued_column(feature)
 
         columns.append(column)
 
-    for type, count in requiredToBeFound.items():
-        assert columnTypes[type] >= count, "{} had {} not >= {}".format(type, columnTypes[type], count)
+    for name, count in requiredToBeFound.items():
+        assert columnTypes[name] >= count, "{} had {} not >= {}".format(name, columnTypes[name], count)
 
     return columns
 
-featurizerTime = 0
+
+featurizeTime = 0
 trainTime = 0
+
+
 def gameToFeatures(args, games, goals, blockNum, *, training):
-    global featurizerTime, trainTime
+    global featurizeTime, trainTime
 
     # Filter out games that ended already
     indexes, games, goals = filterMaxBlock(blockNum, games, goals)
@@ -154,19 +157,16 @@ def gameToFeatures(args, games, goals, blockNum, *, training):
 
     gameFeatureSets = []
     for index, game in enumerate(games):
-        #if training:
-        #  gameTime = game['debug']['duration']
-        #else:
         gameTime = blockNum * util.SECONDS_PER_BLOCK
 
         gameData = tf_featurize.parseGame(game, gameTime)
         gameFeatureSets.append(gameData)
 
     T1 = time.time()
-    featurizerTime += T1 - T0
+    featurizeTime += T1 - T0
 
     if training and args.verbose >= 1:
-        print ("\t\tFeaturize Timing: {:.1f}".format(T1 - T0))
+        print("\t\tFeaturize Timing: {:.1f}".format(T1 - T0))
 
     if training:
         allColumns = set()
@@ -176,18 +176,19 @@ def gameToFeatures(args, games, goals, blockNum, *, training):
 
     return gameFeatureSets, goals
 
+
 def featureNameToType(feature):
     if feature.startswith("embedding_"):
         return tf.int32
     return tf.float16
 
 
-def inputFn(featuresUsed, data, goals = None):
+def inputFn(featuresUsed, data, goals=None):
     featureCols = {
         feature: tf.constant(
             [d.get(feature, 0) for d in data],
-            shape = [len(data), 1],
-            dtype = featureNameToType(feature),
+            shape=[len(data), 1],
+            dtype=featureNameToType(feature),
         )
         for feature in featuresUsed
     }
@@ -197,52 +198,53 @@ def inputFn(featuresUsed, data, goals = None):
     labels = tf.constant(goals, shape=[len(goals), 1], dtype='float16')
     return featureCols, labels
 
+
 def learningRateFn(params):
     learningRate = tf.train.exponential_decay(
-        learning_rate = params['learningRate'],
-        global_step = tf.contrib.framework.get_or_create_global_step(),
-        decay_steps = 1000,
-        decay_rate = .8,
-        staircase = True)
-#    learningRate = params['learningRate']
+        learning_rate=params['learningRate'],
+        global_step=tf.contrib.framework.get_or_create_global_step(),
+        decay_steps=1000,
+        decay_rate=.8,
+        staircase=True)
+    #    learningRate = params['learningRate']
 
     tf.summary.scalar("learning_rate/learning_rate", learningRate)
 
-#    assert 0.000001 <= learningRate <= .001, "stuff .0001 seems fairly reasonable"
-#    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
+    '''
+    assert 0.000001 <= learningRate <= .001, "stuff .0001 seems fairly reasonable"
+    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
+    # '''
 
-#    assert 0.0001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
+    # assert 0.0001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
     optimizer = tf.train.ProximalAdagradOptimizer(
-        learning_rate = learningRate,
-        l1_regularization_strength = params['l1_regularization'],
-#        l2_regularization_strength = params['l2_regularization'],
+        learning_rate=learningRate,
+        l1_regularization_strength=params['l1_regularization'],
+        # l2_regularization_strength = params['l2_regularization'],
     )
 
-#    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
-#    optimizer = tf.train.ProximalGradientDescentOptimizer(
-#        learning_rate = learningRate,
-#        l1_regularization_strength = params['l1_regularization'],
-#        l2_regularization_strength = params['l2_regularization'],
-#    )
+    '''
+    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
+    optimizer = tf.train.ProximalGradientDescentOptimizer(
+        learning_rate = learningRate,
+        l1_regularization_strength = params['l1_regularization'],
+        l2_regularization_strength = params['l2_regularization'],
+    )
+    # '''
 
     return optimizer
 
 
 def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
-    global featurizerTime, trainTime
+    global featurizeTime, trainTime
 
-    # Over eighty briefly with
-    # ('dropout', 0.0), ('learningRate', 0.02), ('steps', 100000), ('hiddenUnits', [600, 800, 400, 300, 20]), ('regularization', 0.01)
-
-#    constParams = {
-#        'modelName': 'exploring',
-#        'dropout': 0.00,
-#        'regularization': 0.01,
-#        'learningRate': 0.01,
-#        'hiddenUnits': [400, 500, 300, 200, 20],
-#        'earlyStoppingRounds': 2000,
-#        'steps': 100000,
-#    }
+    '''
+     Over eighty briefly with
+     ('dropout', 0.0),
+     ('learningRate', 0.02),
+     ('steps', 100000),
+     ('hiddenUnits', [600, 800, 400, 300, 20]),
+     ('regularization', 0.01)
+    '''
 
     constParams = {
         'modelName': 'exploring',
@@ -257,13 +259,13 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
         # Also controls how often eval_validation data is calculated
         'saveCheckpointSteps': 250,
-#        'earlyStoppingRounds': 2000,
+        #'earlyStoppingRounds': 2000,
     }
 
     gridSearchParams = [
-#        ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
-#        ('regularization', [0.009, 0.013, 0.018, 0.024, 0.03]),
-#        ('learningRate', [0.005, 0.007, 0.01, 0.013, 0.017]),
+        # ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
+        # ('regularization', [0.009, 0.013, 0.018, 0.024, 0.03]),
+        # ('learningRate', [0.005, 0.007, 0.01, 0.013, 0.017]),
     ]
 
     classifiers = {}
@@ -288,13 +290,13 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                 break
 
             if args.verbose >= 1:
-                print ("\ttraining block {} on {} games".format(blockNum, len(blockTrainFeatureSets)))
+                print("\ttraining block {} on {} games".format(blockNum, len(blockTrainFeatureSets)))
 
             if args.verbose >= 1:
                 numberOfCompressedFeatures, compressedPretty = \
                     util.compressFeatureList(featuresUsed)
                 if numberOfCompressedFeatures < 40 or args.verbose >= 2:
-                    print ("\t{} features: {}".format(
+                    print("\t{} features: {}".format(
                         numberOfCompressedFeatures, compressedPretty))
 
             featureColumns = featuresToColumns(featuresUsed)
@@ -306,59 +308,48 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                                      sorted(gridSearchInstanceParams.items()))
             modelName = params['modelName'] + gridSearchName
             modelDir = "/tmp/tmp-tf-lol/exploring/{}/b{}/model_{}".format(runTime, blockNum, modelName)
-            print ("Saving in", modelDir)
-            print ("\t", params.items(), "\n")
+            print("Saving in", modelDir)
+            print("\t", params.items(), "\n")
 
             classifier = tf.contrib.learn.DNNClassifier(
-                hidden_units = params['hiddenUnits'],
-                feature_columns = featureColumns,
-                model_dir = modelDir,
-                n_classes = 2,
-                dropout = params['dropout'],
-                optimizer = functools.partial(learningRateFn, params),
-                config = tf.contrib.learn.RunConfig(
-                    save_summary_steps = 200,
-                    save_checkpoints_steps = params['saveCheckpointSteps'],
+                hidden_units=params['hiddenUnits'],
+                feature_columns=featureColumns,
+                model_dir=modelDir,
+                n_classes=2,
+                dropout=params['dropout'],
+                optimizer=functools.partial(learningRateFn, params),
+                config=tf.contrib.learn.RunConfig(
+                    save_summary_steps=200,
+                    save_checkpoints_steps=params['saveCheckpointSteps'],
                 ),
             )
 
-    #        validationMetrics = {
-    #            "accurary": tf.contrib.metrics.streaming_accuracy,
-    #            "auc": tf.contrib.metrics.streaming_auc,
-    #        }
             validationMonitor = tf.contrib.learn.monitors.ValidationMonitor(
-                input_fn = functools.partial(
+                input_fn=functools.partial(
                     inputFn, featuresUsed, blockTestFeatureSets, blockTestGoals),
-                eval_steps = 1,
-                every_n_steps = 1,
-    #            metrics = validationMetrics,
-                early_stopping_metric = "loss",
-                early_stopping_rounds = params.get('earlyStoppingRounds', params['steps']),
-                name = "validation_mn",
+                eval_steps=1,
+                every_n_steps=1,
+                early_stopping_metric="loss",
+                early_stopping_rounds=params.get('earlyStoppingRounds', params['steps']),
+                name="validation_mn",
             )
 
             if args.verbose >= 2:
-                print ()
-                print ()
+                print()
+                print()
 
+            # TODO does this accept eval_input_fn?
             classifier.fit(
-                input_fn = functools.partial(
+                input_fn=functools.partial(
                     inputFn, featuresUsed, blockTrainFeatureSets, blockTrainGoals),
-                monitors = [validationMonitor],
-                steps = params['steps'],
+                monitors=[validationMonitor],
+                steps=params['steps'],
             )
-
-    #        classifier.evaluate(
-    #            input_fn = functools.partial(
-    #                inputFn, featuresUsed, blockTestFeatureSets, blockTestGoals),
-    #            steps = 1,
-    #            name="eval_at_the_end_of_time",
-    #        )
 
             if args.verbose >= 1:
                 for v in range(args.verbose):
-                    print ()
-                    print ()
+                    print()
+                    print()
 
             T1 = time.time()
             trainTime += T1 - T0
@@ -385,7 +376,7 @@ def getPrediction(args, classifiers, featureSets, testGames, testGoals, blockNum
         args, testGames, testGoals, blockNum, training=False)
 
     modelGuess = classifier.predict_proba(
-        input_fn = functools.partial(inputFn, featuresUsed, predictFeatureSets))
+        input_fn=functools.partial(inputFn, featuresUsed, predictFeatureSets))
 
     for i, (probs, testGoal) in enumerate(zip(modelGuess, testGoals)):
         # This is due to the sorting of [False, True].
@@ -394,20 +385,20 @@ def getPrediction(args, classifiers, featureSets, testGames, testGoals, blockNum
         yield correct, [BProb, AProb]
 
 
-def buildGraphData(blocks, testingGames, testingGoals, classifiers, featureSets):
+def buildGraphData(args, blocks, testingGames, testingGoals, classifiers, featureSets):
     maxBlock = max(blocks)
 
     # Variables about testGames.
     times = [(b * util.SECONDS_PER_BLOCK) / 60 for b in range(maxBlock + 1)]
-    samples = [0 for b in range(maxBlock + 1)]
-    corrects = [0 for b in range(maxBlock + 1)]
+    samples = [0] * (maxBlock + 1)
+    corrects = [0] * (maxBlock + 1)
 
     # Averages over data (calculated after all data).
-    ratios = [0 for b in range(maxBlock + 1)]
-    logLosses = [0 for b in range(maxBlock + 1)]
+    ratios = [0] * (maxBlock + 1)
+    logLosses = [0] * (maxBlock + 1)
 
     # Per Game stats.
-    testWinProbs = [[] for game in testingGames]
+    testWinProbs = [[] for _ in testingGames]
 
     for blockNum in blocks:
         gameIs, testingBlockGames, testingBlockGoals = filterMaxBlock(
@@ -443,8 +434,9 @@ def buildGraphData(blocks, testingGames, testingGoals, classifiers, featureSets)
 
     return times, samples, corrects, ratios, logLosses, testWinProbs
 
+
 def main(args):
-    global featurizerTime, trainTime
+    global featurizeTime, trainTime
 
     if args.verbose == 0:
         tf.logging.set_verbosity(tf.logging.ERROR)
@@ -452,7 +444,6 @@ def main(args):
         tf.logging.set_verbosity(tf.logging.ERROR)
     elif args.verbose >= 2:
         tf.logging.set_verbosity(tf.logging.INFO)
-
 
     T0 = time.time()
 
@@ -470,7 +461,7 @@ def main(args):
     del games, goals
 
     if args.verbose == 0:
-        print ("Training games: {}, Testing holdback: {}".format(
+        print("Training games: {}, Testing holdback: {}".format(
             len(trainingGames), len(testingGames)))
     assert len(trainingGames) == len(trainingGoals)
     assert len(testingGames) == len(testingGoals)
@@ -480,22 +471,22 @@ def main(args):
             blockTrainFeatureSets, blockTrainGoals, featuresUsed = gameToFeatures(
                 args, trainingGames, trainingGoals, blockNum, training=True)
 
-            print ("Panda Debugging block", blockNum)
-            print ("\tdata loading into \"dataframe\"")
-            print ("\t.columns .describe() .fillna(0) are common")
-            print ()
-            print ()
+            print("Panda Debugging block", blockNum)
+            print("\tdata loading into \"df\"")
+            print("\t.columns .describe() .fillna(0) are common")
+            print()
+            print()
 
             '''
             pd.set_option('display.max_columns', None)
-            dataframe.columns
-            dataframe.describe()
-            Counter(dataframe['team_spells_B_teleports'].fillna(0).tolist())
+            df.columns
+            df.describe()
+            Counter(df['team_spells_B_teleports'].fillna(0).tolist())
             '''
 
-
             import pandas as pd
-            dataframe = pd.DataFrame(blockTrainFeatureSets)
+            df = pd.DataFrame(blockTrainFeatureSets)
+            print (df.columns)
 
             import IPython
             IPython.embed()
@@ -516,30 +507,31 @@ def main(args):
     T3 = time.time()
     innerTrainTime = T3 - T2
 
-    times, samples, corrects, ratios, logLosses, testWinProbs =\
-        buildGraphData(blocks, testingGames, testingGoals, classifiers, featureSets)
+    times, samples, corrects, ratios, logLosses, testWinProbs = \
+        buildGraphData(args, blocks, testingGames, testingGoals, classifiers, featureSets)
 
     T4 = time.time()
     statsTime = T4 - T3
 
     # If data was tabulated on the testingData print stats about it.
     if len(times) > 0:
-        graph_model_stats.stats(blocks, times, samples, corrects, ratios, logLosses)
+        graph_model_stats.stats(blocks, samples, corrects, ratios, logLosses)
         graph_model_stats.plotData(blocks, times, samples, corrects, ratios, logLosses)
-        graph_model_stats.plotGame(max(blocks), times, testingGoals, testWinProbs)
+        graph_model_stats.plotGame(times, testingGoals, testWinProbs)
 
     T5 = time.time()
     viewTime = T5 - T4
 
-    print ("Timings:")
-    print ("\tloadTime: {:.3f}".format(loadTime))
-    print ("\ttrainTime: {:.3f}".format(innerTrainTime))
-    print ("\tstatsTime: {:.3f}".format(statsTime))
-    print ("\tviewTime: {:.3f}".format(viewTime))
-    print ()
-    print ("\tfeaturizerTime: {:.3f}".format(featurizerTime))
-    print ("\ttrainTime: {:.3f}".format(trainTime))
+    print("Timings:")
+    print("\tloadTime: {:.3f}".format(loadTime))
+    print("\ttrainTime: {:.3f}".format(innerTrainTime))
+    print("\tstatsTime: {:.3f}".format(statsTime))
+    print("\tviewTime: {:.3f}".format(viewTime))
+    print()
+    print("\tfeaturizeTime: {:.3f}".format(featurizeTime))
+    print("\ttrainTime: {:.3f}".format(trainTime))
+
 
 if __name__ == '__main__':
-    args = getArgParse().parse_args()
-    main(args)
+    parsedArgs = getArgParse().parse_args()
+    main(parsedArgs)

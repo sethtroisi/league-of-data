@@ -11,8 +11,7 @@ allFiles = set()
 
 for root, dirs, files in os.walk(directory):
     print (root, len(dirs), len(files))
-    allFiles.update( files )
-
+    allFiles.update(files)
 
 items = defaultdict(list)
 
@@ -49,4 +48,4 @@ print ("{} and {}".format(len(matchOnly), len(timelineOnly)))
 
 if len(matchOnly) + len(timelineOnly) > 0:
     print ("deleteCommand part1:")
-    print ("rm " + " ".join( (matchOnly + timelineOnly)[:40]))
+    print ("rm " + " ".join((matchOnly + timelineOnly)[:40]))

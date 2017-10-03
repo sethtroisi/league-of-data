@@ -109,15 +109,15 @@ def parseGameRough(match, timeline):
         # NOTE: frames appear to be 60 seconds
         gold[blockNum] = frameGold
         for pId, pFrame in frame['participantFrames'].items():
-            # TODO(sethtroisi): use item gold instead of totalGold
+            # TODO use item gold instead of totalGold
             frameGold[pId] = pFrame['totalGold']
 
         events = frame.get('events', [])
         for event in events:
             monsterType = event.get('monsterType', None)
-            time = event.get('timestamp', None)
-            if time:
-                time //= 1000
+            gameTime = event.get('timestamp', None)
+            if gameTime:
+                gameTime //= 1000
 
             if monsterType:
                 killer = event['killerId']
@@ -127,19 +127,20 @@ def parseGameRough(match, timeline):
                     assert '_DRAGON' in subType
                     commonName = subType.replace('_DRAGON', '')
 
-                    dragons.append((time, commonName, isTeamOne))
+                    dragons.append((gameTime, commonName, isTeamOne))
                 elif monsterType == 'BARON_NASHOR':
-                    barons.append((time, isTeamOne))
+                    barons.append((gameTime, isTeamOne))
                 # TODO elder dragon?
-                #Red/blue buffs aren't recorded here as specified in API
+                # Red/blue buffs aren't recorded here as specified in API
 
             buildingType = event.get('buildingType', None)
             if buildingType == 'TOWER_BUILDING':
-                killer = event['killerId']
+                # killer = event['killerId']
                 towerType = event['towerType']
                 laneType = event['laneType']
                 isTeamOneTower = event['teamId'] == 100
 
+                # TODO verify this is still true (2017-10)
                 if towerType == 'FOUNTAIN_TURRET':
                     # NOTE: Azir turrets are coded as turrets.
                     continue
@@ -147,25 +148,25 @@ def parseGameRough(match, timeline):
                 towerNum = util.getTowerNumber(isTeamOneTower, laneType, towerType)
                 assert isTeamOneTower == util.teamATowerKill(towerNum)
 
-                #print ("killer {}({}) @{:.0f}s: ({} x {} x {}) = {}".format(
+                # print ("killer {}({}) @{:.0f}s: ({} x {} x {}) = {}".format(
                 #  champNames[killer - 1], killer, time,
                 #  isTeamOneTower, laneType, towerType, towerNum))
 
-                # TODO(sethtroisi): Stop mid nexus turret double count.
-                #assert all(tNum != towerNum for t, k, tNum in towers)
-                towers.append((time, isTeamOneTower, towerNum))
+                # TODO Stop mid nexus turret double count.
+                # assert all(tNum != towerNum for t, k, tNum in towers)
+                towers.append((gameTime, isTeamOneTower, towerNum))
 
             elif buildingType == 'INHIBITOR_BUILDING':
-                killer = event['killerId']
+                # killer = event['killerId']
                 laneType = event['laneType']
                 isTeamOneInhib = event['teamId'] == 100
                 inhibNum = util.getInhibNumber(isTeamOneInhib, laneType)
-                inhibs.append((time, isTeamOneInhib, inhibNum))
+                inhibs.append((gameTime, isTeamOneInhib, inhibNum))
 
-            wardEvent = event.get('eventType', None)
-            if wardEvent == 'WARD_PLACED':
-                wardType = event['wardType']
-                isTeamOne = event['creatorId'] <= 5
+            # wardEvent = event.get('eventType', None)
+            # if wardEvent == 'WARD_PLACED':
+                # wardType = event['wardType']
+                # isTeamOne = event['creatorId'] <= 5
                 # TODO save and record ward events
 
     features = dict()
@@ -174,11 +175,10 @@ def parseGameRough(match, timeline):
     features['barons'] = barons
     features['towers'] = towers
     features['inhibs'] = inhibs
-    #features['wards'] = wards
+    # features['wards'] = wards
 
     features['gold'] = gold
 
-    # TODO(sethtroisi): plumb debug info instead of reusing features.
     debug = dict()
     debug['duration'] = match['gameDuration']
     debug['matchId'] = match['gameId']
@@ -253,6 +253,8 @@ def main(args):
     if not args.dry_run:
         util.writeJsonFile(args.output_file, outputData)
 
+
 # START CODE HERE
-args = getArgParse().parse_args()
-main(args)
+if __name__ == "__main__":
+    parsedArgs = getArgParse().parse_args()
+    main(parsedArgs)

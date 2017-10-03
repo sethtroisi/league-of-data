@@ -27,16 +27,14 @@ def countedFeature(df, name, events, sampleTime, verus=True):
 
 # Create features from champs
 def champFeature(data, champs):
-    #assert False, "None of these seemed to decrease log loss :("
-
     ranks = defaultdict(int)
     summoners = defaultdict(int)
     for playerI, champ in enumerate(champs):
         champId = champ['championId']
         isTeamA = champ['isTeamOne']
 
-        champion = util.championIdToName(champId)
-        minchampId = util.minimizedChampId(champId)
+        # champion = util.championIdToName(champId)
+        minChampId = util.minimizedChampId(champId)
 
         position = util.guessPosition(champ)
 
@@ -49,8 +47,8 @@ def champFeature(data, champs):
         rank = champ['approxRank']
         ranks[(isTeamA, rank)] += 1
 
-        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minchampId
-        data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
+        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minChampId
+        data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minChampId
 #        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
 
     for (isTeamA, spellId), count in summoners.items():
@@ -66,8 +64,9 @@ def champFeature(data, champs):
 
 # Create features from towers (team, position)
 def towerFeatures(df, towers, sampleTime):
-#  for tower in range(0, 24):
-#        df.set_value(0, 'tower_{}_destroyed_at',
+    # Experiment with setting to far future
+    # for tower in range(0, 24):
+    #    df.set_value(0, 'tower_{}_destroyed_at', 2)
 
     towersA, towersB = 0, 0
     for towerData in towers:
@@ -129,10 +128,9 @@ def dragonFeatures(df, dragons, sampleTime):
 # Creates features from gold values (delta)
 def goldFeatures(df, gold, sampleTime):
     lastBlock = util.timeToBlock(sampleTime)
-    lastBlockNum = max(b for b in map(int, gold.keys()) if b <= lastBlock)
 
-#   Explore adding each positions' gold / adv
-#    position = Util.guessPosition(champ)
+    # Explore adding each positions' gold / adv
+    # position = Util.guessPosition(champ)
 
     for blockNum in range(lastBlock+1):
         teamAGold = 0
@@ -218,18 +216,6 @@ def getRawGameData(args):
         if lowerRanked >= 2:
             continue
 
-        #t = data['features']['champs']
-        #if not any(s['championId'] == 11 for s in t):
-        #    continue
-
-        #index = min([i for i, s in enumerate(t) if s['championId'] == 11])
-        #yiWin = (index <= 4) == data['goal']
-        #import random
-        #if not (random.random() < 0.2 or yiWin):
-        #    continue
-
-
-
         goal = data['goal']
         assert goal in (True, False)
 
@@ -239,6 +225,6 @@ def getRawGameData(args):
         if len(games) == numGames:
             break
 
-    print ("Loaded {} games (filtereed {})".format(
+    print ("Loaded {} games (filtered {})".format(
         len(goals), len(outputData) - len(goals)))
     return games, goals

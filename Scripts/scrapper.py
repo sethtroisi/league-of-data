@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import datetime
+import json
 import os
 import random
 import re
@@ -22,7 +23,7 @@ import util
 # https://developer.riotgames.com/api/methods#!/929/3214
 
 API_KEYS = [
-    "RGAPI-5a926470-e10e-42dd-8021-ba986dfd4626" # Main
+    "RGAPI-5a926470-e10e-42dd-8021-ba986dfd4626"  # Main
 ]
 
 START_TIME_FILTER = int(datetime.datetime(2017, 9, 15).timestamp()) * 1000
@@ -31,8 +32,8 @@ SEASON = 9
 
 QUEUE_ID_TO_FOLDER = {
     4: "ranked",
-    420: "ranked", # SOLO
-    440: "ranked", # RANKED_FLEX
+    420: "ranked",  # SOLO
+    440: "ranked",  # RANKED_FLEX
     65: "aram"
 }
 
@@ -49,12 +50,13 @@ TIER_EXPLORE_ODDS = {
 
 GAMES_PER_SUMMONER = 3
 
-###### CONSTANTS ######
+'''    CONSTANTS     '''
 
 BASE_URL = "https://na1.api.riotgames.com/lol/"
 KEY_PARAM = "api_key={apiKey}"
 
 RATE_LIMITS_RAW = "100:120,20:1"
+# noinspection PyTypeChecker
 RATE_LIMITS = dict([map(int, l.split(":")[::-1]) for l in RATE_LIMITS_RAW.split(",")])
 
 MIN_SLEEP_TIME = max((time / count for time, count in RATE_LIMITS.items()))
@@ -68,8 +70,7 @@ def loadExistingMatches(matchIds):
     directory = "../Data/"
     allFiles = set()
     for root, dirs, files in os.walk(directory, followlinks=True):
-        allFiles.update( files )
-
+        allFiles.update(files)
 
     regex = re.compile('^getMatch-([0-9]*)$')
     for fileName in allFiles:
@@ -82,7 +83,7 @@ def loadExistingMatches(matchIds):
     print ()
 
 
-def buildUrl(apiPath, params = None):
+def buildUrl(apiPath, params=None):
     params = params or []
     urlParams = "&".join([KEY_PARAM] + params)
     return BASE_URL + apiPath + "?" + urlParams
@@ -90,7 +91,7 @@ def buildUrl(apiPath, params = None):
 
 def getParsedResponse(url):
     if not hasattr(getParsedResponse, "keyUsed"):
-      getParsedResponse.keyUsed = dict((key, 0) for key in API_KEYS)
+        getParsedResponse.keyUsed = dict((key, 0) for key in API_KEYS)
     lastUsed, apiKey = min((u, k) for k, u in getParsedResponse.keyUsed.items())
 
     timeToWait = (lastUsed + MIN_SLEEP_TIME) - time.time()
@@ -99,7 +100,7 @@ def getParsedResponse(url):
 
     getParsedResponse.keyUsed[apiKey] = time.time()
 
-    url = url.format(apiKey = apiKey)
+    url = url.format(apiKey=apiKey)
     response = urllib.request.urlopen(url)
     data = response.read()
     stringData = data.decode("utf-8")
@@ -126,7 +127,7 @@ def getParsedResponse(url):
 def getSummonerAccountId(name):
     apiFormat = "summoner/v3/summoners/by-name/{summonerName}"
 
-    apiPath = apiFormat.format(summonerName = name.replace(" ", ""))
+    apiPath = apiFormat.format(summonerName=name.replace(" ", ""))
     url = buildUrl(apiPath)
     parsed = getParsedResponse(url)
 
@@ -135,27 +136,27 @@ def getSummonerAccountId(name):
 
 def getMatchHistory(summonerId):
     apiFormat = "match/v3/matchlists/by-account/{summonerId}/recent"
-    apiPath = apiFormat.format(summonerId = summonerId)
+    apiPath = apiFormat.format(summonerId=summonerId)
     url = buildUrl(apiPath)
     return getParsedResponse(url)
 
 
 def getMatch(matchId):
-    apiFormat= "match/v3/matches/{matchId}"
-    apiPath = apiFormat.format(matchId = matchId)
+    apiFormat = "match/v3/matches/{matchId}"
+    apiPath = apiFormat.format(matchId=matchId)
     url = buildUrl(apiPath)
     return getParsedResponse(url)
 
 
 def getTimeline(matchId):
     apiFormat = "match/v3/timelines/by-match/{matchId}"
-    apiPath = apiFormat.format(matchId = matchId)
+    apiPath = apiFormat.format(matchId=matchId)
     url = buildUrl(apiPath)
     return getParsedResponse(url)
 
 
 def getSummonerMatches(summonerId, matchIds):
-    # TODO(sethtroisi): Use rankedQueues query param.
+    # TODO: Use rankedQueues query param.
     history = getMatchHistory(summonerId)
 
     matches = history["matches"]
@@ -207,18 +208,17 @@ def getSummonerMatches(summonerId, matchIds):
 
         otherParticipants = fullMatch["participantIdentities"]
         for participant in otherParticipants:
-            if "player" not in participant:
-                continue # non-ranked game???
+            assert "player" in participant, "Old non-ranked game?"
             player = participant["player"]
             platformId = player["platformId"]
             accountId = player["accountId"]
             summonerName = player["summonerName"]
 
-            # Some players have transferred profiles EUW to NA which we ignore because accountId doesn"t work
+            # Some players have transferred profiles EUW to NA which we ignore because accountId doesn't work
             # and I haven"t investigated if currentAccountId always works. NA1 vs NA is okay.
             currentAccountId = player["currentAccountId"]
             if accountId != currentAccountId:
-                print("\t\tNot addind \"{}\" has mismatch account: {} vs {}".format(
+                print("\t\tNot adding \"{}\" has mismatch account: {} vs {}".format(
                     summonerName, accountId, currentAccountId))
                 continue
 
@@ -230,11 +230,11 @@ def getSummonerMatches(summonerId, matchIds):
 
             participantId = participant["participantId"]
             for gameData in fullMatch["participants"]:
-              if gameData["participantId"] == participantId:
-                seasonTier = gameData["highestAchievedSeasonTier"]
-                break
+                if gameData["participantId"] == participantId:
+                    seasonTier = gameData["highestAchievedSeasonTier"]
+                    break
             else:
-              assert False, "participant not found in participants"
+                assert False, "participant not found in participants"
             fellowSummoners.add((summonerName, accountId, seasonTier))
 
     return saved, fellowSummoners
@@ -263,7 +263,7 @@ def main():
     for name, sumId in seedIds.items():
         summoners[sumId] = name
         unvisited[sumId] = name
-        tier[sumId] = "BRONZE" # Causes the system to prefer other players
+        tier[sumId] = "BRONZE"  # Causes the system to prefer other players
 
     added = 0
     successes = 0
@@ -326,6 +326,7 @@ def main():
     runTimeHours = (T1 - T0) / 3600
     print ("Loaded {} games in {:.2f} hours = {:.1f} games/hr".format(
         added, runTimeHours, added / runTimeHours))
+
 
 if __name__ == "__main__":
     main()
