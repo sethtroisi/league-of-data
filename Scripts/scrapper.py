@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 import datetime
+import os
 import random
+import re
 import time
 import urllib.request
-import socket
 
-from Util import *
+import util
 
 # API REFERENCE
 # https://developer.riotgames.com/api/methods
@@ -195,11 +196,11 @@ def getSummonerMatches(summonerId, matchIds):
         print ("\tFetching match (id: {})".format(matchId))
         fullMatch = getMatch(matchId)
         matchSaveName = "matches/{}/getMatch-{}".format(folder, matchId)
-        writeJsonFile(matchSaveName, fullMatch)
+        util.writeJsonFile(matchSaveName, fullMatch)
 
         timeline = getTimeline(matchId)
         matchSaveName = "matches/{}/getTimeline-{}".format(folder, matchId)
-        writeJsonFile(matchSaveName, timeline)
+        util.writeJsonFile(matchSaveName, timeline)
 
         saved += 1
         matchIds.add(matchId)

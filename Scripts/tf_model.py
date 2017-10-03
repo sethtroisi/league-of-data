@@ -4,16 +4,14 @@ import itertools
 import functools
 import sklearn.metrics
 import time
+import tensorflow as tf
 
 from collections import defaultdict
 from sklearn.model_selection import train_test_split
 
-import GraphModelStats
-import TFFeaturize
-import Util
-
-
-import tensorflow as tf
+import graph_model_stats
+import tf_featurize
+import util
 
 
 def getArgParse():
@@ -65,7 +63,7 @@ def getArgParse():
 
 def processBlocks(args):
     lowBlock = 0
-    highBlock = int(3600 // Util.SECONDS_PER_BLOCK)
+    highBlock = int(3600 // util.SECONDS_PER_BLOCK)
 
     rawBlock = args.blocks
     if rawBlock == "all":
@@ -80,7 +78,7 @@ def processBlocks(args):
 
 
 def filterMaxBlock(blockNum, games, goals):
-    blockStart = blockNum * Util.SECONDS_PER_BLOCK
+    blockStart = blockNum * util.SECONDS_PER_BLOCK
 
     indexes = []
     useableGames = []
@@ -159,9 +157,9 @@ def gameToFeatures(args, games, goals, blockNum, *, training):
         #if training:
         #  gameTime = game['debug']['duration']
         #else:
-        gameTime = blockNum * Util.SECONDS_PER_BLOCK
+        gameTime = blockNum * util.SECONDS_PER_BLOCK
 
-        gameData = TFFeaturize.parseGame(game, gameTime)
+        gameData = tf_featurize.parseGame(game, gameTime)
         gameFeatureSets.append(gameData)
 
     T1 = time.time()
@@ -294,7 +292,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
             if args.verbose >= 1:
                 numberOfCompressedFeatures, compressedPretty = \
-                    Util.compressFeatureList(featuresUsed)
+                    util.compressFeatureList(featuresUsed)
                 if numberOfCompressedFeatures < 40 or args.verbose >= 2:
                     print ("\t{} features: {}".format(
                         numberOfCompressedFeatures, compressedPretty))
@@ -400,7 +398,7 @@ def buildGraphData(blocks, testingGames, testingGoals, classifiers, featureSets)
     maxBlock = max(blocks)
 
     # Variables about testGames.
-    times = [(b * Util.SECONDS_PER_BLOCK) / 60 for b in range(maxBlock + 1)]
+    times = [(b * util.SECONDS_PER_BLOCK) / 60 for b in range(maxBlock + 1)]
     samples = [0 for b in range(maxBlock + 1)]
     corrects = [0 for b in range(maxBlock + 1)]
 
@@ -459,7 +457,7 @@ def main(args):
     T0 = time.time()
 
     blocks = processBlocks(args)
-    games, goals = TFFeaturize.getRawGameData(args)
+    games, goals = tf_featurize.getRawGameData(args)
 
     T1 = time.time()
     loadTime = T1 - T0
@@ -526,9 +524,9 @@ def main(args):
 
     # If data was tabulated on the testingData print stats about it.
     if len(times) > 0:
-        GraphModelStats.stats(blocks, times, samples, corrects, ratios, logLosses)
-        GraphModelStats.plotData(blocks, times, samples, corrects, ratios, logLosses)
-        GraphModelStats.plotGame(max(blocks), times, testingGoals, testWinProbs)
+        graph_model_stats.stats(blocks, times, samples, corrects, ratios, logLosses)
+        graph_model_stats.plotData(blocks, times, samples, corrects, ratios, logLosses)
+        graph_model_stats.plotGame(max(blocks), times, testingGoals, testWinProbs)
 
     T5 = time.time()
     viewTime = T5 - T4

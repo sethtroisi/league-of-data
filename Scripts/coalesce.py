@@ -4,7 +4,7 @@ import re
 from os import listdir
 from os.path import isfile, join
 
-from Util import *
+import util
 
 
 def getArgParse():
@@ -66,7 +66,7 @@ def main(args):
     print ('coalescing {} matches, {} timelines into {} pairs'.format(
         len(matches), len(timelines), len(files), args.output_file))
 
-    writeJsonFile(args.output_file, files)
+    util.writeJsonFile(args.output_file, files)
 
 
 # START CODE HERE

@@ -1,6 +1,6 @@
-import Util
-
 from collections import defaultdict
+
+import util
 
 GOLD_DELTA_BUCKET_SIZE = 2000
 
@@ -35,10 +35,10 @@ def champFeature(data, champs):
         champId = champ['championId']
         isTeamA = champ['isTeamOne']
 
-        champion = Util.championIdToName(champId)
-        minchampId = Util.minimizedChampId(champId)
+        champion = util.championIdToName(champId)
+        minchampId = util.minimizedChampId(champId)
 
-        position = Util.guessPosition(champ)
+        position = util.guessPosition(champ)
 
         spell1 = champ['spell1']
         spell2 = champ['spell2']
@@ -54,12 +54,12 @@ def champFeature(data, champs):
 #        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
 
     for (isTeamA, spellId), count in summoners.items():
-        spellName = Util.spellIdToName(spellId)
+        spellName = util.spellIdToName(spellId)
         data['team_spells_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
 
     sumRank = 0
     for (isTeamA, rank), count in ranks.items():
-        sumRank += (1 if isTeamA else -1) * count * Util.rankOrdering(rank)
+        sumRank += (1 if isTeamA else -1) * count * util.rankOrdering(rank)
         data['team_ranks_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
     data['rank_sum_diff'] = sumRank
 
@@ -128,7 +128,7 @@ def dragonFeatures(df, dragons, sampleTime):
 
 # Creates features from gold values (delta)
 def goldFeatures(df, gold, sampleTime):
-    lastBlock = Util.timeToBlock(sampleTime)
+    lastBlock = util.timeToBlock(sampleTime)
     lastBlockNum = max(b for b in map(int, gold.keys()) if b <= lastBlock)
 
 #   Explore adding each positions' gold / adv
@@ -203,9 +203,9 @@ def getRawGameData(args):
     games = []
     goals = []
 
-    requiredRank = Util.rankOrdering(rank)
+    requiredRank = util.rankOrdering(rank)
 
-    outputData = Util.loadJsonFile(fileName)
+    outputData = util.loadJsonFile(fileName)
     for dataI, data in enumerate(outputData):
         if data['debug']['duration'] < 600:
             # Filtering remakes and stuff
@@ -214,7 +214,7 @@ def getRawGameData(args):
         # TODO consider removing surrender games
 
         # Filter out low rank games
-        lowerRanked = len([1 for c in data['features']['champs'] if Util.rankOrdering(c['approxRank']) < requiredRank])
+        lowerRanked = len([1 for c in data['features']['champs'] if util.rankOrdering(c['approxRank']) < requiredRank])
         if lowerRanked >= 2:
             continue
 

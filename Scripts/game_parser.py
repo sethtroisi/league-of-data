@@ -1,7 +1,8 @@
 import argparse
 import random
 import time
-import Util
+
+import util
 
 # API REFERENCE
 # https://developer.riotgames.com/api/methods
@@ -102,7 +103,7 @@ def parseGameRough(match, timeline):
     frames = timeline['frames']
     for frame in frames:
         frameTime = frame['timestamp'] // 1000
-        blockNum = Util.timeToBlock(frameTime)
+        blockNum = util.timeToBlock(frameTime)
 
         frameGold = {}
         # NOTE: frames appear to be 60 seconds
@@ -143,8 +144,8 @@ def parseGameRough(match, timeline):
                     # NOTE: Azir turrets are coded as turrets.
                     continue
 
-                towerNum = Util.getTowerNumber(isTeamOneTower, laneType, towerType)
-                assert isTeamOneTower == Util.teamATowerKill(towerNum)
+                towerNum = util.getTowerNumber(isTeamOneTower, laneType, towerType)
+                assert isTeamOneTower == util.teamATowerKill(towerNum)
 
                 #print ("killer {}({}) @{:.0f}s: ({} x {} x {}) = {}".format(
                 #  champNames[killer - 1], killer, time,
@@ -158,7 +159,7 @@ def parseGameRough(match, timeline):
                 killer = event['killerId']
                 laneType = event['laneType']
                 isTeamOneInhib = event['teamId'] == 100
-                inhibNum = Util.getInhibNumber(isTeamOneInhib, laneType)
+                inhibNum = util.getInhibNumber(isTeamOneInhib, laneType)
                 inhibs.append((time, isTeamOneInhib, inhibNum))
 
             wardEvent = event.get('eventType', None)
@@ -200,7 +201,7 @@ def main(args):
     gameNum = 0
     outputData = []
 
-    inFile = Util.loadJsonFile(args.input_file)
+    inFile = util.loadJsonFile(args.input_file)
     items = len(inFile)
     print ("{} has {} items".format(args.input_file, items))
     printEvery = items // 15
@@ -210,8 +211,8 @@ def main(args):
         assert len(t) == 2
 
         # If you had an error on this line re-run Coalesce.py
-        match = Util.loadJsonFile(t[0])
-        timeline = Util.loadJsonFile(t[1])
+        match = util.loadJsonFile(t[0])
+        timeline = util.loadJsonFile(t[1])
 
         parsed = parseGameRough(match, timeline)
         outputData.append(parsed)
@@ -247,10 +248,10 @@ def main(args):
         print ("line {}: {}".format(exampleLine, example))
 
     if args.examples > 0:
-        Util.writeJsonFile('example-feature.json', outputData[exampleLines[0]])
+        util.writeJsonFile('example-feature.json', outputData[exampleLines[0]])
 
     if not args.dry_run:
-        Util.writeJsonFile(args.output_file, outputData)
+        util.writeJsonFile(args.output_file, outputData)
 
 # START CODE HERE
 args = getArgParse().parse_args()

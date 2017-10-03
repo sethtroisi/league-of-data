@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as pyplot
 from matplotlib.widgets import Slider
-import Util
 import random
+
+import util
 
 # Plot general data about accuracy, logloss, number of samples.
 def plotData(blocks, times, samples, corrects, ratios, logLosses):
@@ -171,8 +172,8 @@ def plotGame(maxBlock, times, results, winPredictions):
 
 
 def stats(blocks, times, samples, corrects, ratios, logLosses):
-    startBlock = Util.timeToBlock(10 * 60)
-    endBlock = Util.timeToBlock(30 * 60)
+    startBlock = util.timeToBlock(10 * 60)
+    endBlock = util.timeToBlock(30 * 60)
 
     startBlock = max(startBlock, min(blocks))
     endBlock = min(endBlock, max(blocks))
