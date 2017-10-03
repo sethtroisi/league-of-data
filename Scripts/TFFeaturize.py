@@ -51,7 +51,7 @@ def champFeature(data, champs):
 
         data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minchampId
         data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minchampId
-        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
+#        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
 
     for (isTeamA, spellId), count in summoners.items():
         spellName = Util.spellIdToName(spellId)

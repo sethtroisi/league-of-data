@@ -207,9 +207,9 @@ def learningRateFn(params):
         decay_steps = 1000,
         decay_rate = .70,
         staircase = True)
-    learningRate = params['learningRate']
+#    learningRate = params['learningRate']
 
-#    tf.summary.scalar("learning_rate/learning_rate", learningRate)
+    tf.summary.scalar("learning_rate/learning_rate", learningRate)
 
 #    assert 0.000001 <= learningRate <= .001, "stuff .0001 seems fairly reasonable"
 #    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
@@ -217,15 +217,15 @@ def learningRateFn(params):
     assert 0.0001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
     optimizer = tf.train.ProximalAdagradOptimizer(
         learning_rate = learningRate,
-#        l1_regularization_strength = params['regularization'],
-        l2_regularization_strength = params['regularization'],
+        l1_regularization_strength = params['l1_regularization'],
+#        l2_regularization_strength = params['l2_regularization'],
     )
 
 #    assert 0.001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
 #    optimizer = tf.train.ProximalGradientDescentOptimizer(
 #        learning_rate = learningRate,
-#        l1_regularization_strength = params['regularization'],
-#        l2_regularization_strength = params['regularization'],
+#        l1_regularization_strength = params['l1_regularization'],
+#        l2_regularization_strength = params['l2_regularization'],
 #    )
 
     return optimizer
@@ -251,20 +251,21 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'modelName': 'exploring',
 
         # ML hyperparams
+        'learningRate': 0.005,
         'dropout': 0.00,
-#        'regularization': 0.014,
-        'learningRate': 0.02,
-        'hiddenUnits': [200, 200, 100, 20],
+        'l1_regularization': 0.0005,
+        'l2_regularization': 0.005,
+        'hiddenUnits': [80, 80, 20],
         'steps': 25000,
 
         # Also controls how often eval_validation data is calculated
-        'saveCheckpointSteps': 400,
-        'earlyStoppingRounds': 2500,
+        'saveCheckpointSteps': 250,
+#        'earlyStoppingRounds': 2000,
     }
 
     gridSearchParams = [
 #        ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
-        ('regularization', [0.009, 0.013, 0.018, 0.024, 0.03]),
+#        ('regularization', [0.009, 0.013, 0.018, 0.024, 0.03]),
 #        ('learningRate', [0.005, 0.007, 0.01, 0.013, 0.017]),
     ]
 
