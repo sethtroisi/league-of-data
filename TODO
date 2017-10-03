@@ -1,8 +1,8 @@
-Reach 80% accuracy and checkpoint this repo
-
 Rename files to lower case (and verify PyCharm is happy)
 
-Convert away from DnnClassifier
+Convert away from DnnClassifier (maybe to canned.DnnClassifier)
+
+Clean up prediction / eval code (eval_input_fn?)
 
 Test champ features on ARAM games
 Work on champ embedding for normal model
