@@ -108,7 +108,7 @@ def featuresToColumns(features):
             realColumn = tf.contrib.layers.real_valued_column(feature)
 
             # TODO can I assert this value is positive?
-
+            # TODO play with bucketized
             column = tf.contrib.layers.bucketized_column(
                 source_column=realColumn,
                 boundaries=[100, 200, 500, 1000, 2000, 3000, 5000, 7000, 10000, 15000])
@@ -131,7 +131,7 @@ def featuresToColumns(features):
             # column = shared_columns[0]
             column = tf.contrib.layers.embedding_column(
                 sparse_column,
-                dimension = 20,
+                dimension = 10,
                 combiner = "mean")
         else:
             columnTypes["real"] += 1
@@ -139,9 +139,8 @@ def featuresToColumns(features):
 
         columns.append(column)
 
-# TODO DO NOT SUBMIT
-#    for type, count in requiredToBeFound.items():
-#        assert columnTypes[type] >= count, "{} had {} not >= {}".format(type, columnTypes[type], count)
+    for type, count in requiredToBeFound.items():
+        assert columnTypes[type] >= count, "{} had {} not >= {}".format(type, columnTypes[type], count)
 
     return columns
 
@@ -205,7 +204,7 @@ def learningRateFn(params):
         learning_rate = params['learningRate'],
         global_step = tf.contrib.framework.get_or_create_global_step(),
         decay_steps = 1000,
-        decay_rate = .70,
+        decay_rate = .8,
         staircase = True)
 #    learningRate = params['learningRate']
 
@@ -214,7 +213,7 @@ def learningRateFn(params):
 #    assert 0.000001 <= learningRate <= .001, "stuff .0001 seems fairly reasonable"
 #    optimizer = tf.train.AdamOptimizer(learning_rate = learningRate)
 
-    assert 0.0001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
+#    assert 0.0001 <= learningRate < 0.3, "Fails to learn anything (or converge quickly) outside this range"
     optimizer = tf.train.ProximalAdagradOptimizer(
         learning_rate = learningRate,
         l1_regularization_strength = params['l1_regularization'],
@@ -251,12 +250,12 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'modelName': 'exploring',
 
         # ML hyperparams
-        'learningRate': 0.005,
+        'learningRate': 0.02,
         'dropout': 0.00,
         'l1_regularization': 0.0005,
         'l2_regularization': 0.005,
-        'hiddenUnits': [80, 80, 20],
-        'steps': 25000,
+        'hiddenUnits': [150, 150, 100, 20],
+        'steps': 10000,
 
         # Also controls how often eval_validation data is calculated
         'saveCheckpointSteps': 250,

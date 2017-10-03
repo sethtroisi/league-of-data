@@ -6,3 +6,5 @@ Convert away from DnnClassifier
 
 Test champ features on ARAM games
 Work on champ embedding for normal model
+
+limit GPU memory to 80%
