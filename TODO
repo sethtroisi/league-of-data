@@ -1,5 +1,3 @@
-Rename files to lower case (and verify PyCharm is happy)
-
 Convert away from DnnClassifier (maybe to canned.DnnClassifier)
 
 Clean up prediction / eval code (eval_input_fn?)

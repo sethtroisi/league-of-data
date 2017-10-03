@@ -1,7 +1,7 @@
 Data/
 Scripts/__pycache__/
 Scripts/.ipynb_checkpoints/
-
+.idea/
 
 # Compiled source #
 ###################
