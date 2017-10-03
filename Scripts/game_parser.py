@@ -119,6 +119,8 @@ def parseGameRough(match, timeline):
             if gameTime:
                 gameTime //= 1000
 
+            isTeamOne = lambda : event.get('teamId') == 100
+
             if monsterType:
                 killer = event['killerId']
                 isTeamOne = killer in teamOne
@@ -135,31 +137,28 @@ def parseGameRough(match, timeline):
 
             buildingType = event.get('buildingType', None)
             if buildingType == 'TOWER_BUILDING':
+                # killerId == 0 means minions
                 # killer = event['killerId']
                 towerType = event['towerType']
                 laneType = event['laneType']
-                isTeamOneTower = event['teamId'] == 100
+                isTeamOneTower = isTeamOne()
 
-                # TODO verify this is still true (2017-10)
-                if towerType == 'FOUNTAIN_TURRET':
-                    # NOTE: Azir turrets are coded as turrets.
-                    continue
+                yCord = event['position']['y']
+                assert yCord in (1807, 2270, 12612, 13084)
+                isTopNexus = yCord in (2270, 13084)
+                if isTopNexus:
+                    laneType = "TOP_LANE"
 
                 towerNum = util.getTowerNumber(isTeamOneTower, laneType, towerType)
                 assert isTeamOneTower == util.teamATowerKill(towerNum)
 
-                # print ("killer {}({}) @{:.0f}s: ({} x {} x {}) = {}".format(
-                #  champNames[killer - 1], killer, time,
-                #  isTeamOneTower, laneType, towerType, towerNum))
-
-                # TODO Stop mid nexus turret double count.
-                # assert all(tNum != towerNum for t, k, tNum in towers)
+                assert all(tNum != towerNum for t, k, tNum in towers)
                 towers.append((gameTime, isTeamOneTower, towerNum))
 
             elif buildingType == 'INHIBITOR_BUILDING':
                 # killer = event['killerId']
                 laneType = event['laneType']
-                isTeamOneInhib = event['teamId'] == 100
+                isTeamOneInhib = isTeamOne()
                 inhibNum = util.getInhibNumber(isTeamOneInhib, laneType)
                 inhibs.append((gameTime, isTeamOneInhib, inhibNum))
 

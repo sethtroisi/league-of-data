@@ -109,17 +109,17 @@ def minimizedChampId(champId):
 
 
 def getTowerNumber(isTeamOneTower, lane, tower):
-    lanes = ('BOT_LANE', 'MID_LANE', 'TOP_LANE')
-    towers = ('OUTER_TURRET', 'INNER_TURRET', 'BASE_TURRET', 'NEXUS_TURRET')
+    LANES = ('BOT_LANE', 'MID_LANE', 'TOP_LANE')
+    TOWERS = ('OUTER_TURRET', 'INNER_TURRET', 'BASE_TURRET', 'NEXUS_TURRET')
 
-    # TODO: figure out how to deal with both NEXUS_TOWER being in MID_LANE
+    # NOTE: One of the NEXUS_TURRETS is moved to TOP_LANE to prevent duplicate towers.
 
     assert isTeamOneTower in (False, True)
-    assert lane in lanes
-    assert tower in towers
+    assert lane in LANES
+    assert tower in TOWERS
 
-    return len(towers) * len(lanes) * (isTeamOneTower is False) + \
-        lanes.index(lane) * len(towers) + towers.index(tower)
+    return len(TOWERS) * len(LANES) * (isTeamOneTower is False) + \
+        LANES.index(lane) * len(TOWERS) + TOWERS.index(tower)
 
 
 def teamATowerKill(towerNum):
