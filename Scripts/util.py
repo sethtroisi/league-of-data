@@ -16,6 +16,13 @@ import os.path
 
 SECONDS_PER_BLOCK = 2 * 60
 
+DRAGON_NAMES = ["air", "water", "earth", "fire"]
+
+SUMMONER_SPELLS_BY_ID = {
+    1: "Cleanse", 3: "Exhaust", 4: "Flash", 6: "Ghost", 7: "Heal", 11: "Smite",
+    12: "Teleport", 13: "Clarity", 14: "Ignite", 21: "Barrier"
+}
+
 
 def timeToBlock(time):
     # I think it's more correct to return the block it's happening in.
@@ -66,11 +73,7 @@ def rankOrdering(rank):
 
 # noinspection SpellCheckingInspection
 def spellIdToName(spellId):
-    summonerSpell = {
-        1: "Cleanse", 3: "Exhaust", 4: "Flash", 6: "Ghost", 7: "Heal", 11: "Smite",
-        12: "Teleport", 13: "Clarity", 14: "Ignite", 21: "Barrier"
-    }
-    return summonerSpell[spellId].lower()
+    return SUMMONER_SPELLS_BY_ID[spellId].lower()
 
 
 # noinspection SpellCheckingInspection
@@ -170,26 +173,20 @@ def guessPosition(champ):
 
 def compressFeatureList(featuresUsed):
     savedToken = "(?<=_)({})(?=$|_)"
-    teamOrNumberRe = re.compile(savedToken.format("[abAB0-9]{1,2}"))
-    dragons = ["air", "water", "earth", "fire"]
-    dragonRe = re.compile(savedToken.format("|".join(dragons)), re.I)
 
-    def replacement(m):
-        text = m.group(1)
-        if text in 'abAB':
-            return '<team>'
-        elif text.lower() in dragons:
-            return '<dragon>'
-        elif text.isnumeric():
-            return '<X>'
-        else:
-            print("Bad sub:", text, m.groups())
-            return m.group()
+    def patternRe(pattern):
+        return re.compile(savedToken.format(pattern), re.I)
+
+    def listRe(items):
+        return re.compile(savedToken.format("|".join(items)), re.I)
 
     compressedList = set()
     for feature in featuresUsed:
-        feature = teamOrNumberRe.sub(replacement, feature)
-        feature = dragonRe.sub(replacement, feature)
+        feature = patternRe("[0-9]+").sub("<X>", feature)
+        feature = patternRe("[AB]").sub("<team>", feature)
+        feature = listRe(DRAGON_NAMES).sub("<dragon>", feature)
+        feature = listRe(SUMMONER_SPELLS_BY_ID.values()).sub("<summoner_spell>", feature)
+
         compressedList.add(feature)
 
     compressedFeatures = ", ".join(sorted(compressedList))

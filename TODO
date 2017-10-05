@@ -1,9 +1,5 @@
 Convert to one minute blocks (to match frame size)
 
-Util compress summoner names
-
-print count of both compressed and raw features
-
 Convert away from DnnClassifier (maybe to canned.DnnClassifier)
 
 Clean up prediction / eval code (eval_input_fn?)

@@ -296,9 +296,9 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                 numberOfCompressedFeatures, compressedPretty = \
                     util.compressFeatureList(featuresUsed)
                 if numberOfCompressedFeatures < 40 or args.verbose >= 2:
-                    print("\t{} features: {}".format(
-                        numberOfCompressedFeatures, compressedPretty))
-
+                    print("\t{} features, {} compressed: {}".format(
+                        len(featuresUsed), numberOfCompressedFeatures, compressedPretty))
+                    print ()
             featureColumns = featuresToColumns(featuresUsed)
 
             T0 = time.time()
