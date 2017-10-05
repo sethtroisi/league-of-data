@@ -69,7 +69,7 @@ def plotData(blocks, times, samples, corrects, ratios, logLosses):
 
 
 # Plot game predictions vs time.
-def plotGame(times, results, winPredictions):
+def plotGame(blocks, times, results, winPredictions):
     fig, (axis1, axis2) = pyplot.subplots(2, 1)
     axis2_2 = axis2.twinx()
 
@@ -80,6 +80,7 @@ def plotGame(times, results, winPredictions):
         [0.125, 0.48, 0.775, 0.03],
         axisbg='lightgoldenrodyellow')
 
+    # TODO add new colors for badly predicted games
     resultColors = {
         True: 'g',
         False: 'r'
@@ -100,8 +101,8 @@ def plotGame(times, results, winPredictions):
     axis1.set_ylabel('prediction confidence')
 
     # At X minutes print confidences.
-    # TODO set val_init to first block with interesting data.
-    sliderTime = Slider(sliderAxis, 'Time', 0, 60, valinit=20, valfmt='%d')
+    startTime = (min(blocks) * util.SECONDS_PER_BLOCK) // 60
+    sliderTime = Slider(sliderAxis, 'Time', 0, 60, valinit=startTime, valfmt='%d')
     sliderTime.valtext.set_visible(False)
     # TODO show value, # of games, % of games at this point in a text box somewhere
 

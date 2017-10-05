@@ -517,7 +517,7 @@ def main(args):
     if len(times) > 0:
         graph_model_stats.stats(blocks, samples, corrects, ratios, logLosses)
         graph_model_stats.plotData(blocks, times, samples, corrects, ratios, logLosses)
-        graph_model_stats.plotGame(times, testingGoals, testWinProbs)
+        graph_model_stats.plotGame(blocks, times, testingGoals, testWinProbs)
 
     T5 = time.time()
     viewTime = T5 - T4
