@@ -5,14 +5,15 @@ import random
 
 import util
 
+# Common styling 'Patch' for text
+TEXT_PROBS = dict(boxstyle='round', facecolor='#abcdef', alpha=0.5)
+
 
 # Plot general data about accuracy, logloss, number of samples.
 def plotData(blocks, times, samples, corrects, ratios, logLosses):
     fig, (axis1, axis2, axis3) = pyplot.subplots(3, 1)
     fig.subplots_adjust(hspace=0.6)
 
-    # Common styling 'Patch' for text
-    props = dict(boxstyle='round', facecolor='#abcdef', alpha=0.5)
 
     # Upper graph of prediction power.
     axis1.plot(times, ratios)
@@ -34,7 +35,7 @@ def plotData(blocks, times, samples, corrects, ratios, logLosses):
     axis3.text(
         time / max(times), 0.1,
         accuracyText, transform=axis1.transAxes, fontsize=14,
-        bbox=props,
+        bbox=TEXT_PROBS,
         verticalalignment='bottom', horizontalalignment='center')
 
     # Middle graph of log loss.
@@ -52,7 +53,7 @@ def plotData(blocks, times, samples, corrects, ratios, logLosses):
     axis2.text(
         time / max(times), 0.7,
         logLossText, transform=axis2.transAxes, fontsize=14,
-        bbox=props,
+        bbox=TEXT_PROBS,
         verticalalignment='bottom', horizontalalignment='center')
 
     # Lower graph of sample data.
@@ -69,7 +70,7 @@ def plotData(blocks, times, samples, corrects, ratios, logLosses):
 
 
 # Plot game predictions vs time.
-def plotGame(blocks, times, results, winPredictions):
+def plotGame(blocks, times, samples, results, winPredictions):
     fig, (axis1, axis2) = pyplot.subplots(2, 1)
     axis2_2 = axis2.twinx()
 
@@ -78,7 +79,7 @@ def plotGame(blocks, times, results, winPredictions):
     # Note: I didn't have luck with subplots(3, 1) and resizing so I used this.
     sliderAxis = pyplot.axes(
         [0.125, 0.48, 0.775, 0.03],
-        axisbg='lightgoldenrodyellow')
+        facecolor='lightgoldenrodyellow')
 
     # TODO add new colors for badly predicted games
     resultColors = {
@@ -102,9 +103,9 @@ def plotGame(blocks, times, results, winPredictions):
 
     # At X minutes print confidences.
     startTime = (min(blocks) * util.SECONDS_PER_BLOCK) // 60
+    print ("first analyized time:", startTime)
     sliderTime = Slider(sliderAxis, 'Time', 0, 60, valinit=startTime, valfmt='%d')
     sliderTime.valtext.set_visible(False)
-    # TODO show value, # of games, % of games at this point in a text box somewhere
 
     percentBuckets = 101
     percents = [p / (percentBuckets - 1) for p in range(percentBuckets)]
@@ -162,6 +163,14 @@ def plotGame(blocks, times, results, winPredictions):
         # TODO line kinda disappears if in first or last index :(
         axis1.axvline(x=times[ti], linewidth=4, color='b', gid='vline')
 
+        # TODO show value, # of games, % of games at this point in a text box somewhere
+        statusText = "{} / {} games".format(samples[ti], len(results))
+        axis1.text(
+            0.2, 0.7,
+            statusText, transform=axis2.transAxes, fontsize=14,
+            bbox=TEXT_PROBS,
+            verticalalignment='bottom', horizontalalignment='center')
+
         fig.canvas.draw_idle()
 
     plotConfidentAtTime(20)
@@ -182,7 +191,8 @@ def stats(blocks, samples, corrects, ratios, logLosses):
     totalSamples = sum(samples[startBlock:endBlock + 1])
     totalCorrect = sum(corrects[startBlock:endBlock + 1])
     totalIncorrect = totalSamples - totalCorrect
-    mediumRatio = np.median(ratios[startBlock:endBlock + 1])
+    if totalSamples > 0:
+        mediumRatio = np.median(ratios[startBlock:endBlock + 1])
 
     print()
     print("Global Stats 10 to 30 minutes ({} Games)".format(max(samples)))
@@ -190,5 +200,6 @@ def stats(blocks, samples, corrects, ratios, logLosses):
     print("Sum LogLoss: {:.3f}".format(sumLosses))
     print("Correct Predictions:", totalCorrect)
     print("Incorrect Predictions:", totalIncorrect)
-    print("Global Ratio: {:2.1f}".format(100 * totalCorrect / totalSamples))
-    print("Median Ratio: {:2.1f}".format(100 * mediumRatio))
+    if totalSamples > 0:
+        print("Global Ratio: {:2.1f}".format(100 * totalCorrect / totalSamples))
+        print("Median Ratio: {:2.1f}".format(100 * mediumRatio))
