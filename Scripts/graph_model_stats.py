@@ -12,7 +12,7 @@ TEXT_PROBS = dict(boxstyle='round', facecolor='#abcdef', alpha=0.5)
 # Plot general data about accuracy, logloss, number of samples.
 def plotData(blocks, times, samples, corrects, ratios, logLosses):
     fig, (axis1, axis2, axis3) = pyplot.subplots(3, 1)
-    fig.subplots_adjust(hspace=0.6)
+    fig.subplots_adjust(hspace=0.65)
 
 
     # Upper graph of prediction power.
@@ -171,7 +171,7 @@ def plotGame(blocks, times, samples, corrects, ratios, logLosses, results, winPr
                       "log loss = {:.3f}").format(
             corrects[ti], samples[ti],
             len(results) - samples[ti],
-            ratios[ti], logLosses[ti])
+            100 * ratios[ti], logLosses[ti])
 
         status = fig.text(
             0.5, 0.93,
