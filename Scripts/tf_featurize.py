@@ -141,8 +141,8 @@ def goldFeatures(df, gold, sampleTime):
         playerNormalizeFactor = 600 * (blockNum + 1)
         teamNormalizeFactor = 5 * playerNormalizeFactor
 
-        playersAGold.sort(reverse = True)
-        playersBGold.sort(reverse = True)
+        playersAGold.sort(reverse=True)
+        playersBGold.sort(reverse=True)
         for richIndex, (goldA, goldB) in enumerate(zip(playersAGold, playersBGold), 1):
             df['gold_{}_richest_A_block_{}'.format(richIndex, blockNum)] = goldA / playerNormalizeFactor
             df['gold_{}_richest_B_block_{}'.format(richIndex, blockNum)] = goldB / playerNormalizeFactor
@@ -177,8 +177,8 @@ def farmFeatures(df, farm, jungleFarm, sampleTime):
         playerNormalizeFactor = 16 * (blockNum + 1)
         teamNormalizeFactor = 4 * playerNormalizeFactor
 
-        playersAFarm.sort(reverse = True)
-        playersBFarm.sort(reverse = True)
+        playersAFarm.sort(reverse=True)
+        playersBFarm.sort(reverse=True)
         for farmedIndex, (farmA, farmB) in enumerate(zip(playersAFarm, playersBFarm), 1):
             df['farmed_{}_best_A_block_{}'.format(farmedIndex, blockNum)] = farmA / playerNormalizeFactor
             df['farmed_{}_best_B_block_{}'.format(farmedIndex, blockNum)] = farmB / playerNormalizeFactor
@@ -188,10 +188,9 @@ def farmFeatures(df, farm, jungleFarm, sampleTime):
         df['farm_block_{}_A'.format(blockNum)] = teamAFarm / teamNormalizeFactor
         df['farm_block_{}_B'.format(blockNum)] = teamBFarm / teamNormalizeFactor
 
-        # TODO add and Normalized in TFModel
-        #deltaGold = teamAFarm - teamBFarm
-        #df['farm_adv_block_{}_A'.format(blockNum)] = max(0, deltaGold)
-        #df['farm_adv_block_{}_B'.format(blockNum)] = max(0, -deltaGold)
+        deltaFarm = teamAFarm - teamBFarm
+        df['farm_adv_block_{}_A'.format(blockNum)] = max(0, deltaFarm)
+        df['farm_adv_block_{}_B'.format(blockNum)] = max(0, -deltaFarm)
 
 
 def parseGame(parsed, time):

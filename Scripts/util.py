@@ -67,7 +67,7 @@ def rankOrdering(rank):
         'CHALLENGER': 5,
         'MASTER': 6
     }
-    assert rank in order, "Unknown Rank: '{}'".format(rank)
+    assert rank.upper() in order, "Unknown Rank: '{}'".format(rank)
     return order[rank]
 
 

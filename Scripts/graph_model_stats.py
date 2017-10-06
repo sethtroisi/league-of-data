@@ -14,7 +14,6 @@ def plotData(blocks, times, samples, corrects, ratios, logLosses):
     fig, (axis1, axis2, axis3) = pyplot.subplots(3, 1)
     fig.subplots_adjust(hspace=0.65)
 
-
     # Upper graph of prediction power.
     axis1.plot(times, ratios)
     axis1.set_title('Correct Predictions')
@@ -201,6 +200,7 @@ def stats(blocks, samples, corrects, ratios, logLosses):
     totalSamples = sum(samples[startBlock:endBlock + 1])
     totalCorrect = sum(corrects[startBlock:endBlock + 1])
     totalIncorrect = totalSamples - totalCorrect
+    mediumRatio = 0.5
     if totalSamples > 0:
         mediumRatio = np.median(ratios[startBlock:endBlock + 1])
 

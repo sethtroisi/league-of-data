@@ -57,6 +57,7 @@ def getArgParse():
         help='Don\'t write output file instead print to screen')
     return parser
 
+
 def getAndValidate(data, key, validValues):
     value = data.get(key, None)
     assert value in validValues, "{} not in ({})".format(value, validValues)
@@ -107,7 +108,7 @@ def parseGameRough(match, timeline):
     towers = []
     inhibs = []
     frameStats = defaultdict(
-        lambda : defaultdict(lambda : [None for _ in range(10)])
+        lambda: defaultdict(lambda: [None for _ in range(10)])
     )
 
     frames = timeline['frames']
@@ -134,8 +135,11 @@ def parseGameRough(match, timeline):
             if gameTime:
                 gameTime //= 1000
 
-            isTeamOne = lambda: 100 == getAndValidate(event, 'teamId', (100, 200))
-            killerId = lambda: getAndValidate(event, 'killerId', range(11))  # 0 means minion
+            def isTeamOne():
+                return 100 == getAndValidate(event, 'teamId', (100, 200))
+
+            def killerId():
+                return getAndValidate(event, 'killerId', range(11))  # 0 means minion
 
             if monsterType:
                 killer = killerId()
@@ -186,7 +190,6 @@ def parseGameRough(match, timeline):
                 # TODO save and record ward events
 
             # TODO KILLS, LEVEL UP, SKILL ORDER (?)
-
 
     features = dict()
     features['champs'] = champs
