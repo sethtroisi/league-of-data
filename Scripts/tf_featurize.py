@@ -217,16 +217,17 @@ def parseGame(parsed, time):
     data = dict()
     data['current_time'] = time / 3600
 
-    champFeature(data, champs)
+#    champFeature(data, champs)
 
     goldFeatures(data, gold, time)
-    farmFeatures(data, farm, jungleFarm, time)
+#    farmFeatures(data, farm, jungleFarm, time)
 
-    towerFeatures(data, towers, time)
-    dragonFeatures(data, dragons, time)
+#    towerFeatures(data, towers, time)
+#    dragonFeatures(data, dragons, time)
 
-    countedFeature(data, 'inhibs', inhibs, time)
-    countedFeature(data, 'barons', barons, time)
+    # Not avialable pre 20.
+#    countedFeature(data, 'inhibs', inhibs, time)
+#    countedFeature(data, 'barons', barons, time)
 
     return data
 

@@ -137,8 +137,8 @@ def featuresToColumns(features):
 
         columns.append(column)
 
-    for name, count in requiredToBeFound.items():
-        assert columnTypes[name] >= count, "{} had {} not >= {}".format(name, columnTypes[name], count)
+    #for name, count in requiredToBeFound.items():
+    #    assert columnTypes[name] >= count, "{} had {} not >= {}".format(name, columnTypes[name], count)
 
     return columns
 
@@ -253,9 +253,9 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'learningRate': 0.01,
         'dropout': 0.00,
         'l1_regularization': 0.0002,
-        'l2_regularization': 0.01,
-        'hiddenUnits': [125, 200, 200, 50, 20],
-        'steps': 3000,
+        'l2_regularization': 0.008,
+        'hiddenUnits': [125, 200, 50, 20],
+        'steps': 5000,
 
         # Also controls how often eval_validation data is calculated
         'saveCheckpointSteps': 250,
