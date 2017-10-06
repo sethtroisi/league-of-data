@@ -309,7 +309,9 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
             modelName = params['modelName'] + gridSearchName
             modelDir = "/tmp/tmp-tf-lol/exploring/{}/b{}/model_{}".format(runTime, blockNum, modelName)
             print("Saving in", modelDir)
-            print("\t", params.items(), "\n")
+            for hyperparam in params.items():
+                print("\t", hyperparam)
+            print()
 
             classifier = tf.contrib.learn.DNNClassifier(
                 hidden_units=params['hiddenUnits'],
@@ -517,7 +519,7 @@ def main(args):
     if len(times) > 0:
         graph_model_stats.stats(blocks, samples, corrects, ratios, logLosses)
         graph_model_stats.plotData(blocks, times, samples, corrects, ratios, logLosses)
-        graph_model_stats.plotGame(blocks, times, samples, testingGoals, testWinProbs)
+        graph_model_stats.plotGame(blocks, times, samples, corrects, ratios, logLosses, testingGoals, testWinProbs)
 
     T5 = time.time()
     viewTime = T5 - T4

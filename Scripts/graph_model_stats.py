@@ -70,15 +70,15 @@ def plotData(blocks, times, samples, corrects, ratios, logLosses):
 
 
 # Plot game predictions vs time.
-def plotGame(blocks, times, samples, results, winPredictions):
+def plotGame(blocks, times, samples, corrects, ratios, logLosses, results, winPredictions):
     fig, (axis1, axis2) = pyplot.subplots(2, 1)
     axis2_2 = axis2.twinx()
 
-    fig.subplots_adjust(hspace=0.65)
+    fig.subplots_adjust(top=0.85, bottom=0.1, hspace=0.65)
 
     # Note: I didn't have luck with subplots(3, 1) and resizing so I used this.
     sliderAxis = pyplot.axes(
-        [0.125, 0.48, 0.775, 0.03],
+        [0.125, 0.44, 0.775, 0.03],
         facecolor='lightgoldenrodyellow')
 
     # TODO add new colors for badly predicted games
@@ -109,6 +109,8 @@ def plotGame(blocks, times, samples, results, winPredictions):
 
     percentBuckets = 101
     percents = [p / (percentBuckets - 1) for p in range(percentBuckets)]
+
+    annotations = []
 
     def plotConfidentAtTime(requestedTime):
         ti = min([(abs(requestedTime - t), i) for i, t in enumerate(times)])[1]
@@ -157,19 +159,27 @@ def plotGame(blocks, times, samples, results, winPredictions):
         axis2_2.set_xlim([0, 1.01])
 
         # Draw the vertical line on the upper time graph
-        for line in axis1.lines:
-            if line.get_gid() == 'vline':
-                line.remove()
-        # TODO line kinda disappears if in first or last index :(
-        axis1.axvline(x=times[ti], linewidth=4, color='b', gid='vline')
+        for annotation in annotations:
+            annotation.remove()
+        annotations.clear()
 
-        # TODO show value, # of games, % of games at this point in a text box somewhere
-        statusText = "{} / {} games".format(samples[ti], len(results))
-        axis1.text(
-            0.2, 0.7,
-            statusText, transform=axis2.transAxes, fontsize=14,
+        line = axis1.axvline(x=times[ti], linewidth=4, color='b', gid='vline')
+        annotations.append(line)
+
+        statusText = ("{}/{} ({} ended) "
+                      "accuracy = {:2.1f}, "
+                      "log loss = {:.3f}").format(
+            corrects[ti], samples[ti],
+            len(results) - samples[ti],
+            ratios[ti], logLosses[ti])
+
+        status = fig.text(
+            0.5, 0.93,
+            statusText, fontsize=12,
             bbox=TEXT_PROBS,
-            verticalalignment='bottom', horizontalalignment='center')
+            verticalalignment='bottom', horizontalalignment='center',
+            gid='stat_text')
+        annotations.append(status)
 
         fig.canvas.draw_idle()
 
