@@ -100,18 +100,7 @@ def featuresToColumns(features):
 
     columns = []
     for feature in features:
-        if feature.startswith("gold_adv_"):
-            columnTypes["gold"] += 1
-
-            realColumn = tf.contrib.layers.real_valued_column(feature)
-
-            # TODO can I assert this value is positive?
-            # TODO play with bucketized
-            column = tf.contrib.layers.bucketized_column(
-                source_column=realColumn,
-                boundaries=[100, 200, 500, 1000, 2000, 3000, 5000, 7000, 10000, 15000])
-
-        elif feature.startswith("embedding_"):
+        if feature.startswith("embedding_"):
             columnTypes["embedding"] += 1
             assert feature.endswith("champion"), "\"{}\" requires setup for embedding".format(feature)
 
@@ -250,12 +239,12 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'modelName': 'exploring',
 
         # ML hyperparams
-        'learningRate': 0.01,
+        'learningRate': 0.005,
         'dropout': 0.00,
-        'l1_regularization': 0.0002,
-        'l2_regularization': 0.008,
-        'hiddenUnits': [125, 200, 50, 20],
-        'steps': 5000,
+        'l1_regularization': 0.0001,
+        'l2_regularization': 0.01,
+        'hiddenUnits': [100, 100, 50],
+        'steps': 10000,
 
         # Also controls how often eval_validation data is calculated
         'saveCheckpointSteps': 250,
@@ -293,11 +282,10 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                 print("\ttraining block {} on {} games".format(blockNum, len(blockTrainFeatureSets)))
 
             if args.verbose >= 1:
-                numberOfCompressedFeatures, compressedPretty = \
-                    util.compressFeatureList(featuresUsed)
-                if numberOfCompressedFeatures < 40 or args.verbose >= 2:
+                countCompressed, compressedPretty = util.compressFeatureList(featuresUsed)
+                if countCompressed < 40 or args.verbose >= 2:
                     print("\t{} features, {} compressed: {}".format(
-                        len(featuresUsed), numberOfCompressedFeatures, compressedPretty))
+                        len(featuresUsed), countCompressed, compressedPretty))
                     print ()
             featureColumns = featuresToColumns(featuresUsed)
 
@@ -472,6 +460,11 @@ def main(args):
         for blockNum in blocks:
             blockTrainFeatureSets, blockTrainGoals, featuresUsed = gameToFeatures(
                 args, trainingGames, trainingGoals, blockNum, training=True)
+
+            countCompressed, compressedPretty = util.compressFeatureList(featuresUsed)
+            print("\t{} features, {} compressed: {}".format(
+                    len(featuresUsed), countCompressed, compressedPretty))
+            print()
 
             print("Panda Debugging block", blockNum)
             print("\tdata loading into \"df\"")

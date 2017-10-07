@@ -28,8 +28,9 @@ def countedFeature(df, name, events, sampleTime, verus=True):
 def champFeature(data, champs):
     ranks = defaultdict(int)
     summoners = defaultdict(int)
-    for playerI, champ in enumerate(champs):
+    for champ in champs:
         champId = champ['championId']
+        # pId = champ['pId']
         isTeamA = champ['isTeamOne']
 
         # champion = util.championIdToName(champId)
@@ -46,9 +47,9 @@ def champFeature(data, champs):
         rank = champ['approxRank']
         ranks[(isTeamA, rank)] += 1
 
-#        data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minChampId
-#        data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minChampId
-#        data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
+        # data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minChampId
+        # data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minChampId
+        # data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
 
     for (isTeamA, spellId), count in summoners.items():
         spellName = util.spellIdToName(spellId)
@@ -63,8 +64,8 @@ def champFeature(data, champs):
 
 def towerFeatures(df, towers, sampleTime):
     # Experiment with setting to far future
-    # for tower in range(0, 24):
-    #    df.set_value(0, 'tower_{}_destroyed_at', 2)
+    for towerNum in range(0, 24):
+        df['tower_{}_destroyed_at'.format(towerNum)] = 5 # "infinity"
 
     towersA, towersB = 0, 0
     for towerData in towers:
@@ -123,11 +124,8 @@ def dragonFeatures(df, dragons, sampleTime):
     return features
 
 
-def goldFeatures(df, gold, sampleTime):
+def goldFeatures(df, gold, champs, sampleTime):
     lastBlock = util.timeToBlock(sampleTime)
-
-    # Explore adding each positions' gold / adv
-    # position = Util.guessPosition(champ)
 
     for blockNum in range(lastBlock+1):
         blockGold = gold.get(str(blockNum))
@@ -141,21 +139,35 @@ def goldFeatures(df, gold, sampleTime):
         playerNormalizeFactor = 600 * (blockNum + 1)
         teamNormalizeFactor = 5 * playerNormalizeFactor
 
+        # 3K lead at 20 minutes => ~[0, 3]
+        advantageNormalizeFactor = 300 * (blockNum + 1)
+
         playersAGold.sort(reverse=True)
         playersBGold.sort(reverse=True)
-        for richIndex, (goldA, goldB) in enumerate(zip(playersAGold, playersBGold), 1):
-            df['gold_{}_richest_A_block_{}'.format(richIndex, blockNum)] = goldA / playerNormalizeFactor
-            df['gold_{}_richest_B_block_{}'.format(richIndex, blockNum)] = goldB / playerNormalizeFactor
 
         teamAGold = sum(playersAGold)
         teamBGold = sum(playersBGold)
         df['gold_block_{}_A'.format(blockNum)] = teamAGold / teamNormalizeFactor
         df['gold_block_{}_B'.format(blockNum)] = teamBGold / teamNormalizeFactor
 
-        # Normalized in TFModel
-        deltaGold = teamAGold - teamBGold
+        # Normalized delta to ~ [0, 3]
+        deltaGold = (teamAGold - teamBGold) / advantageNormalizeFactor
         df['gold_adv_block_{}_A'.format(blockNum)] = max(0, deltaGold)
         df['gold_adv_block_{}_B'.format(blockNum)] = max(0, -deltaGold)
+
+
+        for richIndex, (goldA, goldB) in enumerate(zip(playersAGold, playersBGold), 1):
+            df['gold_{}_richest_A_block_{}'.format(richIndex, blockNum)] = goldA / playerNormalizeFactor
+            df['gold_{}_richest_B_block_{}'.format(richIndex, blockNum)] = goldB / playerNormalizeFactor
+
+        for champ in champs:
+            isTeamA = champ['isTeamOne']
+            pId = util.getAndValidate(champ, 'pId', range(1,11))
+            position = util.guessPosition(champ)
+
+            positionGold = blockGold[pId - 1] / playerNormalizeFactor
+            team = 'A' if isTeamA else 'B'
+            df['gold_{}_block_{}_{}'.format(position, blockNum, team)] = positionGold
 
 
 def farmFeatures(df, farm, jungleFarm, sampleTime):
@@ -219,7 +231,7 @@ def parseGame(parsed, time):
 
 #    champFeature(data, champs)
 
-    goldFeatures(data, gold, time)
+    goldFeatures(data, gold, champs, time)
 #    farmFeatures(data, farm, jungleFarm, time)
 
 #    towerFeatures(data, towers, time)

@@ -58,10 +58,25 @@ def getArgParse():
     return parser
 
 
-def getAndValidate(data, key, validValues):
-    value = data.get(key, None)
-    assert value in validValues, "{} not in ({})".format(value, validValues)
-    return value
+def isSurrender(byTeamOne, result, towers):
+    # This bit isn't saved in match or timeline so take a guess
+
+    # Can't surrender and win
+    if byTeamOne == result:
+        return False
+
+    towerNums = [towerNum for _, _, towerNum in towers]
+
+    # Check if the tower of the team hypothetically surrendering is destroyed
+    nexusTowerMid = util.getTowerNumber(byTeamOne, "MID_LANE", "NEXUS_TURRET")
+    nexusTowerTop = util.getTowerNumber(byTeamOne, "TOP_LANE", "NEXUS_TURRET")
+
+    # Lost but nexus towers weren't destroyed => Surrendered
+    if nexusTowerMid not in towerNums or nexusTowerTop not in towerNums:
+        return True
+
+    # Lost, Nexus Towers were destroyed => assume it was a normal loss.
+    return False
 
 
 # takes in a match json object and returns features about it.
@@ -83,6 +98,7 @@ def parseGameRough(match, timeline):
         champs.append(champ)
 
         champId = participant['championId']
+        champ['pId'] = pId
         champ['isTeamOne'] = isTeamOne
 
         role = participant['timeline']['role']
@@ -96,6 +112,9 @@ def parseGameRough(match, timeline):
         champ['role'] = role
         champ['lane'] = lane
         champ['positionIndex'] = position
+        # TODO Take a guess at position
+        # TODO Take a guess at lane swap
+        # TODO consider filtering lane swap games
 
         champ['championId'] = champId
 #        champ['champion'] = Util.championIdToName(champId)
@@ -136,10 +155,10 @@ def parseGameRough(match, timeline):
                 gameTime //= 1000
 
             def isTeamOne():
-                return 100 == getAndValidate(event, 'teamId', (100, 200))
+                return 100 == util.getAndValidate(event, 'teamId', (100, 200))
 
             def killerId():
-                return getAndValidate(event, 'killerId', range(11))  # 0 means minion
+                return util.getAndValidate(event, 'killerId', range(11))  # 0 means minion
 
             if monsterType:
                 killer = killerId()
@@ -165,7 +184,7 @@ def parseGameRough(match, timeline):
 
                 # Deduplicate MID_LANE + NEXUS_TURRET.
                 if towerType == 'NEXUS_TURRET':
-                    yCord = getAndValidate(event['position'], 'y', (1807, 2270, 12612, 13084))
+                    yCord = util.getAndValidate(event['position'], 'y', (1807, 2270, 12612, 13084))
                     isTopNexus = yCord in (2270, 13084)
                     if isTopNexus:
                         laneType = "TOP_LANE"
@@ -204,13 +223,16 @@ def parseGameRough(match, timeline):
     features['farm'] = dict(frameStats.get('farm', None))
     features['jungleFarm'] = dict(frameStats.get('jungleFarm', None))
 
-    debug = dict()
-    debug['duration'] = match['gameDuration']
-    debug['matchId'] = match['gameId']
-
     rawResult = match['teams'][0]['win']
     assert rawResult in ('Win', 'Fail'), rawResult
     result = rawResult == 'Win'
+
+    debug = dict()
+    debug['duration'] = match['gameDuration']
+    debug['matchId'] = match['gameId']
+    debug['TeamASurrendered'] = isSurrender(True, result, towers)
+    debug['TeamBSurrendered'] = isSurrender(False, result, towers)
+    debug['surrendered'] = debug['TeamASurrendered'] or debug['TeamBSurrendered']
 
     parsed = dict()
     parsed['features'] = features
@@ -228,7 +250,16 @@ def main(args):
 
     inFile = util.loadJsonFile(args.input_file)
     items = len(inFile)
-    print ("{} has {} items".format(args.input_file, items))
+
+    # Remove any ordering effect from game number
+    random.shuffle(inFile)
+
+    print("{} has {} items".format(args.input_file, items))
+    if 0 < args.count < items:
+        items = args.count
+        print("\tonly parsing {}".format(args.count))
+        print()
+
     printEvery = items // 15
 
     for t in inFile:
@@ -240,6 +271,7 @@ def main(args):
         timeline = util.loadJsonFile(t[1])
 
         parsed = parseGameRough(match, timeline)
+
         outputData.append(parsed)
         gameNum += 1
 
@@ -251,8 +283,10 @@ def main(args):
             print ("Stopping after {} games (like you asked with -c)".format(args.count))
             break
 
-    # Remove any ordering effect from game number
-    random.shuffle(outputData)
+    numberOfSurrenders = sum([parsed['debug']['surrendered'] for parsed in outputData])
+    percentSurrenders = 100 * numberOfSurrenders / items
+    assert numberOfSurrenders > 0 and percentSurrenders <= 25
+    print ("\t{:2.1f}% games were surrenders".format(percentSurrenders))
 
     chars = len(str(outputData))
 

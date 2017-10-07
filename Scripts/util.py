@@ -56,6 +56,12 @@ def writeJsonFile(name, data):
         json.dump(data, f, indent=1)
 
 
+def getAndValidate(data, key, validValues):
+    value = data.get(key, None)
+    assert value in validValues, "{} not in ({})".format(value, validValues)
+    return value
+
+
 def rankOrdering(rank):
     order = {
         'BRONZE': 0,
@@ -167,7 +173,7 @@ def guessPosition(champ):
             # suppressing some of the error below, not sure what position this is
             return "OTHER"
 
-        #    print ("ERROR unknown position:", lane, role)
+    print ("ERROR unknown position:", lane, role, "\t", champ)
     return "OTHER"
 
 
