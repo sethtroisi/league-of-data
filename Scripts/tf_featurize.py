@@ -152,8 +152,8 @@ def goldFeatures(df, gold, champs, sampleTime):
 
         # Normalized delta to ~ [0, 3]
         deltaGold = (teamAGold - teamBGold) / advantageNormalizeFactor
-        df['gold_adv_block_{}_A'.format(blockNum)] = max(0, deltaGold)
-        df['gold_adv_block_{}_B'.format(blockNum)] = max(0, -deltaGold)
+        df['gold_adv_block_{}_A'.format(blockNum)] = max(0.0, deltaGold)
+        df['gold_adv_block_{}_B'.format(blockNum)] = max(0.0, -deltaGold)
 
 
         for richIndex, (goldA, goldB) in enumerate(zip(playersAGold, playersBGold), 1):
@@ -188,6 +188,7 @@ def farmFeatures(df, farm, jungleFarm, sampleTime):
         # Each player gets ~16 / 2 minutes, team gets ~80 / 2 minutes. Normalize features to ~ [0.5, 2].
         playerNormalizeFactor = 16 * (blockNum + 1)
         teamNormalizeFactor = 4 * playerNormalizeFactor
+        advantageNormalizeFactor = 20 * (blockNum + 1)
 
         playersAFarm.sort(reverse=True)
         playersBFarm.sort(reverse=True)
@@ -200,9 +201,9 @@ def farmFeatures(df, farm, jungleFarm, sampleTime):
         df['farm_block_{}_A'.format(blockNum)] = teamAFarm / teamNormalizeFactor
         df['farm_block_{}_B'.format(blockNum)] = teamBFarm / teamNormalizeFactor
 
-        deltaFarm = teamAFarm - teamBFarm
-        df['farm_adv_block_{}_A'.format(blockNum)] = max(0, deltaFarm)
-        df['farm_adv_block_{}_B'.format(blockNum)] = max(0, -deltaFarm)
+        deltaFarm = (teamAFarm - teamBFarm) / advantageNormalizeFactor
+        df['farm_adv_block_{}_A'.format(blockNum)] = max(0.0, deltaFarm)
+        df['farm_adv_block_{}_B'.format(blockNum)] = max(0.0, -deltaFarm)
 
 
 def parseGame(parsed, time):
@@ -231,14 +232,14 @@ def parseGame(parsed, time):
 
 #    champFeature(data, champs)
 
-    goldFeatures(data, gold, champs, time)
-#    farmFeatures(data, farm, jungleFarm, time)
+#    goldFeatures(data, gold, champs, time)
+    farmFeatures(data, farm, jungleFarm, time)
 
 #    towerFeatures(data, towers, time)
 #    dragonFeatures(data, dragons, time)
 
-    # Not avialable pre 20.
 #    countedFeature(data, 'inhibs', inhibs, time)
+    # Not available pre 20.
 #    countedFeature(data, 'barons', barons, time)
 
     return data
@@ -247,25 +248,47 @@ def parseGame(parsed, time):
 def getRawGameData(args):
     fileName = args.input_file
     numGames = args.num_games
-    rank = args.rank
+
+    requiredRank = util.rankOrdering(args.rank)
+
+    filtered = defaultdict(int)
+    if args.filter_weird_games:
+        print()
+        print("FILTERING WEIRD_GAMES")
+        print("INVALIDATES STATS PROBABLY")
+        print("INVESTIGATE IF YOU ARE USING THIS")
+        print()
 
     games = []
     goals = []
 
-    requiredRank = util.rankOrdering(rank)
-
     outputData = util.loadJsonFile(fileName)
     for dataI, data in enumerate(outputData):
+        # Filtering remakes and stuff (sudo valid beacuse know at t ~= 0)
         if data['debug']['duration'] < 600:
-            # Filtering remakes and stuff
+            filtered['short_game'] += 1
             continue
 
-        # TODO consider removing surrender games
-
-        # Filter out low rank games
+        # Filter out low rank games (valid because know at t = 0)
         lowerRanked = len([1 for c in data['features']['champs'] if util.rankOrdering(c['approxRank']) < requiredRank])
         if lowerRanked >= 2:
+            filtered['rank'] += 1
             continue
+
+        if args.filter_weird_games:
+            if data['debug']['surrendered']:
+                filtered['surrendered'] += 1
+                continue
+
+            anyOtherPositions = False
+            for champ in data['features']['champs']:
+                position = util.guessPosition(champ)
+                if position == "OTHER":
+                    anyOtherPositions = True
+                    break
+            if anyOtherPositions:
+                filtered['bad_position'] += 1
+                continue
 
         goal = data['goal']
         assert goal in (True, False)
@@ -276,6 +299,14 @@ def getRawGameData(args):
         if len(games) == numGames:
             break
 
-    print ("Loaded {} games (filtered {})".format(
-        len(goals), len(outputData) - len(goals)))
+    filterCount = len(outputData) - len(goals)
+    assert filterCount == sum(filtered.values())
+
+    print("Loaded {} games (filtered {} = {:.1f}%)".format(
+        len(goals), filterCount, 100 * filterCount / len(outputData)))
+
+    for reason, count in sorted(filtered.items()):
+        print("\t{}: {}".format(reason, count))
+    print()
+
     return games, goals

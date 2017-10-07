@@ -173,7 +173,7 @@ def guessPosition(champ):
             # suppressing some of the error below, not sure what position this is
             return "OTHER"
 
-    print ("ERROR unknown position:", lane, role, "\t", champ)
+    # print ("ERROR unknown position:", lane, role, "\t", champ)
     return "OTHER"
 
 

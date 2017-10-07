@@ -18,9 +18,10 @@ def getArgParse():
     parser = argparse.ArgumentParser(description='Takes features and models outcomes.')
 
     parser.add_argument(
-        '--panda-debug',
-        action="store_true",
-        help='drop to interactive prompt with pandas to debug data')
+        '-v', '--verbose',
+        type=int,
+        default=0,
+        help='how much data to print (0 = little, 1 = most, 3 = everything)')
 
     parser.add_argument(
         '-i', '--input-file',
@@ -29,10 +30,21 @@ def getArgParse():
         help='Input match file (produced by Seth or GameParser.py)')
 
     parser.add_argument(
+        '--panda-debug',
+        action="store_true",
+        help='drop to interactive prompt with pandas to debug data')
+
+    parser.add_argument(
         '-n', '--num-games',
         type=int,
         default=-1,
         help='Numbers of games to load (default -1 = all)')
+
+    parser.add_argument(
+        '-p', '--holdback',
+        type=int,
+        default=15,
+        help='percent of games to holdback for testing/validation')
 
     parser.add_argument(
         '-b', '--blocks',
@@ -47,16 +59,9 @@ def getArgParse():
         help='Filter out all games from ranks below this')
 
     parser.add_argument(
-        '-p', '--holdback',
-        type=int,
-        default=15,
-        help='percent of games to holdback for testing/validation')
-
-    parser.add_argument(
-        '-v', '--verbose',
-        type=int,
-        default=0,
-        help='how much data to print (0 = little, 1 = most, 3 = everything)')
+        '--filter-weird-games',
+        action="store_true",
+        help='Filter out games which are non-standard (lane swap, surrenders, ...)')
 
     return parser
 
@@ -208,7 +213,7 @@ def learningRateFn(params):
     optimizer = tf.train.ProximalAdagradOptimizer(
         learning_rate=learningRate,
         l1_regularization_strength=params['l1_regularization'],
-        # l2_regularization_strength = params['l2_regularization'],
+        l2_regularization_strength = params['l2_regularization'],
     )
 
     '''
@@ -239,12 +244,12 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'modelName': 'exploring',
 
         # ML hyperparams
-        'learningRate': 0.005,
+        'learningRate': 0.01,
         'dropout': 0.00,
         'l1_regularization': 0.0001,
-        'l2_regularization': 0.01,
+        'l2_regularization': 0.001,
         'hiddenUnits': [100, 100, 50],
-        'steps': 10000,
+        'steps': 20000,
 
         # Also controls how often eval_validation data is calculated
         'saveCheckpointSteps': 250,
@@ -253,7 +258,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
     gridSearchParams = [
         # ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
-        # ('regularization', [0.009, 0.013, 0.018, 0.024, 0.03]),
+        # ('l2_regularization', [0.01, 0.005, 0.0025, 0.001, 0.0005]),
         # ('learningRate', [0.005, 0.007, 0.01, 0.013, 0.017]),
     ]
 
@@ -280,6 +285,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
             if args.verbose >= 1:
                 print("\ttraining block {} on {} games".format(blockNum, len(blockTrainFeatureSets)))
+                print()
 
             if args.verbose >= 1:
                 countCompressed, compressedPretty = util.compressFeatureList(featuresUsed)
