@@ -127,7 +127,7 @@ def getTowerNumber(isTeamOneTower, lane, tower):
     assert lane in LANES
     assert tower in TOWERS
 
-    return len(TOWERS) * len(LANES) * (isTeamOneTower is False) + \
+    return len(TOWERS) * len(LANES) * (isTeamOneTower is True) + \
         LANES.index(lane) * len(TOWERS) + TOWERS.index(tower)
 
 
@@ -176,6 +176,17 @@ def guessPosition(champ):
     # print ("ERROR unknown position:", lane, role, "\t", champ)
     return "OTHER"
 
+
+def onPedestal(isTeamOne, position):
+    # TODO how to keep these up to date?
+    xCord = 250 if isTeamOne else 14250
+    yCord = 400 if isTeamOne else 14350
+
+    x = abs(position['x'] - xCord)
+    y = abs(position['y'] - yCord)
+
+    dist2 = x * x + y * y
+    return dist2 < 400 ** 2
 
 def compressFeatureList(featuresUsed):
     savedToken = "(?<=_)({})(?=$|_)"

@@ -536,4 +536,4 @@ def main(args):
 
 if __name__ == '__main__':
     parsedArgs = getArgParse().parse_args()
-    main(parsedArg
+    main(parsedArgs)

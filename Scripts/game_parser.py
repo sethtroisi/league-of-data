@@ -1,4 +1,5 @@
 import argparse
+import math
 import random
 import time
 
@@ -82,8 +83,9 @@ def isSurrender(byTeamOne, result, towers):
 # takes in a match json object and returns features about it.
 def parseGameRough(match, timeline):
     teamInfo = match['participants']
+    matchId = match['gameId']
 
-    teamOne = []
+    teamOne = set()
     champs = []
     for champI, participant in enumerate(teamInfo, 1):
         pId = int(participant['participantId'])
@@ -92,7 +94,8 @@ def parseGameRough(match, timeline):
         assert (1 <= pId <= 5) == isTeamOne, "{} != {}".format(pId, isTeamOne)
 
         if isTeamOne:
-            teamOne.append(pId)
+            teamOne.add(pId)
+            teamOne.add(str(pId))
 
         champ = {}
         champs.append(champ)
@@ -131,19 +134,55 @@ def parseGameRough(match, timeline):
     )
 
     frames = timeline['frames']
-    for frame in frames:
+    lastBlockNum = -1
+    for frameI, frame in enumerate(frames):
         frameTime = frame['timestamp'] // 1000
         blockNum = util.timeToBlock(frameTime)
+        assert blockNum == lastBlockNum or blockNum == (lastBlockNum + 1)
+        lastBlockNum = blockNum
 
-        # NOTE: frames appear to be 60 seconds
+        # NOTE: frames are every ~60 seconds (they have XYZ millis)
         for pId, pFrame in frame['participantFrames'].items():
+            isTeamOne = pId in teamOne
             listPId = int(pId) - 1
             assert 0 <= listPId <= 9, listPId
             # TODO use item gold instead of totalGold
             frameStats['gold'][blockNum][listPId] = pFrame['totalGold']
-
             frameStats['farm'][blockNum][listPId] = pFrame['minionsKilled']
             frameStats['jungleFarm'][blockNum][listPId] = pFrame['jungleMinionsKilled']
+
+            # Disconnected is [0,1] predicting how likely they aren't connected
+            frameStats['disconnected'][blockNum][listPId] = 0
+
+            if frameI + 1 == len(frames):
+                # Most of the time position is not in the last frame
+                # assert 'position' not in pFrame
+                continue
+
+            position = pFrame['position']
+            onPedestal = util.onPedestal(isTeamOne, position)
+            if frameI == 0:
+                assert onPedestal, "{} {}".format(isTeamOne, position)
+            elif frameI >= 2:
+                assert frameTime >= 120, frameTime
+                lastPFrame = frames[blockNum - 1]['participantFrames'][pId]
+                def deltaPFrame(key):
+                    return pFrame[key] - lastPFrame[key]
+
+                xpDelta = deltaPFrame('xp')
+                farmDelta = deltaPFrame('minionsKilled') + deltaPFrame('jungleMinionsKilled')
+                sameLoc = position == lastPFrame['position']
+
+                # TODO different logic for support
+                zScore = 1.6 * sameLoc + \
+                         1.0 * (farmDelta == 0) + \
+                         0.5 * (xpDelta < 100) + \
+                         0.3 * onPedestal
+
+                prop = 1 - math.exp(-zScore ** 2)
+                assert 0 <= prop <= 1, "{} -> {}".format(zScore, prop)
+                frameStats['disconnect'][blockNum][listPId] = prop
+
 
             # TODO other frame features (Level, XP, inventory gold, ...)
 
@@ -176,11 +215,9 @@ def parseGameRough(match, timeline):
 
             buildingType = event.get('buildingType', None)
             if buildingType == 'TOWER_BUILDING':
-                # killerId == 0 means minions
-                # killer = killerId()
                 towerType = event['towerType']
                 laneType = event['laneType']
-                isTeamOneTower = not isTeamOne()
+                isTeamOneTowerDestroyed = isTeamOne()
 
                 # Deduplicate MID_LANE + NEXUS_TURRET.
                 if towerType == 'NEXUS_TURRET':
@@ -189,11 +226,11 @@ def parseGameRough(match, timeline):
                     if isTopNexus:
                         laneType = "TOP_LANE"
 
-                towerNum = util.getTowerNumber(isTeamOneTower, laneType, towerType)
-                assert isTeamOneTower == util.teamATowerKill(towerNum)
+                towerNum = util.getTowerNumber(isTeamOneTowerDestroyed, laneType, towerType)
+                assert isTeamOneTowerDestroyed != util.teamATowerKill(towerNum)
 
                 assert all(tNum != towerNum for t, k, tNum in towers), "{} new: {}".format(towers, event)
-                towers.append((gameTime, isTeamOneTower, towerNum))
+                towers.append((gameTime, isTeamOneTowerDestroyed, towerNum))
 
             elif buildingType == 'INHIBITOR_BUILDING':
                 # killer = event['killerId']
@@ -219,9 +256,10 @@ def parseGameRough(match, timeline):
     # features['wards'] = wards
 
     # Verify key is present and convert defaultdict to dictionary.
-    features['gold'] = dict(frameStats.get('gold', None))
-    features['farm'] = dict(frameStats.get('farm', None))
-    features['jungleFarm'] = dict(frameStats.get('jungleFarm', None))
+    features['gold'] = dict(frameStats['gold'])
+    features['farm'] = dict(frameStats['farm'])
+    features['jungleFarm'] = dict(frameStats['jungleFarm'])
+    features['disconnect'] = dict(frameStats['disconnect'])
 
     rawResult = match['teams'][0]['win']
     assert rawResult in ('Win', 'Fail'), rawResult
@@ -285,8 +323,23 @@ def main(args):
 
     numberOfSurrenders = sum([parsed['debug']['surrendered'] for parsed in outputData])
     percentSurrenders = 100 * numberOfSurrenders / items
-    assert numberOfSurrenders > 0 and percentSurrenders <= 25
     print ("\t{:2.1f}% games were surrenders".format(percentSurrenders))
+    assert numberOfSurrenders > 0 and percentSurrenders <= 25
+
+    numberOfBlocks = 0
+    countOfDisconnect = 0
+    sumDisconnect = 0
+    for parsed in outputData:
+        for blockDisconnect in parsed['features']['disconnect'].values():
+            for playerDisconnect in blockDisconnect:
+                numberOfBlocks += 1
+                sumDisconnect += playerDisconnect
+                countOfDisconnect += playerDisconnect > 0.25
+
+    percentDisconnect = 100 * countOfDisconnect / numberOfBlocks
+    print ("\t{}/{} = {:1f}% disconnect, {:.3f} prop".format(
+        countOfDisconnect, numberOfBlocks, percentDisconnect, sumDisconnect / numberOfBlocks))
+    assert 0 < percentDisconnect < 10
 
     chars = len(str(outputData))
 
