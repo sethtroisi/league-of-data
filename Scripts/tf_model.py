@@ -244,7 +244,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'modelName': 'exploring',
 
         # ML hyperparams
-        'learningRate': 0.01,
+#        'learningRate': 0.01,
         'dropout': 0.00,
         'l1_regularization': 0.0001,
         'l2_regularization': 0.001,
@@ -253,13 +253,14 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
         # Also controls how often eval_validation data is calculated
         'saveCheckpointSteps': 250,
-        # 'earlyStoppingRounds': 2000,
+        'earlyStoppingRounds': 3000,
     }
 
     gridSearchParams = [
         # ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
-        # ('l2_regularization', [0.01, 0.005, 0.0025, 0.001, 0.0005]),
-        # ('learningRate', [0.005, 0.007, 0.01, 0.013, 0.017]),
+#        ('l1_regularization', [0.001, 0.0001, 0.00001]),
+#        ('l2_regularization', [0.01, 0.001, 0.0001]),
+#        ('learningRate', [0.02, 0.01, 0.005]),
     ]
 
     classifiers = {}
@@ -535,4 +536,4 @@ def main(args):
 
 if __name__ == '__main__':
     parsedArgs = getArgParse().parse_args()
-    main(parsedArgs)
+    main(parsedArg

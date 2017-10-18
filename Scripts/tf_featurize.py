@@ -63,33 +63,32 @@ def champFeature(data, champs):
 
 
 def towerFeatures(df, towers, sampleTime):
-    # Experiment with setting to far future
-    for towerNum in range(0, 24):
-        df['tower_{}_destroyed_at'.format(towerNum)] = 5 # "infinity"
-
-    towersA, towersB = 0, 0
+    # Note: Awkwardly [TowersB, TowersA] because of index of [True] = [1]
+    towersDestroyed = [0, 0]
     for towerData in towers:
         towerTime, isTeamA, towerNum = towerData
         if towerTime > sampleTime:
             break
+        team = 'A' if isTeamA else 'B'
 
-        if isTeamA:
-            towersA += 1
-            if towersA == 1:
-                df['first_tower_A'] = towerTime / 1800
-            df['last_tower_A'] = towerTime / 1800
-        else:
-            towersB += 1
-            if towersB == 1:
-                df['first_tower_B'] = towerTime / 1800
-            df['last_tower_B'] = towerTime / 1800
-
-        # TODO figure out how to default other values to infinite or something
+        # Experimented with setting to "far future" (5) and saw no improvement over defaulting to 0
         df['tower_{}_destroyed'.format(towerNum)] = 1
         df['tower_{}_destroyed_at'.format(towerNum)] = towerTime / 1800
 
-    df['towers_destroyed_A'] = towersA
-    df['towers_destroyed_B'] = towersB
+        towersDestroyed[isTeamA] += 1
+
+        # TODO: investigate why trinary "1 if isTeamA else -1" (0 = neither), isn't better here.
+        nthTower = sum(towersDestroyed)
+        df['{}_nth_tower_destroyed_by'.format(nthTower)] = isTeamA
+        df['{}_nth_tower_destroyed_at'.format(nthTower)] = towerTime / 1800
+
+        df['last_tower_destroyed_by'] = isTeamA
+        df['last_tower_destroyed_at'.format(team)] = towerTime / 1800
+
+    df['towers_destroyed_A'] = towersDestroyed[True]
+    df['towers_destroyed_B'] = towersDestroyed[False]
+
+    # TODO consider adding per block counts.
 
 
 def dragonFeatures(df, dragons, sampleTime):
@@ -230,12 +229,14 @@ def parseGame(parsed, time):
     data = dict()
     data['current_time'] = time / 3600
 
+    # Gold and Tower are the highest valued predictors
+
 #    champFeature(data, champs)
 
-#    goldFeatures(data, gold, champs, time)
+    goldFeatures(data, gold, champs, time)
     farmFeatures(data, farm, jungleFarm, time)
 
-#    towerFeatures(data, towers, time)
+    towerFeatures(data, towers, time)
 #    dragonFeatures(data, dragons, time)
 
 #    countedFeature(data, 'inhibs', inhibs, time)

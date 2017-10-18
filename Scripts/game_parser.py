@@ -180,7 +180,7 @@ def parseGameRough(match, timeline):
                 # killer = killerId()
                 towerType = event['towerType']
                 laneType = event['laneType']
-                isTeamOneTower = isTeamOne()
+                isTeamOneTower = not isTeamOne()
 
                 # Deduplicate MID_LANE + NEXUS_TURRET.
                 if towerType == 'NEXUS_TURRET':

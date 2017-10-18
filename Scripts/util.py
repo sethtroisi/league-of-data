@@ -134,7 +134,7 @@ def getTowerNumber(isTeamOneTower, lane, tower):
 def teamATowerKill(towerNum):
     lanes = 3
     towers = 4
-    return towerNum < (lanes * towers)
+    return towerNum < lanes * towers
 
 
 def getInhibNumber(isTeamOneInhib, lane):
