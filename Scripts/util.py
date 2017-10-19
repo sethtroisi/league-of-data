@@ -1,5 +1,6 @@
 import json
 import re
+import math
 import os.path
 
 # API REFERENCE
@@ -179,14 +180,26 @@ def guessPosition(champ):
 
 def onPedestal(isTeamOne, position):
     # TODO how to keep these up to date?
-    xCord = 250 if isTeamOne else 14250
-    yCord = 400 if isTeamOne else 14350
+    pedistal = {
+        'x': 250 if isTeamOne else 14250,
+        'y': 400 if isTeamOne else 14350,
+    }
 
-    x = abs(position['x'] - xCord)
-    y = abs(position['y'] - yCord)
+    return distance(position, pedistal) < 400
 
-    dist2 = x * x + y * y
-    return dist2 < 400 ** 2
+
+def distance(positionA, positionB):
+    xDiff = positionA['x'] - positionB['x']
+    yDiff = positionA['y'] - positionB['y']
+
+    return math.sqrt(xDiff * xDiff + yDiff * yDiff)
+
+
+def abbreviateString(string, maxLength):
+    if len(string) > maxLength:
+        return string[:maxLength - 3] + "..."
+    return string
+
 
 def compressFeatureList(featuresUsed):
     savedToken = "(?<=_)({})(?=$|_)"

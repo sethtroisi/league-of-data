@@ -87,6 +87,7 @@ def parseGameRough(match, timeline):
 
     teamOne = set()
     champs = []
+    champLookup = {}
     for champI, participant in enumerate(teamInfo, 1):
         pId = int(participant['participantId'])
         isTeamOne = participant['teamId'] == 100
@@ -95,27 +96,23 @@ def parseGameRough(match, timeline):
 
         if isTeamOne:
             teamOne.add(pId)
-            teamOne.add(str(pId))
 
         champ = {}
         champs.append(champ)
+        champLookup[pId] = champ
 
         champId = participant['championId']
         champ['pId'] = pId
         champ['isTeamOne'] = isTeamOne
 
-        role = participant['timeline']['role']
-        lane = participant['timeline']['lane']
-        possibleRoles = ['NONE', 'SOLO', 'DUO', 'DUO_CARRY', 'DUO_SUPPORT']
-        possibleLanes = ['BOTTOM', 'JUNGLE', 'MIDDLE', 'TOP']
-        assert role in possibleRoles, role
-        assert lane in possibleLanes, lane
+        pTimeline = participant['timeline']
+        role = util.getAndValidate(pTimeline, 'role', ['SOLO', 'DUO', 'DUO_CARRY', 'DUO_SUPPORT', 'NONE'])
+        lane = util.getAndValidate(pTimeline, 'lane', ['BOTTOM', 'JUNGLE', 'MIDDLE', 'TOP'])
 
-        position = 10 * possibleLanes.index(lane) + possibleRoles.index(role)
         champ['role'] = role
         champ['lane'] = lane
-        champ['positionIndex'] = position
-        # TODO Take a guess at position
+        champ['position'] = util.guessPosition(champ)
+
         # TODO Take a guess at lane swap
         # TODO consider filtering lane swap games
 
@@ -143,8 +140,9 @@ def parseGameRough(match, timeline):
 
         # NOTE: frames are every ~60 seconds (they have XYZ millis)
         for pId, pFrame in frame['participantFrames'].items():
+            pId = int(pId)
             isTeamOne = pId in teamOne
-            listPId = int(pId) - 1
+            listPId = pId - 1
             assert 0 <= listPId <= 9, listPId
             # TODO use item gold instead of totalGold
             frameStats['gold'][blockNum][listPId] = pFrame['totalGold']
@@ -152,7 +150,7 @@ def parseGameRough(match, timeline):
             frameStats['jungleFarm'][blockNum][listPId] = pFrame['jungleMinionsKilled']
 
             # Disconnected is [0,1] predicting how likely they aren't connected
-            frameStats['disconnected'][blockNum][listPId] = 0
+            frameStats['disconnect'][blockNum][listPId] = 0
 
             if frameI + 1 == len(frames):
                 # Most of the time position is not in the last frame
@@ -163,21 +161,24 @@ def parseGameRough(match, timeline):
             onPedestal = util.onPedestal(isTeamOne, position)
             if frameI == 0:
                 assert onPedestal, "{} {}".format(isTeamOne, position)
-            elif frameI >= 2:
+            elif blockNum >= 2:
                 assert frameTime >= 120, frameTime
-                lastPFrame = frames[blockNum - 1]['participantFrames'][pId]
+                lastPFrame = frames[blockNum - 1]['participantFrames'][str(pId)]
                 def deltaPFrame(key):
                     return pFrame[key] - lastPFrame[key]
 
+                sameLoc = util.distance(position, lastPFrame['position']) < 25
                 xpDelta = deltaPFrame('xp')
+
+                totalFarm = pFrame['minionsKilled'] + pFrame['jungleMinionsKilled']
                 farmDelta = deltaPFrame('minionsKilled') + deltaPFrame('jungleMinionsKilled')
-                sameLoc = position == lastPFrame['position']
+                isSupport = champLookup[pId]['position'] == 'SUPPORT' or (totalFarm < 25)
 
                 # TODO different logic for support
                 zScore = 1.6 * sameLoc + \
-                         1.0 * (farmDelta == 0) + \
-                         0.5 * (xpDelta < 100) + \
-                         0.3 * onPedestal
+                         0.8 * onPedestal + \
+                         0.7 * (not isSupport and farmDelta < 3) + \
+                         0.6 * (xpDelta < 150)
 
                 prop = 1 - math.exp(-zScore ** 2)
                 assert 0 <= prop <= 1, "{} -> {}".format(zScore, prop)
@@ -280,50 +281,12 @@ def parseGameRough(match, timeline):
     return parsed
 
 
-def main(args):
-    T0 = time.time()
-
-    gameNum = 0
-    outputData = []
-
-    inFile = util.loadJsonFile(args.input_file)
-    items = len(inFile)
-
-    # Remove any ordering effect from game number
-    random.shuffle(inFile)
-
-    print("{} has {} items".format(args.input_file, items))
-    if 0 < args.count < items:
-        items = args.count
-        print("\tonly parsing {}".format(args.count))
-        print()
-
-    printEvery = items // 15
-
-    for t in inFile:
-        assert type(t) == list
-        assert len(t) == 2
-
-        # If you had an error on this line re-run Coalesce.py
-        match = util.loadJsonFile(t[0])
-        timeline = util.loadJsonFile(t[1])
-
-        parsed = parseGameRough(match, timeline)
-
-        outputData.append(parsed)
-        gameNum += 1
-
-        if gameNum % printEvery == 0:
-            print ("parsed {} of {} ({:0.0f}%) ({:.2f}s)".format(
-                    gameNum, items, 100 * gameNum / items, time.time() - T0))
-
-        if gameNum == args.count:
-            print ("Stopping after {} games (like you asked with -c)".format(args.count))
-            break
+def debugStats(args, outputData, T0):
+    numberOfGames = len(outputData)
 
     numberOfSurrenders = sum([parsed['debug']['surrendered'] for parsed in outputData])
-    percentSurrenders = 100 * numberOfSurrenders / items
-    print ("\t{:2.1f}% games were surrenders".format(percentSurrenders))
+    percentSurrenders = 100 * numberOfSurrenders / numberOfGames
+    print("\t{:2.1f}% games were surrenders".format(percentSurrenders))
     assert numberOfSurrenders > 0 and percentSurrenders <= 25
 
     numberOfBlocks = 0
@@ -335,36 +298,74 @@ def main(args):
                 numberOfBlocks += 1
                 sumDisconnect += playerDisconnect
                 countOfDisconnect += playerDisconnect > 0.25
-
     percentDisconnect = 100 * countOfDisconnect / numberOfBlocks
-    print ("\t{}/{} = {:1f}% disconnect, {:.3f} prop".format(
+    print("\t{}/{} = {:.2f}% disconnect, {:.3f} prop".format(
         countOfDisconnect, numberOfBlocks, percentDisconnect, sumDisconnect / numberOfBlocks))
     assert 0 < percentDisconnect < 10
 
+    totalTime = time.time() - T0
     chars = len(str(outputData))
-
-    print ("parsed {} games".format(gameNum))
-    print ("~{} chars ~{:.1f}MB, ~{:.1f}KB/game".format(
-        chars, chars / 10 ** 6, chars / (10 ** 3 * gameNum)))
     print ()
+    print("Parsed {} games:".format(numberOfGames))
+    print("\t~{:.1f} MB, ~{:.1f} KB/game".format(
+        chars / 10 ** 6, chars / (10 ** 3 * numberOfGames)))
+    print("\t{:.1f} seconds, ~{:.0f} games/second".format(
+        totalTime,  numberOfGames / totalTime))
+    print()
 
-    exampleLines = random.sample(range(gameNum), args.examples)
+
+def main(args):
+    T0 = time.time()
+
+    outputData = []
+
+    inFile = util.loadJsonFile(args.input_file)
+    # Remove any ordering effect from game number
+    random.shuffle(inFile)
+
+    toProcess = len(inFile)
+    print("{} has {} items".format(args.input_file, toProcess))
+    if 0 < args.count < toProcess:
+        toProcess = args.count
+        print("\tonly parsing {}".format(args.count))
+        print()
+
+    printEvery = toProcess // 15
+    for gameNum, fileNames in enumerate(inFile, 1):
+        assert type(fileNames) == list
+        assert len(fileNames) == 2
+
+        # If you had an error on this line re-run Coalesce.py
+        match = util.loadJsonFile(fileNames[0])
+        timeline = util.loadJsonFile(fileNames[1])
+
+        parsed = parseGameRough(match, timeline)
+
+        outputData.append(parsed)
+
+        if gameNum % printEvery == 0:
+            print ("parsed {} of {} ({:0.0f}%) ({:.2f}s)".format(
+                gameNum, toProcess, 100 * gameNum / toProcess, time.time() - T0))
+
+        if gameNum == args.count:
+            print ()
+            print ("Stopping after {} games (like you asked with -c)".format(args.count))
+            break
+
+    debugStats(args, outputData, T0)
+
+    exampleLines = random.sample(range(toProcess), args.examples)
     for exampleLine in sorted(exampleLines):
         gameStr = str(outputData[exampleLine])
-        if args.full_examples:
-            example = gameStr
-        else:
-            example = gameStr[:70] + ('..' if len(gameStr) > 70 else '')
-
-        print ()
-        print ("line {}: {}".format(exampleLine, example))
+        example = util.abbreviateString(gameStr, 10000 if args.full_examples else 70)
+        print()
+        print("line {}: {}".format(exampleLine, example))
 
     if args.examples > 0:
         util.writeJsonFile('example-feature.json', outputData[exampleLines[0]])
 
     if not args.dry_run:
         util.writeJsonFile(args.output_file, outputData)
-
 
 # START CODE HERE
 if __name__ == "__main__":

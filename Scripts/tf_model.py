@@ -244,7 +244,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'modelName': 'exploring',
 
         # ML hyperparams
-#        'learningRate': 0.01,
+        'learningRate': 0.01,
         'dropout': 0.00,
         'l1_regularization': 0.0001,
         'l2_regularization': 0.001,

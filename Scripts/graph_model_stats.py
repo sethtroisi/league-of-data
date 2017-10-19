@@ -195,7 +195,6 @@ def stats(blocks, samples, corrects, ratios, logLosses):
     startBlock = max(startBlock, min(blocks))
     endBlock = min(endBlock, max(blocks))
 
-    # TODO: Should this be weighted by number of games?
     sumLosses = sum(logLosses[startBlock:endBlock + 1])
     totalSamples = sum(samples[startBlock:endBlock + 1])
     totalCorrect = sum(corrects[startBlock:endBlock + 1])

@@ -5,6 +5,14 @@ import util
 GOLD_DELTA_BUCKET_SIZE = 2000
 
 
+def splitBlockFeature(featureByPid):
+    assert len(featureByPid) == 10
+    playersA = featureByPid[:5]
+    playersB = featureByPid[5:]
+    assert len(playersA) == len(playersB) == 5
+    return playersA, playersB
+
+
 # Create a feature that counts how many events of the type have happened.
 def countedFeature(df, name, events, sampleTime, verus=True):
     counts = [0, 0]
@@ -25,7 +33,9 @@ def countedFeature(df, name, events, sampleTime, verus=True):
         df[feature] = 1.0
 
 
-def champFeature(data, champs):
+
+
+def champFeature(df, champs):
     ranks = defaultdict(int)
     summoners = defaultdict(int)
     for champ in champs:
@@ -47,26 +57,26 @@ def champFeature(data, champs):
         rank = champ['approxRank']
         ranks[(isTeamA, rank)] += 1
 
-        # data['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minChampId
-        # data['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minChampId
-        # data['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
+        # df['embedding_team_{}_player_{}_champion'.format('A' if isTeamA else 'B', playerI)] = minChampId
+        # df['embedding_team_{}_position_{}_champion'.format('A' if isTeamA else 'B', position)] = minChampId
+        # df['team_{}_has_champion_{}'.format('A' if isTeamA else 'B', champId)] = 1
 
     for (isTeamA, spellId), count in summoners.items():
         spellName = util.spellIdToName(spellId)
-        data['team_spells_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
+        df['team_spells_{}_{}s'.format('A' if isTeamA else 'B', spellName)] = count
 
     sumRank = 0
     for (isTeamA, rank), count in ranks.items():
         sumRank += (1 if isTeamA else -1) * count * util.rankOrdering(rank)
-        data['team_ranks_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
-    data['rank_sum_diff'] = sumRank
+        df['team_ranks_{}_{}s'.format('A' if isTeamA else 'B', rank)] = float(count)
+    df['rank_sum_diff'] = sumRank
 
 
 def towerFeatures(df, towers, sampleTime):
     # Note: Awkwardly [TowersB, TowersA] because of index of [True] = [1]
     towersDestroyed = [0, 0]
-    for towerData in towers:
-        towerTime, isTeamA, towerNum = towerData
+    for towerdf in towers:
+        towerTime, isTeamA, towerNum = towerdf
         if towerTime > sampleTime:
             break
         team = 'A' if isTeamA else 'B'
@@ -123,16 +133,27 @@ def dragonFeatures(df, dragons, sampleTime):
     return features
 
 
+def disconnectFeatures(df, disconnect, sampleTime):
+    lastBlock = util.timeToBlock(sampleTime)
+
+    for blockNum in range(lastBlock+1):
+        blockDisconnects = disconnect[str(blockNum)]
+        playersADisc, playersBDisc = splitBlockFeature(blockDisconnects)
+
+        # TODO refactor to function and helper
+        df['num_disconnects_{}_A'.format(blockNum)] = len([disc for disc in playersADisc if disc > 0.25])
+        df['num_disconnects_{}_B'.format(blockNum)] = len([disc for disc in playersBDisc if disc > 0.25])
+
+        df['sum_disconnects_{}_A'.format(blockNum)] = sum(playersADisc)
+        df['sum_disconnects_{}_B'.format(blockNum)] = sum(playersBDisc)
+
+
 def goldFeatures(df, gold, champs, sampleTime):
     lastBlock = util.timeToBlock(sampleTime)
 
     for blockNum in range(lastBlock+1):
-        blockGold = gold.get(str(blockNum))
-
-        assert len(blockGold) == 10
-        playersAGold = blockGold[:5]
-        playersBGold = blockGold[5:]
-        assert len(playersAGold) == len(playersBGold) == 5
+        blockGold = gold[str(blockNum)]
+        playersAGold, playersBGold = splitBlockFeature(blockGold)
 
         # Each player gets ~500 / 2 minutes, team gets ~3k / 2 minutes. Normalize features to ~ [0.5, 2].
         playerNormalizeFactor = 600 * (blockNum + 1)
@@ -178,11 +199,7 @@ def farmFeatures(df, farm, jungleFarm, sampleTime):
 
     for blockNum in range(lastBlock+1):
         blockFarm = farm.get(str(blockNum))
-
-        assert len(blockFarm) == 10
-        playersAFarm = blockFarm[:5]
-        playersBFarm = blockFarm[5:]
-        assert len(playersAFarm) == len(playersBFarm) == 5
+        playersAFarm, playersBFram = splitBlockFeature(blockFarm)
 
         # Each player gets ~16 / 2 minutes, team gets ~80 / 2 minutes. Normalize features to ~ [0.5, 2].
         playerNormalizeFactor = 16 * (blockNum + 1)
@@ -214,6 +231,8 @@ def parseGame(parsed, time):
     # What you are: Champions
     champs = gameFeatures['champs']
 
+    disconnect = gameFeatures['disconnect']
+
     # What you have: Gold
     gold = gameFeatures['gold']
     farm = gameFeatures['farm']
@@ -226,24 +245,26 @@ def parseGame(parsed, time):
     inhibs = gameFeatures['inhibs']
 
     # Data that ML will see
-    data = dict()
-    data['current_time'] = time / 3600
+    featureData = dict()
+    featureData['current_time'] = time / 3600
+
+    champFeature(featureData, champs)
 
     # Gold and Tower are the highest valued predictors
+    goldFeatures(featureData, gold, champs, time)
+    farmFeatures(featureData, farm, jungleFarm, time)
+    towerFeatures(featureData, towers, time)
 
-#    champFeature(data, champs)
+    dragonFeatures(featureData, dragons, time)
+    countedFeature(featureData, 'inhibs', inhibs, time)
 
-    goldFeatures(data, gold, champs, time)
-    farmFeatures(data, farm, jungleFarm, time)
-
-    towerFeatures(data, towers, time)
-#    dragonFeatures(data, dragons, time)
-
-#    countedFeature(data, 'inhibs', inhibs, time)
     # Not available pre 20.
-#    countedFeature(data, 'barons', barons, time)
+    # countedFeature(data, 'barons', barons, time)
 
-    return data
+    # Doesn't seem to help
+    # disconnectFeatures(data, disconnect, time)
+
+    return featureData
 
 
 def getRawGameData(args):
