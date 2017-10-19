@@ -191,15 +191,13 @@ def goldFeatures(df, gold, champs, sampleTime):
 
 
 def farmFeatures(df, farm, jungleFarm, sampleTime):
-    # TODO add jungle farm somewhere
     lastBlock = util.timeToBlock(sampleTime)
 
-    # Explore adding some Jungle features.
-    # position = Util.guessPosition(champ)
-
     for blockNum in range(lastBlock+1):
-        blockFarm = farm.get(str(blockNum))
-        playersAFarm, playersBFram = splitBlockFeature(blockFarm)
+        blockFarm = farm[str(blockNum)]
+        blockJungle = jungleFarm[str(blockNum)]
+        playersAFarm, playersBFarm = splitBlockFeature(blockFarm)
+        playersAJungle, playersBJungle = splitBlockFeature(blockJungle)
 
         # Each player gets ~16 / 2 minutes, team gets ~80 / 2 minutes. Normalize features to ~ [0.5, 2].
         playerNormalizeFactor = 16 * (blockNum + 1)
@@ -220,6 +218,17 @@ def farmFeatures(df, farm, jungleFarm, sampleTime):
         deltaFarm = (teamAFarm - teamBFarm) / advantageNormalizeFactor
         df['farm_adv_block_{}_A'.format(blockNum)] = max(0.0, deltaFarm)
         df['farm_adv_block_{}_B'.format(blockNum)] = max(0.0, -deltaFarm)
+
+        teamAJungle = sum(playersAJungle)
+        teamBJungle = sum(playersBJungle)
+        # Team only gets 1 player worth of jungle per block.
+        df['jungle_block_{}_A'.format(blockNum)] = teamAJungle / playerNormalizeFactor
+        df['jungle_block_{}_B'.format(blockNum)] = teamBJungle / playerNormalizeFactor
+
+        deltaJungle = (teamAJungle - teamBJungle) / advantageNormalizeFactor
+        df['jungle_adv_block_{}_A'.format(blockNum)] = max(0.0, deltaJungle)
+        df['jungle_adv_block_{}_B'.format(blockNum)] = max(0.0, -deltaJungle)
+
 
 
 def parseGame(parsed, time):

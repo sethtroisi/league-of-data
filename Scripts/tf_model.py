@@ -253,7 +253,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
 
         # Also controls how often eval_validation data is calculated
         'saveCheckpointSteps': 250,
-        'earlyStoppingRounds': 3000,
+        'earlyStoppingRounds': 2000,
     }
 
     gridSearchParams = [
