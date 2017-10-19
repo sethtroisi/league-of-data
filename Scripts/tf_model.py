@@ -27,7 +27,13 @@ def getArgParse():
         '-i', '--input-file',
         type=str,
         default='features.json',
-        help='Input match file (produced by Seth or GameParser.py)')
+        help='Input match file (produced by game_parser.py)')
+
+    parser.add_argument(
+        '--model-dir',
+        type=str,
+        default='/tmp/tmp-tf-lol/',
+        help='Model directory base folder')
 
     parser.add_argument(
         '--panda-debug',
@@ -189,11 +195,12 @@ def inputFn(featuresUsed, data, goals=None):
 
     if goals is None:
         return featureCols
+
     labels = tf.constant(goals, shape=[len(goals), 1], dtype='float16')
     return featureCols, labels
 
 
-def learningRateFn(params):
+def optimizerFn(params):
     learningRate = tf.train.exponential_decay(
         learning_rate=params['learningRate'],
         global_step=tf.contrib.framework.get_or_create_global_step(),
@@ -231,6 +238,9 @@ def learningRateFn(params):
 def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     global featurizeTime, trainTime
 
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.6)
+    tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+
     '''
      Over eighty briefly with
      ('dropout', 0.0),
@@ -244,7 +254,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'modelName': 'exploring',
 
         # ML hyperparams
-        'learningRate': 0.01,
+        'learningRate': 0.0033,
         'dropout': 0.00,
         'l1_regularization': 0.0001,
         'l2_regularization': 0.001,
@@ -252,7 +262,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'steps': 20000,
 
         # Also controls how often eval_validation data is calculated
-        'saveCheckpointSteps': 250,
+        'saveCheckpointSteps': 3000,
         'earlyStoppingRounds': 2000,
     }
 
@@ -302,7 +312,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
             gridSearchName = "".join("-{}={}".format(name, value) for name, value in
                                      sorted(gridSearchInstanceParams.items()))
             modelName = params['modelName'] + gridSearchName
-            modelDir = "/tmp/tmp-tf-lol/exploring/{}/b{}/model_{}".format(runTime, blockNum, modelName)
+            modelDir = args.model_dir + "/{}/b{}/model_{}".format(runTime, blockNum, modelName)
             print("Saving in", modelDir)
             for hyperparam in params.items():
                 print("\t", hyperparam)
@@ -314,7 +324,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                 model_dir=modelDir,
                 n_classes=2,
                 dropout=params['dropout'],
-                optimizer=functools.partial(learningRateFn, params),
+                optimizer=functools.partial(optimizerFn, params),
                 config=tf.contrib.learn.RunConfig(
                     save_summary_steps=200,
                     save_checkpoints_steps=params['saveCheckpointSteps'],
@@ -335,7 +345,6 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                 print()
                 print()
 
-            # TODO does this accept eval_input_fn?
             classifier.fit(
                 input_fn=functools.partial(
                     inputFn, featuresUsed, blockTrainFeatureSets, blockTrainGoals),
