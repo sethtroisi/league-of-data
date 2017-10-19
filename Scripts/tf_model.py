@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 import graph_model_stats
 import tf_featurize
 import util
-
+import my_classifier
 
 def getArgParse():
     parser = argparse.ArgumentParser(description='Takes features and models outcomes.')
@@ -234,7 +234,6 @@ def optimizerFn(params):
 
     return optimizer
 
-
 def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
     global featurizeTime, trainTime
 
@@ -318,7 +317,20 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                 print("\t", hyperparam)
             print()
 
-            classifier = tf.contrib.learn.DNNClassifier(
+            # classifier = tf.contrib.learn.DNNClassifier(
+            #     hidden_units=params['hiddenUnits'],
+            #     feature_columns=featureColumns,
+            #     model_dir=modelDir,
+            #     n_classes=2,
+            #     dropout=params['dropout'],
+            #     optimizer=functools.partial(optimizerFn, params),
+            #     config=tf.contrib.learn.RunConfig(
+            #         save_summary_steps=200,
+            #         save_checkpoints_steps=params['saveCheckpointSteps'],
+            #     ),
+            # )
+
+            classifier = my_classifier.MyClassifier(
                 hidden_units=params['hiddenUnits'],
                 feature_columns=featureColumns,
                 model_dir=modelDir,
@@ -348,7 +360,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
             classifier.fit(
                 input_fn=functools.partial(
                     inputFn, featuresUsed, blockTrainFeatureSets, blockTrainGoals),
-                monitors=[validationMonitor],
+#                monitors=[validationMonitor],
                 steps=params['steps'],
             )
 
