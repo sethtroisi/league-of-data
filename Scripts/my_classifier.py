@@ -14,6 +14,7 @@
 # ==============================================================================
 """Deep Neural Network estimators."""
 
+from tensorflow import norm
 from tensorflow.contrib import layers
 from tensorflow.contrib.framework import deprecated
 from tensorflow.contrib.framework import deprecated_arg_values
@@ -45,6 +46,8 @@ def _get_feature_dict(features):
 
 def _add_hidden_layer_summary(value, tag):
   summary.scalar("%s_fraction_of_zero_values" % tag, nn.zero_fraction(value))
+  summary.scalar("%s_l1_norm" % tag, norm(value, 1))
+  summary.scalar("%s_l2_norm" % tag, norm(value, 2))
   summary.histogram("%s_activation" % tag, value)
 
 

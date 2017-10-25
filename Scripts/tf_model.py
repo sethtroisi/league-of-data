@@ -204,8 +204,8 @@ def optimizerFn(params):
     learningRate = tf.train.exponential_decay(
         learning_rate=params['learningRate'],
         global_step=tf.contrib.framework.get_or_create_global_step(),
-        decay_steps=1000,
-        decay_rate=.9,
+        decay_steps=5000,
+        decay_rate=.8,
         staircase=True)
     #    learningRate = params['learningRate']
 
@@ -258,10 +258,11 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'l1_regularization': 0.00001,
         'l2_regularization': 0.00003,
         'hiddenUnits': [50, 50, 50, 50, 50, 50],
-        'steps': 6100,
+        'steps': 10100,
 
+        'saveSummarySteps': 100,
         # Also controls how often eval_validation data is calculated
-        'saveCheckpointSteps': 1000,
+        'saveCheckpointSteps': 200,
         'earlyStoppingRounds': 2000,
     }
 
@@ -338,7 +339,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                 dropout=params['dropout'],
                 optimizer=functools.partial(optimizerFn, params),
                 config=tf.contrib.learn.RunConfig(
-                    save_summary_steps=200,
+                    save_summary_steps=params['saveSummarySteps'],
                     save_checkpoints_steps=params['saveCheckpointSteps'],
                 ),
             )
