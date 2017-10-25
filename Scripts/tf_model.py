@@ -253,15 +253,15 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'modelName': 'exploring',
 
         # ML hyperparams
-        'learningRate': 0.0033,
+        'learningRate': 0.001,
         'dropout': 0.00,
-        'l1_regularization': 0.0001,
-        'l2_regularization': 0.001,
-        'hiddenUnits': [100, 100, 50],
-        'steps': 20000,
+        'l1_regularization': 0.00001,
+        'l2_regularization': 0.00003,
+        'hiddenUnits': [50, 50, 50, 50, 50, 50],
+        'steps': 6100,
 
         # Also controls how often eval_validation data is calculated
-        'saveCheckpointSteps': 3000,
+        'saveCheckpointSteps': 1000,
         'earlyStoppingRounds': 2000,
     }
 
@@ -360,7 +360,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
             classifier.fit(
                 input_fn=functools.partial(
                     inputFn, featuresUsed, blockTrainFeatureSets, blockTrainGoals),
-#                monitors=[validationMonitor],
+                monitors=[validationMonitor],
                 steps=params['steps'],
             )
 
