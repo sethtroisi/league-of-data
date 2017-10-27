@@ -204,8 +204,8 @@ def optimizerFn(params):
     learningRate = tf.train.exponential_decay(
         learning_rate=params['learningRate'],
         global_step=tf.contrib.framework.get_or_create_global_step(),
-        decay_steps=5000,
-        decay_rate=.8,
+        decay_steps=8000,
+        decay_rate=.5,
         staircase=True)
     #    learningRate = params['learningRate']
 
@@ -253,24 +253,24 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'modelName': 'exploring',
 
         # ML hyperparams
-        'learningRate': 0.001,
+        'learningRate': 0.002,
         'dropout': 0.00,
-        'l1_regularization': 0.00001,
-        'l2_regularization': 0.00003,
-        'hiddenUnits': [50, 50, 50, 50, 50, 50],
-        'steps': 10100,
+        'l1_regularization': 0.000005,
+        'l2_regularization': 0.001,
+        'hiddenUnits': [30, 50, 50, 20, 20],
+        'steps': 20100,
 
-        'saveSummarySteps': 100,
+        'saveSummarySteps': 250,
         # Also controls how often eval_validation data is calculated
-        'saveCheckpointSteps': 200,
+        'saveCheckpointSteps': 1000,
         'earlyStoppingRounds': 2000,
     }
 
     gridSearchParams = [
         # ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
-#        ('l1_regularization', [0.001, 0.0001, 0.00001]),
-#        ('l2_regularization', [0.01, 0.001, 0.0001]),
-#        ('learningRate', [0.02, 0.01, 0.005]),
+#        ('l1_regularization', [0.000005, 0.00005, 0.0005]),
+#        ('l2_regularization', [0.00001, 0.0001, 0.001]),
+#        ('learningRate', [0.003, 0.001, 0.003]),
     ]
 
     classifiers = {}
@@ -341,6 +341,7 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
                 config=tf.contrib.learn.RunConfig(
                     save_summary_steps=params['saveSummarySteps'],
                     save_checkpoints_steps=params['saveCheckpointSteps'],
+                    keep_checkpoint_max=1,
                 ),
             )
 
