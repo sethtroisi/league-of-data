@@ -137,8 +137,8 @@ def featuresToColumns(features):
 
         columns.append(column)
 
-    #for name, count in requiredToBeFound.items():
-    #    assert columnTypes[name] >= count, "{} had {} not >= {}".format(name, columnTypes[name], count)
+    for name, count in requiredToBeFound.items():
+        assert columnTypes[name] >= count, "{} had {} not >= {}".format(name, columnTypes[name], count)
 
     return columns
 

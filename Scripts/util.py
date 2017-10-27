@@ -15,7 +15,7 @@ import os.path
 # Match API (this is what we want most)
 # https://developer.riotgames.com/api/methods#!/929/3214
 
-SECONDS_PER_BLOCK = 2 * 60
+SECONDS_PER_BLOCK = 60
 
 DRAGON_NAMES = ["air", "water", "earth", "fire"]
 
@@ -27,8 +27,9 @@ SUMMONER_SPELLS_BY_ID = {
 
 def timeToBlock(time):
     # I think it's more correct to return the block it's happening in.
-    # IE event (T = 0) = 0, (0 < T <= 5) = 1
+    # IE event (T = 0) = 0, (0 < T <= 1*60) = 1, (19*60 < T <= 20*60) = 20
     # This for sure will be a source of off by one errors be wary.
+    assert time >= 0, time
     return (time - 1) // SECONDS_PER_BLOCK + 1
 
 

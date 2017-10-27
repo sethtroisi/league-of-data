@@ -33,8 +33,6 @@ def countedFeature(df, name, events, sampleTime, verus=True):
         df[feature] = 1.0
 
 
-
-
 def champFeature(df, champs):
     ranks = defaultdict(int)
     summoners = defaultdict(int)
@@ -73,10 +71,8 @@ def champFeature(df, champs):
 
 
 def towerFeatures(df, towers, sampleTime):
-    # Note: Awkwardly [TowersB, TowersA] because of index of [True] = [1]
-    towersDestroyed = [0, 0]
-    for towerdf in towers:
-        towerTime, isTeamA, towerNum = towerdf
+    nthTower = 0
+    for towerTime, isTeamA, towerNum in towers:
         if towerTime > sampleTime:
             break
         team = 'A' if isTeamA else 'B'
@@ -85,25 +81,29 @@ def towerFeatures(df, towers, sampleTime):
         df['tower_{}_destroyed'.format(towerNum)] = 1
         df['tower_{}_destroyed_at'.format(towerNum)] = towerTime / 1800
 
-        towersDestroyed[isTeamA] += 1
+        nthTower += 1
 
-        # TODO: investigate why trinary "1 if isTeamA else -1" (0 = neither), isn't better here.
-        nthTower = sum(towersDestroyed)
         df['{}_nth_tower_destroyed_by'.format(nthTower)] = isTeamA
         df['{}_nth_tower_destroyed_at'.format(nthTower)] = towerTime / 1800
 
         df['last_tower_destroyed_by'] = isTeamA
         df['last_tower_destroyed_at'.format(team)] = towerTime / 1800
 
-    df['towers_destroyed_A'] = towersDestroyed[True]
-    df['towers_destroyed_B'] = towersDestroyed[False]
+    # Note: Awkwardly [TowersB, TowersA] because of index of [True] = [1]
+    towersDestroyed = [0, 0]
+    lastBlock = util.timeToBlock(sampleTime)
+    for blockNum in range(lastBlock+1):
+        for towerdf in towers:
+            towerTime, isTeamA, towerNum = towerdf
+            if util.timeToBlock(towerTime) > blockNum:
+                break
+            towersDestroyed[isTeamA] += 1
 
-    # TODO consider adding per block counts.
+        df['towers_destroyed_{}_A'.format(blockNum)] = towersDestroyed[True]
+        df['towers_destroyed_{}_B'.format(blockNum)] = towersDestroyed[False]
 
 
 def dragonFeatures(df, dragons, sampleTime):
-    features = set()
-
     dragonsA = []
     dragonsB = []
 
@@ -129,8 +129,6 @@ def dragonFeatures(df, dragons, sampleTime):
         name = dType.lower()
         df["dragon_A_" + name] = dragonsA.count(dType)
         df["dragon_B_" + name] = dragonsB.count(dType)
-
-    return features
 
 
 def disconnectFeatures(df, disconnect, sampleTime):
@@ -192,7 +190,6 @@ def goldFeatures(df, gold, champs, sampleTime):
 
 def farmFeatures(df, farm, jungleFarm, sampleTime):
     lastBlock = util.timeToBlock(sampleTime)
-
     for blockNum in range(lastBlock+1):
         blockFarm = farm[str(blockNum)]
         blockJungle = jungleFarm[str(blockNum)]
@@ -232,8 +229,7 @@ def farmFeatures(df, farm, jungleFarm, sampleTime):
 
 
 def parseGame(parsed, time):
-    if time is None:
-        assert False
+    assert time and time % util.SECONDS_PER_BLOCK == 0, time
 
     gameFeatures = parsed['features']
 
@@ -268,10 +264,10 @@ def parseGame(parsed, time):
     countedFeature(featureData, 'inhibs', inhibs, time)
 
     # Not available pre 20.
-    # countedFeature(data, 'barons', barons, time)
+    countedFeature(featureData, 'barons', barons, time)
 
     # Doesn't seem to help
-    # disconnectFeatures(data, disconnect, time)
+    disconnectFeatures(featureData, disconnect, time)
 
     return featureData
 
