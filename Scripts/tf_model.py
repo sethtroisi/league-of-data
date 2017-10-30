@@ -2,6 +2,7 @@ import argparse
 import datetime
 import itertools
 import functools
+import re
 import sklearn.metrics
 import time
 import tensorflow as tf
@@ -106,7 +107,7 @@ def filterMaxBlock(blockNum, games, goals):
 
 
 def featuresToColumns(features):
-    requiredToBeFound = {"real": 10, "gold": 2, "embedding": 0, }
+    requiredToBeFound = {"real": 10, "embedding": 2, }
     columnTypes = defaultdict(int)
 
     columns = []
@@ -119,16 +120,9 @@ def featuresToColumns(features):
                 feature,
                 bucket_size=150)
 
-            # shared_columns = tf.contrib.layers.shared_embedding_columns(
-            #     [sparse_column],
-            #     shared_embedding_name="champion_embedding",
-            #     dimension = 10,
-            #     combiner="mean")
-            # print (shared_columns)
-            #
-            # column = shared_columns[0]
             column = tf.contrib.layers.embedding_column(
                 sparse_column,
+#                shared_embedding_name="champion_embedding",
                 dimension=10,
                 combiner="mean")
         else:
@@ -138,7 +132,11 @@ def featuresToColumns(features):
         columns.append(column)
 
     for name, count in requiredToBeFound.items():
-        assert columnTypes[name] >= count, "{} had {} not >= {}".format(name, columnTypes[name], count)
+        if columnTypes[name] < count:
+            countCompressed, compressedPretty = util.compressFeatureList(features)
+            print("\t{} features, {} compressed: {}".format(
+                len(features), countCompressed, compressedPretty))
+            assert False, "{} had {} not >= {}".format(name, columnTypes[name], count)
 
     return columns
 
@@ -255,21 +253,22 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         # ML hyperparams
         'learningRate': 0.002,
         'dropout': 0.00,
-        'l1_regularization': 0.000005,
-        'l2_regularization': 0.001,
-        'hiddenUnits': [30, 50, 50, 20, 20],
-        'steps': 20100,
+#        'l1_regularization': 0.000005,
+#        'l2_regularization': 0.001,
+#        'hiddenUnits': [30, 50, 50, 20, 20],
+        'steps': 2100,
 
         'saveSummarySteps': 250,
         # Also controls how often eval_validation data is calculated
         'saveCheckpointSteps': 1000,
-        'earlyStoppingRounds': 2000,
+#        'earlyStoppingRounds': 2000,
     }
 
     gridSearchParams = [
         # ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
-#        ('l1_regularization', [0.000005, 0.00005, 0.0005]),
-#        ('l2_regularization', [0.00001, 0.0001, 0.001]),
+        ('l1_regularization', [0.000005, 0]),
+        ('l2_regularization', [0.0001, 0]),
+        ('hiddenUnits', [[50], [50, 50, 50], [100, 100, 10], [50, 50, 50, 50, 50]])
 #        ('learningRate', [0.003, 0.001, 0.003]),
     ]
 
@@ -311,6 +310,8 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
             runTime = datetime.datetime.now().strftime("%m_%d_%H_%M")
             gridSearchName = "".join("-{}={}".format(name, value) for name, value in
                                      sorted(gridSearchInstanceParams.items()))
+            gridSearchName = re.sub("[\[\]\/]", "_", gridSearchName)
+
             modelName = params['modelName'] + gridSearchName
             modelDir = args.model_dir + "/{}/b{}/model_{}".format(runTime, blockNum, modelName)
             print("Saving in", modelDir)
@@ -455,6 +456,35 @@ def buildGraphData(args, blocks, testingGames, testingGoals, classifiers, featur
     return times, samples, corrects, ratios, logLosses, testWinProbs
 
 
+def pandasDebug(args, trainingGames, trainingGoals):
+    import IPython
+    import pandas as pd
+    pd.set_option('display.max_columns', None)
+
+    for blockNum in processBlocks(args):
+        blockTrainFeatureSets, blockTrainGoals, featuresUsed = gameToFeatures(
+            args, trainingGames, trainingGoals, blockNum, training=True)
+        countCompressed, compressedPretty = util.compressFeatureList(featuresUsed)
+
+        print("\tblock {}: {} features, {} compressed: {}".format(
+            blockNum, len(featuresUsed), countCompressed, compressedPretty))
+        print()
+        print("Panda Debugging block", blockNum)
+        print("\tdata loading into \"df\"")
+        print("\t.columns .describe() .fillna(0) are common")
+        print()
+        print()
+
+
+        #Counter(df['team_spells_B_teleports'].fillna(0).tolist())
+
+        df = pd.DataFrame(blockTrainFeatureSets)
+        print(df.describe())
+        print(df.columns)
+
+        IPython.embed()
+
+
 def main(args):
     global featurizeTime, trainTime
 
@@ -487,36 +517,8 @@ def main(args):
     assert len(testingGames) == len(testingGoals)
 
     if args.panda_debug:
-        for blockNum in blocks:
-            blockTrainFeatureSets, blockTrainGoals, featuresUsed = gameToFeatures(
-                args, trainingGames, trainingGoals, blockNum, training=True)
-
-            countCompressed, compressedPretty = util.compressFeatureList(featuresUsed)
-            print("\t{} features, {} compressed: {}".format(
-                    len(featuresUsed), countCompressed, compressedPretty))
-            print()
-
-            print("Panda Debugging block", blockNum)
-            print("\tdata loading into \"df\"")
-            print("\t.columns .describe() .fillna(0) are common")
-            print()
-            print()
-
-            '''
-            pd.set_option('display.max_columns', None)
-            df.columns
-            df.describe()
-            Counter(df['team_spells_B_teleports'].fillna(0).tolist())
-            '''
-
-            import pandas as pd
-            df = pd.DataFrame(blockTrainFeatureSets)
-            print (df.columns)
-
-            import IPython
-            IPython.embed()
-
-            return
+        pandasDebug(args, trainingGames, trainingGoals)
+        return
 
     T2 = time.time()
 

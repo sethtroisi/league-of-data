@@ -133,12 +133,17 @@ def parseGameRough(match, timeline):
     frames = timeline['frames']
     lastBlockNum = -1
     for frameI, frame in enumerate(frames):
+        # NOTE: frames are every ~60 seconds (but they have a little extra millis),
+        # remove up to 2 seconds to minute align them.
+
         frameTime = frame['timestamp'] // 1000
+        assert frameTime % 60 <= 2
+        frameTime -= frameTime % 60
+
         blockNum = util.timeToBlock(frameTime)
-        assert blockNum == lastBlockNum or blockNum == (lastBlockNum + 1)
+        assert blockNum == lastBlockNum + 1
         lastBlockNum = blockNum
 
-        # NOTE: frames are every ~60 seconds (they have XYZ millis)
         for pId, pFrame in frame['participantFrames'].items():
             pId = int(pId)
             isTeamOne = pId in teamOne
@@ -161,7 +166,7 @@ def parseGameRough(match, timeline):
             onPedestal = util.onPedestal(isTeamOne, position)
             if frameI == 0:
                 assert onPedestal, "{} {}".format(isTeamOne, position)
-            elif blockNum >= 2:
+            elif blockNum >= 3:
                 assert frameTime >= 120, frameTime
                 lastPFrame = frames[blockNum - 1]['participantFrames'][str(pId)]
                 def deltaPFrame(key):
@@ -174,11 +179,13 @@ def parseGameRough(match, timeline):
                 farmDelta = deltaPFrame('minionsKilled') + deltaPFrame('jungleMinionsKilled')
                 isSupport = champLookup[pId]['position'] == 'SUPPORT' or (totalFarm < 25)
 
+                noFarm = farmDelta <= 2 and (not isSupport)
+                noXp = xpDelta < 100
+
                 # TODO different logic for support
                 zScore = 1.6 * sameLoc + \
                          0.8 * onPedestal + \
-                         0.7 * (not isSupport and farmDelta < 3) + \
-                         0.6 * (xpDelta < 150)
+                         0.4 * (noFarm or noXp)
 
                 prop = 1 - math.exp(-zScore ** 2)
                 assert 0 <= prop <= 1, "{} -> {}".format(zScore, prop)
