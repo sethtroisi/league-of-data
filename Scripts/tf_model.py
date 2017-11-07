@@ -251,25 +251,25 @@ def buildClassifier(args, blocks, trainGames, trainGoals, testGames, testGoals):
         'modelName': 'exploring',
 
         # ML hyperparams
-        'learningRate': 0.002,
-        'dropout': 0.00,
-#        'l1_regularization': 0.000005,
-#        'l2_regularization': 0.001,
-#        'hiddenUnits': [30, 50, 50, 20, 20],
-        'steps': 2100,
+#        'learningRate': 0.003,
+        'dropout': 0.01,
+        'l1_regularization': 0.001,
+        'l2_regularization': 0.0038,
+#        'hiddenUnits': [50, 50, 50, 50],
+        'steps': 120100,
 
-        'saveSummarySteps': 250,
+        'saveSummarySteps': 2000,
         # Also controls how often eval_validation data is calculated
-        'saveCheckpointSteps': 1000,
-#        'earlyStoppingRounds': 2000,
+        'saveCheckpointSteps': 4000,
+#        'earlyStoppingRounds': 5000,
     }
 
     gridSearchParams = [
-        # ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
-        ('l1_regularization', [0.000005, 0]),
-        ('l2_regularization', [0.0001, 0]),
-        ('hiddenUnits', [[50], [50, 50, 50], [100, 100, 10], [50, 50, 50, 50, 50]])
-#        ('learningRate', [0.003, 0.001, 0.003]),
+#         ('dropout', [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9]),
+#        ('l1_regularization', [10e-4, 5e-4, 2.5e-4, 1.25e-4]),
+#        ('l2_regularization', [8e-3, 4e-3, 2e-3, 1e-3, 5e-4]),
+        ('learningRate', [0.008, 0.0002]),
+        ('hiddenUnits', [[50, 50, 50], [10, 10, 10, 10, 10, 10]])
     ]
 
     classifiers = {}
